@@ -37,7 +37,7 @@ Page({
     details: {},
     goodsTabArray: [
       {
-        name: '商品',
+        name: '课程',
         value: '', // 空字符串代表置顶
       },
       {
@@ -54,7 +54,7 @@ Page({
         iconName: 'home',
       },
       {
-        title: '购物车',
+        title: '待购',
         url: '/pages/cart/index',
         iconName: 'cart',
         showCartNum: true,
@@ -220,7 +220,7 @@ Page({
     Toast({
       context: this,
       selector: '#t-toast',
-      message: isAllSelectedSku ? '点击加入购物车' : '请选择规格',
+      message: isAllSelectedSku ? '点击加入待购' : '请选择规格',
       icon: '',
       duration: 1000,
     });

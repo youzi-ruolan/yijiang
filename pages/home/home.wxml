@@ -1,58 +1,208 @@
-<view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
-  <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
-</view>
-<view class="home-page-header">
-  <view class="search" bind:tap="navToSearchPage">
-    <t-search
-      t-class-input="t-search__input"
-      t-class-input-container="t-search__input-container"
-      placeholder="iphone 13 火热发售中"
-      leftIcon=""
-      disabled
-    >
-      <t-icon slot="left-icon" prefix="wr" name="search" size="40rpx" color="#bbb" />
-    </t-search>
-  </view>
-  <view class="swiper-wrap">
-    <t-swiper
-      wx:if="{{imgSrcs.length > 0}}"
-      current="{{current}}"
-      autoplay="{{autoplay}}"
-      duration="{{duration}}"
-      interval="{{interval}}"
-      navigation="{{navigation}}"
-      imageProps="{{swiperImageProps}}"
-      list="{{imgSrcs}}"
-      bind:click="navToActivityDetail"
-    />
-  </view>
-</view>
-<view class="home-page-container">
-  <view class="home-page-tabs">
-    <t-tabs
-      t-class="t-tabs"
-      t-class-active="tabs-external__active"
-      t-class-item="tabs-external__item"
-      defaultValue="{{0}}"
-      space-evenly="{{false}}"
-      bind:change="tabChangeHandle"
-    >
-      <t-tab-panel
-        wx:for="{{tabList}}"
-        wx:for-index="index"
-        wx:key="index"
-        label="{{item.text}}"
-        value="{{item.key}}"
-      />
-    </t-tabs>
+<view class="home-page">
+  <view class="home-skeleton" wx:if="{{pageLoading}}">
+    <view class="skeleton-block skeleton-header"></view>
+    <view class="skeleton-block skeleton-search"></view>
+    <view class="skeleton-block skeleton-banner"></view>
+    <view class="skeleton-grid">
+      <view class="skeleton-chip" wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this"></view>
+    </view>
+    <view class="skeleton-grid cards">
+      <view class="skeleton-card" wx:for="{{[1,2,3,4]}}" wx:key="*this"></view>
+    </view>
   </view>
 
-  <goods-list
-    wr-class="goods-list-container"
-    goodsList="{{goodsList}}"
-    bind:click="goodListClickHandle"
-    bind:addcart="goodListAddCartHandle"
-  />
-  <load-more list-is-empty="{{!goodsList.length}}" status="{{goodsListLoadStatus}}" bind:retry="onReTry" />
-  <t-toast id="t-toast" />
+  <view class="home-shell" wx:else>
+    <view class="home-topbar">
+      <view class="title-block">
+        <view class="page-title">全部商品</view>
+        <view class="page-subtitle">{{appInfo.slogan}}</view>
+      </view>
+      <view class="topbar-actions">
+        <view class="icon-button" bindtap="navToCartPage">
+          <t-icon prefix="wr" name="cart" size="36rpx" color="#fff" />
+        </view>
+      </view>
+    </view>
+
+    <view class="search-bar" bindtap="navToSearchPage">
+      <t-icon prefix="wr" name="search" size="34rpx" color="#9ca3af" />
+      <text class="search-text">搜索 LUT / HDR / ACES / 课程</text>
+      <view class="search-tip">⌘K</view>
+    </view>
+
+    <view class="hero-wrap">
+      <swiper
+        class="hero-swiper"
+        circular
+        autoplay="{{autoplay}}"
+        interval="{{interval}}"
+        duration="{{duration}}"
+        current="{{currentBannerIndex}}"
+        bindchange="onBannerChange"
+      >
+        <block wx:for="{{bannerList}}" wx:key="id">
+          <swiper-item>
+            <view class="hero-slide" data-id="{{item.id}}" bindtap="onBannerAction">
+              <t-image class="hero-image" src="{{item.image}}" mode="aspectFill" lazy-load />
+              <view class="hero-overlay"></view>
+              <view class="hero-content">
+                <view class="hero-badge">{{item.badge}}</view>
+                <view class="hero-title">{{item.title}}</view>
+                <view class="hero-subtitle">{{item.subtitle}}</view>
+                <view class="hero-description">{{item.description}}</view>
+                <view class="hero-actions">
+                  <view class="hero-cta">{{item.buttonText}}</view>
+                  <view class="hero-secondary">Film look · Dark UI · Premium</view>
+                </view>
+              </view>
+            </view>
+          </swiper-item>
+        </block>
+      </swiper>
+
+      <view class="hero-float-cart" bindtap="navToCartPage">
+        <t-icon prefix="wr" name="cart" size="38rpx" color="#fff" />
+        <text>购物车</text>
+      </view>
+
+      <view class="hero-indicator">
+        <block wx:for="{{bannerList}}" wx:key="id">
+          <view class="indicator-dot {{currentBannerIndex === index ? 'active' : ''}}"></view>
+        </block>
+      </view>
+    </view>
+
+    <view class="metric-row">
+      <block wx:for="{{metrics}}" wx:key="id">
+        <view class="metric-card">
+          <view class="metric-value">{{item.value}}</view>
+          <view class="metric-label">{{item.label}}</view>
+        </view>
+      </block>
+    </view>
+
+    <scroll-view class="category-scroll" scroll-x show-scrollbar="false">
+      <view class="category-track">
+        <block wx:for="{{categoryList}}" wx:key="id">
+          <view
+            class="category-chip {{activeCategoryId === item.id ? 'active' : ''}}"
+            data-id="{{item.id}}"
+            data-filter-key="{{item.filterKey}}"
+            data-target="{{item.target}}"
+            bindtap="onCategoryTap"
+          >
+            {{item.name}}
+          </view>
+        </block>
+      </view>
+    </scroll-view>
+
+    <view class="section" id="inspirationSection">
+      <view class="section-head">
+        <view>
+          <view class="section-title">今日灵感</view>
+          <view class="section-subtitle">电影截图、色彩分析、LUT 拆解</view>
+        </view>
+        <view class="section-link" bindtap="navToSearchPage">探索更多</view>
+      </view>
+      <scroll-view class="inspiration-row" scroll-x show-scrollbar="false">
+        <view class="inspiration-track">
+          <block wx:for="{{inspirationList}}" wx:key="id">
+            <view class="inspiration-card" data-id="{{item.id}}" bindtap="onBannerAction">
+              <t-image class="inspiration-cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
+              <view class="inspiration-overlay"></view>
+              <view class="inspiration-body">
+                <view class="inspiration-badge">{{item.badge}}</view>
+                <view class="inspiration-title">{{item.title}}</view>
+                <view class="inspiration-subtitle">{{item.subtitle}}</view>
+              </view>
+            </view>
+          </block>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="section" id="productSection">
+      <view class="section-head">
+        <view>
+          <view class="section-title">精选商品</view>
+          <view class="section-subtitle">双列瀑布流 · 电影封面风格 · 高转化卡片</view>
+        </view>
+      </view>
+
+      <view class="product-grid">
+        <block wx:for="{{filteredProductList}}" wx:key="id">
+          <view class="product-card" data-id="{{item.id}}" bindtap="openProductCard">
+            <view class="product-cover-wrap">
+              <t-image class="product-cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
+              <view wx:if="{{item.isNew}}" class="badge badge-new">NEW</view>
+              <view wx:if="{{item.isHot}}" class="badge badge-hot">HOT</view>
+              <view
+                class="favorite-pill {{item.favorited ? 'active' : ''}}"
+                data-id="{{item.id}}"
+                catchtap="toggleFavorite"
+              >
+                {{item.favorited ? '♥ 已收藏' : '♡ 收藏'}}
+              </view>
+            </view>
+
+            <view class="product-body">
+              <view class="product-title">{{item.title}}</view>
+              <view class="product-desc">{{item.description}}</view>
+
+              <view class="author-row">
+                <t-image class="author-avatar" src="{{item.author.avatar}}" mode="aspectFill" lazy-load />
+                <view class="author-meta">
+                  <view class="author-name">{{item.author.name}}</view>
+                  <view class="author-subtitle">{{item.sales}} 人已购买</view>
+                </view>
+              </view>
+
+              <view class="stats-row">
+                <view class="stats-item">★ {{item.rating}}</view>
+                <view class="stats-item">销量 {{item.sales}}</view>
+                <view class="stats-item">收藏 {{item.favorites}}</view>
+              </view>
+
+              <view class="tag-row">
+                <block wx:for="{{item.tags}}" wx:key="*this">
+                  <view class="tag-chip">{{item}}</view>
+                </block>
+              </view>
+
+              <view class="price-row">
+                <view class="price-main">¥{{item.price}}</view>
+                <view class="price-origin">¥{{item.originalPrice}}</view>
+              </view>
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <view class="section" id="articleSection">
+      <view class="section-head">
+        <view>
+          <view class="section-title">文章与课程</view>
+          <view class="section-subtitle">HDR、ACES、Film Look 与工作流拆解</view>
+        </view>
+        <view class="section-link" bindtap="openArticleCard">查看更多</view>
+      </view>
+
+      <view class="article-list">
+        <block wx:for="{{articleList}}" wx:key="id">
+          <view class="article-card" data-id="{{item.id}}" bindtap="openArticleCard">
+            <t-image class="article-cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
+            <view class="article-body">
+              <view class="article-title">{{item.title}}</view>
+              <view class="article-meta">{{item.author}} · {{item.publishTime}}</view>
+              <view class="article-footer">{{item.views}} 次阅读</view>
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <view class="bottom-spacer"></view>
+  </view>
 </view>

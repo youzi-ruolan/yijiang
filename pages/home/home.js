@@ -1,29 +1,21 @@
-import { fetchHome } from '../../services/home/home';
-import { fetchGoodsList } from '../../services/good/fetchGoods';
-import Toast from 'tdesign-miniprogram/toast/index';
+import { HOME_MOCK } from './mock';
 
 Page({
   data: {
-    imgSrcs: [],
-    tabList: [],
-    goodsList: [],
-    goodsListLoadStatus: 0,
+    appInfo: HOME_MOCK.app,
+    metrics: HOME_MOCK.metrics,
+    bannerList: HOME_MOCK.banners,
+    categoryList: HOME_MOCK.categories,
+    inspirationList: HOME_MOCK.inspirations,
+    productList: HOME_MOCK.products,
+    filteredProductList: HOME_MOCK.products,
+    articleList: HOME_MOCK.articles,
     pageLoading: false,
-    current: 1,
+    activeCategoryId: 'all',
+    currentBannerIndex: 0,
     autoplay: true,
-    duration: '500',
-    interval: 5000,
-    navigation: { type: 'dots' },
-    swiperImageProps: { mode: 'scaleToFill' },
-  },
-
-  goodListPagination: {
-    index: 0,
-    num: 20,
-  },
-
-  privateData: {
-    tabIndex: 0,
+    duration: 700,
+    interval: 5200,
   },
 
   onShow() {
@@ -45,76 +37,101 @@ Page({
   },
 
   init() {
-    this.loadHomePage();
-  },
-
-  loadHomePage() {
-    wx.stopPullDownRefresh();
-
     this.setData({
       pageLoading: true,
+      currentBannerIndex: 0,
+      activeCategoryId: 'all',
+      filteredProductList: HOME_MOCK.products,
     });
-    fetchHome().then(({ swiper, tabList }) => {
+
+    setTimeout(() => {
       this.setData({
-        tabList,
-        imgSrcs: swiper,
         pageLoading: false,
+        metrics: HOME_MOCK.metrics,
+        bannerList: HOME_MOCK.banners,
+        categoryList: HOME_MOCK.categories,
+        inspirationList: HOME_MOCK.inspirations,
+        productList: HOME_MOCK.products,
+        filteredProductList: HOME_MOCK.products,
+        articleList: HOME_MOCK.articles,
       });
-      this.loadGoodsList(true);
+      wx.stopPullDownRefresh();
+    }, 240);
+  },
+
+  onBannerChange(event) {
+    this.setData({
+      currentBannerIndex: event.detail.current,
     });
   },
 
-  tabChangeHandle(e) {
-    this.privateData.tabIndex = e.detail;
-    this.loadGoodsList(true);
+  onBannerAction() {
+    wx.showToast({
+      title: '已进入精选推荐',
+      icon: 'none',
+    });
   },
 
-  onReTry() {
-    this.loadGoodsList();
-  },
+  onCategoryTap(event) {
+    const { id, filterKey, target } = event.currentTarget.dataset;
+    const filteredProductList =
+      filterKey && filterKey !== 'all'
+        ? HOME_MOCK.products.filter((item) => item.category === filterKey)
+        : HOME_MOCK.products;
 
-  async loadGoodsList(fresh = false) {
-    if (fresh) {
-      wx.pageScrollTo({
-        scrollTop: 0,
-      });
-    }
+    this.setData({
+      activeCategoryId: id,
+      filteredProductList,
+    });
 
-    this.setData({ goodsListLoadStatus: 1 });
-
-    const pageSize = this.goodListPagination.num;
-    let pageIndex = this.privateData.tabIndex * pageSize + this.goodListPagination.index + 1;
-    if (fresh) {
-      pageIndex = 0;
-    }
-
-    try {
-      const nextList = await fetchGoodsList(pageIndex, pageSize);
-      this.setData({
-        goodsList: fresh ? nextList : this.data.goodsList.concat(nextList),
-        goodsListLoadStatus: 0,
-      });
-
-      this.goodListPagination.index = pageIndex;
-      this.goodListPagination.num = pageSize;
-    } catch (err) {
-      this.setData({ goodsListLoadStatus: 3 });
+    if (target) {
+      this.scrollToSection(target);
     }
   },
 
-  goodListClickHandle(e) {
-    const { index } = e.detail;
-    const { spuId } = this.data.goodsList[index];
+  toggleFavorite(event) {
+    const { id } = event.currentTarget.dataset;
+    const nextProductList = this.data.productList.map((item) => {
+      if (item.id !== id) {
+        return item;
+      }
+
+      return {
+        ...item,
+        favorited: !item.favorited,
+        favorites: item.favorited ? item.favorites - 1 : item.favorites + 1,
+      };
+    });
+
+    const nextFilteredProductList = nextProductList.filter((item) => {
+      const activeCategory = this.data.activeCategoryId;
+      if (activeCategory === 'all') {
+        return true;
+      }
+      const category = HOME_MOCK.categories.find((entry) => entry.id === activeCategory);
+      if (!category || category.filterKey === 'all') {
+        return true;
+      }
+      return item.category === category.filterKey;
+    });
+
+    this.setData({
+      productList: nextProductList,
+      filteredProductList: nextFilteredProductList,
+    });
+  },
+
+  openProductCard(event) {
+    const { id } = event.currentTarget.dataset;
     wx.navigateTo({
-      url: `/pages/goods/details/index?spuId=${spuId}`,
+      url: `/pages/goods/details/index?spuId=${id}`,
     });
   },
 
-  goodListAddCartHandle() {
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: '点击加入购物车',
+  openArticleCard() {
+    wx.showToast({
+      title: '文章详情待接入',
+      icon: 'none',
     });
   },
 
@@ -122,10 +139,27 @@ Page({
     wx.navigateTo({ url: '/pages/goods/search/index' });
   },
 
-  navToActivityDetail({ detail }) {
-    const { index: promotionID = 0 } = detail || {};
-    wx.navigateTo({
-      url: `/pages/promotion/promotion-detail/index?promotion_id=${promotionID}`,
+  navToCartPage() {
+    wx.switchTab({
+      url: '/pages/cart/index',
+    });
+  },
+
+  scrollToSection(sectionId) {
+    const query = wx.createSelectorQuery().in(this);
+    query.select(`#${sectionId}`).boundingClientRect();
+    query.selectViewport().scrollOffset();
+    query.exec((res) => {
+      const rect = res?.[0];
+      const viewport = res?.[1];
+      if (!rect || !viewport) {
+        return;
+      }
+
+      wx.pageScrollTo({
+        scrollTop: rect.top + viewport.scrollTop - 20,
+        duration: 300,
+      });
     });
   },
 });
