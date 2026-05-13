@@ -92,7 +92,9 @@
     <view class="pay-item">
       <text>订单备注</text>
       <view class="pay-item__right" data-storenoteindex="{{0}}" catchtap="onNotes">
-        <text class="pay-remark">{{getNotes(storeInfoList, 0) ? getNotes(storeInfoList, 0) :'选填，可填写交付偏好或备注需求'}}</text>
+        <text class="pay-remark"
+          >{{getNotes(storeInfoList, 0) ? getNotes(storeInfoList, 0) :'选填，可填写交付偏好或备注需求'}}</text
+        >
         <t-icon name="chevron-right" size="32rpx" color="#BBBBBB" />
       </view>
     </view>

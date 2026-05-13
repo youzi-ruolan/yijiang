@@ -131,9 +131,7 @@ Page({
     const { id, filterKey, target } = event.currentTarget.dataset;
     const sourceProducts = this.data.productList || [];
     const filteredProductList =
-      filterKey && filterKey !== 'all'
-        ? sourceProducts.filter((item) => item.category === filterKey)
-        : sourceProducts;
+      filterKey && filterKey !== 'all' ? sourceProducts.filter((item) => item.category === filterKey) : sourceProducts;
 
     this.setData({
       activeCategoryId: id,

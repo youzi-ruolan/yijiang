@@ -85,17 +85,15 @@ export class PublicService {
 
     return statusMap.map((item) => ({
       tabType: item.tabType,
-      orderNum:
-        item.tabType === -1
-          ? orders.length
-          : orders.filter((order) => item.matcher(order.status)).length,
+      orderNum: item.tabType === -1 ? orders.length : orders.filter((order) => item.matcher(order.status)).length,
     }));
   }
 
   async getOrderSettle(payload: Record<string, unknown>) {
     const goodsRequestList = Array.isArray(payload.goodsRequestList) ? payload.goodsRequestList : [];
     const storeInfoList = Array.isArray(payload.storeInfoList) ? payload.storeInfoList : [];
-    const rawUserAddressReq = payload.userAddressReq && typeof payload.userAddressReq === 'object' ? payload.userAddressReq : null;
+    const rawUserAddressReq =
+      payload.userAddressReq && typeof payload.userAddressReq === 'object' ? payload.userAddressReq : null;
     const userAddressReq =
       rawUserAddressReq ??
       ({
@@ -140,7 +138,10 @@ export class PublicService {
       };
     });
 
-    const totalSalePrice = skuDetailVos.reduce((sum, item) => sum + Number(item.settlePrice || 0) * Number(item.quantity || 0), 0);
+    const totalSalePrice = skuDetailVos.reduce(
+      (sum, item) => sum + Number(item.settlePrice || 0) * Number(item.quantity || 0),
+      0,
+    );
     const totalGoodsCount = skuDetailVos.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
     const totalPromotionAmount = 0;
 

@@ -87,7 +87,9 @@ export class ProductsService {
       ...(payload.format !== undefined ? { format: payload.format } : {}),
       ...(payload.accent !== undefined ? { accent: payload.accent } : {}),
       ...(payload.category !== undefined ? { category: payload.category } : {}),
-      ...(payload.author !== undefined ? { authorName: payload.author?.name ?? '', authorAvatar: payload.author?.avatar ?? '' } : {}),
+      ...(payload.author !== undefined
+        ? { authorName: payload.author?.name ?? '', authorAvatar: payload.author?.avatar ?? '' }
+        : {}),
       ...(payload.isNew !== undefined ? { isNew: payload.isNew } : {}),
       ...(payload.isHot !== undefined ? { isHot: payload.isHot } : {}),
       ...(payload.sort !== undefined ? { sort: payload.sort } : {}),

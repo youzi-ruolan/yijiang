@@ -42,14 +42,16 @@ export class CategoriesService {
 
       if (category.filterKey !== 'all' && category.target === 'productSection') {
         const fallbackCategory =
-          (await tx.category.findFirst({
-            where: {
-              target: 'productSection',
-              id: { not: id },
-              filterKey: { not: 'all' },
-            },
-            orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }],
-          }))?.filterKey || 'all';
+          (
+            await tx.category.findFirst({
+              where: {
+                target: 'productSection',
+                id: { not: id },
+                filterKey: { not: 'all' },
+              },
+              orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }],
+            })
+          )?.filterKey || 'all';
 
         await tx.product.updateMany({
           where: { category: category.filterKey },

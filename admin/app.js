@@ -506,10 +506,10 @@ function saveProduct(formData) {
     state.dataset.products = state.dataset.products.map((item) =>
       item.id === state.editingProductId
         ? {
-            ...item,
-            ...payload,
-            gallery: [payload.cover, payload.cover],
-          }
+          ...item,
+          ...payload,
+          gallery: [payload.cover, payload.cover],
+        }
         : item,
     );
   } else {

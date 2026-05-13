@@ -48,15 +48,9 @@
       </view>
       <view class="goods-intro">{{intro}}</view>
       <view class="goods-meta" wx:if="{{details.author || details.accent || details.format}}">
-        <view class="goods-meta-item" wx:if="{{details.author}}">
-          创作者 · {{details.author.name}}
-        </view>
-        <view class="goods-meta-item" wx:if="{{details.accent}}">
-          风格 · {{details.accent}}
-        </view>
-        <view class="goods-meta-item" wx:if="{{details.format}}">
-          交付 · {{details.format}}
-        </view>
+        <view class="goods-meta-item" wx:if="{{details.author}}"> 创作者 · {{details.author.name}} </view>
+        <view class="goods-meta-item" wx:if="{{details.accent}}"> 风格 · {{details.accent}} </view>
+        <view class="goods-meta-item" wx:if="{{details.format}}"> 交付 · {{details.format}} </view>
       </view>
       <view class="goods-tags" wx:if="{{details.spuTagList && details.spuTagList.length}}">
         <view class="goods-meta-tag" wx:for="{{details.spuTagList}}" wx:key="id">{{item.title}}</view>

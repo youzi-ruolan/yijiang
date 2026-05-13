@@ -40,9 +40,7 @@ function buildCategoryList(source = HOME_MOCK) {
     } else if (category.target === 'articleSection') {
       children = articles.map(buildArticleChild);
     } else if (category.filterKey && category.filterKey !== 'all') {
-      children = products
-        .filter((item) => item.category === category.filterKey)
-        .map(buildProductChild);
+      children = products.filter((item) => item.category === category.filterKey).map(buildProductChild);
     } else {
       children = products.map(buildProductChild);
     }
@@ -56,8 +54,8 @@ function buildCategoryList(source = HOME_MOCK) {
         category.target === 'inspirationSection'
           ? '查看案例灵感与色彩方向'
           : category.target === 'articleSection'
-            ? '浏览调色技巧与专题内容'
-            : `精选 ${children.length} 个可直接使用的商品`,
+          ? '浏览调色技巧与专题内容'
+          : `精选 ${children.length} 个可直接使用的商品`,
       children,
     };
   });

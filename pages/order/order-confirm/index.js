@@ -121,7 +121,9 @@ Page({
     const data = this.handleResToGoodsCard(resData);
     const isDigitalOrder =
       !resData.userAddress ||
-      `${resData.userAddress.receiverAddress || resData.userAddress.detailAddress || ''}`.includes('数字商品无需物流配送');
+      `${resData.userAddress.receiverAddress || resData.userAddress.detailAddress || ''}`.includes(
+        '数字商品无需物流配送',
+      );
     this.userAddressReq = resData.userAddress;
 
     this.setData({

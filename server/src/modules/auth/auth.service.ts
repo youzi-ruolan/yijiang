@@ -5,10 +5,7 @@ import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly configService: ConfigService, private readonly prisma: PrismaService) {}
 
   async login(payload: LoginDto) {
     const username = payload.username.trim();

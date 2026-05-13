@@ -111,8 +111,8 @@ Page({
           const tags = Array.isArray(v.tags)
             ? v.tags
             : Array.isArray(v.spuTagList)
-              ? v.spuTagList.map((u) => u.title)
-              : [];
+            ? v.spuTagList.map((u) => u.title)
+            : [];
           v.tags = tags;
           v.hideKey = { desc: true };
         });

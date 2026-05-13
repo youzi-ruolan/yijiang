@@ -416,7 +416,8 @@ Page({
         return result;
       }, []) || [];
 
-    const defaultAttrStr = defaultSpecInfo.length > 0 ? `件，${defaultSpecInfo.map((item) => item.specValue).join('，')}` : '';
+    const defaultAttrStr =
+      defaultSpecInfo.length > 0 ? `件，${defaultSpecInfo.map((item) => item.specValue).join('，')}` : '';
 
     this.setData({
       details,
