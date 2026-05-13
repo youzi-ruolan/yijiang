@@ -11,9 +11,9 @@ Page({
   data: {
     tabs: [
       { key: -1, text: '全部' },
-      { key: OrderStatus.PENDING_PAYMENT, text: '待付款', info: '' },
-      { key: OrderStatus.PENDING_DELIVERY, text: '待发货', info: '' },
-      { key: OrderStatus.PENDING_RECEIPT, text: '待收货', info: '' },
+      { key: OrderStatus.PENDING_PAYMENT, text: '待处理', info: '' },
+      { key: OrderStatus.PENDING_DELIVERY, text: '待交付', info: '' },
+      { key: OrderStatus.PENDING_RECEIPT, text: '已交付', info: '' },
       { key: OrderStatus.COMPLETE, text: '已完成', info: '' },
     ],
     curTab: -1,
@@ -90,7 +90,7 @@ Page({
               storeId: order.storeId,
               storeName: order.storeName,
               status: order.orderStatus,
-              statusDesc: order.orderStatusName,
+              statusDesc: this.normalizeOrderStatus(order.orderStatus, order.orderStatusName),
               amount: order.paymentAmount,
               totalAmount: order.totalAmount,
               logisticsNo: order.logisticsVO.logisticsNo,
@@ -174,5 +174,13 @@ Page({
     wx.navigateTo({
       url: `/pages/order/order-detail/index?orderNo=${order.orderNo}`,
     });
+  },
+
+  normalizeOrderStatus(status, statusDesc) {
+    if (status === OrderStatus.PENDING_PAYMENT) return '待处理';
+    if (status === OrderStatus.PENDING_DELIVERY) return '待交付';
+    if (status === OrderStatus.PENDING_RECEIPT) return '已交付';
+    if (status === OrderStatus.COMPLETE) return '已完成';
+    return statusDesc || '已关闭';
   },
 });

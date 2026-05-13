@@ -38,7 +38,7 @@
       </view>
 
       <!-- 物流 -->
-      <view class="order-logistics" wx:if="{{logisticsNodes[0]}}" bindtap="onDeliveryClick">
+      <view class="order-logistics" wx:if="{{!isDigitalOrder && logisticsNodes[0]}}" bindtap="onDeliveryClick">
         <t-icon name="deliver" size="40rpx" class="logistics-icon" prefix="wr" />
         <view class="logistics-content">
           <view>{{logisticsNodes[0].desc}}</view>
@@ -46,9 +46,16 @@
         </view>
         <t-icon class="logistics-back" name="arrow_forward" size="36rpx" prefix="wr" />
       </view>
-      <view class="border-bottom" wx:if="{{logisticsNodes[0]}}" />
+      <view class="border-bottom" wx:if="{{!isDigitalOrder && logisticsNodes[0]}}" />
       <!-- 收货地址 -->
-      <view class="order-logistics">
+      <view class="order-logistics order-logistics--digital" wx:if="{{isDigitalOrder}}">
+        <t-icon name="time-filled" size="40rpx" class="logistics-icon" prefix="wr" />
+        <view class="logistics-content">
+          <view>数字商品自动交付</view>
+          <view class="logistics-time">支付成功后可在订单详情中查看交付内容，当前状态：{{digitalStatusText}}</view>
+        </view>
+      </view>
+      <view class="order-logistics" wx:else>
         <t-icon name="location" size="40rpx" class="logistics-icon" prefix="wr" />
         <view class="logistics-content">
           <view>{{order.logisticsVO.receiverName + ' '}}{{order.logisticsVO.receiverPhone}}</view>
@@ -136,6 +143,12 @@
         <text>备注</text>
         <view class="pay-item__right">
           <text class="order-no normal-color">{{order.remark || '-'}}</text>
+        </view>
+      </view>
+      <view class="pay-item" wx:if="{{isDigitalOrder}}">
+        <text>交付方式</text>
+        <view class="pay-item__right">
+          <text class="order-no normal-color">在线交付</text>
         </view>
       </view>
       <view class="border-bottom border-bottom-margin" />

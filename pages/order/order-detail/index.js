@@ -18,6 +18,8 @@ Page({
     logisticsNodes: [],
     /** 订单评论状态 */
     orderHasCommented: true,
+    isDigitalOrder: false,
+    digitalStatusText: '',
   },
 
   onLoad(query) {
@@ -96,7 +98,7 @@ Page({
         storeId: order.storeId,
         storeName: order.storeName,
         status: order.orderStatus,
-        statusDesc: order.orderStatusName,
+        statusDesc: this.normalizeOrderStatus(order.orderStatus, order.orderStatusName),
         amount: order.paymentAmount,
         totalAmount: order.goodsAmountApp,
         logisticsNo: order.logisticsVO.logisticsNo,
@@ -122,6 +124,8 @@ Page({
       this.setData({
         order,
         _order,
+        isDigitalOrder: this.isDigitalOrder(order),
+        digitalStatusText: this.normalizeOrderStatus(order.orderStatus, order.orderStatusName),
         formatCreateTime: formatTime(parseFloat(`${order.createTime}`), 'YYYY-MM-DD HH:mm'), // 格式化订单创建时间
         countDownTime: this.computeCountDownTime(order),
         addressEditable:
@@ -134,6 +138,18 @@ Page({
         logisticsNodes: this.flattenNodes(order.trajectoryVos || []),
       });
     });
+  },
+
+  isDigitalOrder(order) {
+    return `${order?.logisticsVO?.receiverAddress || ''}`.includes('数字商品无需物流配送');
+  },
+
+  normalizeOrderStatus(status, statusDesc) {
+    if (status === OrderStatus.PENDING_PAYMENT) return '待处理';
+    if (status === OrderStatus.PENDING_DELIVERY) return '待交付';
+    if (status === OrderStatus.PENDING_RECEIPT) return '已交付';
+    if (status === OrderStatus.COMPLETE) return '已完成';
+    return statusDesc || '已关闭';
   },
 
   // 展开物流节点

@@ -47,6 +47,12 @@
         </view>
       </view>
       <view class="goods-intro">{{intro}}</view>
+      <view class="goods-highlights" wx:if="{{servicePromises.length}}">
+        <view class="goods-highlight" wx:for="{{servicePromises}}" wx:key="*this">
+          <t-icon name="check-circle-filled" size="24rpx" color="#ff6f61" />
+          <text>{{item}}</text>
+        </view>
+      </view>
       <view class="goods-meta" wx:if="{{details.author || details.accent || details.format}}">
         <view class="goods-meta-item" wx:if="{{details.author}}"> 创作者 · {{details.author.name}} </view>
         <view class="goods-meta-item" wx:if="{{details.accent}}"> 风格 · {{details.accent}} </view>
@@ -54,6 +60,9 @@
       </view>
       <view class="goods-tags" wx:if="{{details.spuTagList && details.spuTagList.length}}">
         <view class="goods-meta-tag" wx:for="{{details.spuTagList}}" wx:key="id">{{item.title}}</view>
+      </view>
+      <view class="goods-facts" wx:if="{{quickFacts.length}}">
+        <view class="goods-fact" wx:for="{{quickFacts}}" wx:key="*this">{{item}}</view>
       </view>
     </view>
     <view class="spu-select" bindtap="showSkuSelectPopup">
@@ -95,28 +104,22 @@
     </view>
   </view>
   <view class="desc-content">
+    <view class="detail-block detail-block--card" wx:if="{{deliverables.length > 0 || usageNotice.length > 0}}">
+      <view class="detail-card-group">
+        <view class="detail-card" wx:if="{{deliverables.length > 0}}">
+          <view class="detail-card__title">交付内容</view>
+          <view class="detail-card__item" wx:for="{{deliverables}}" wx:key="index">{{item}}</view>
+        </view>
+        <view class="detail-card" wx:if="{{usageNotice.length > 0}}">
+          <view class="detail-card__title">使用说明</view>
+          <view class="detail-card__item" wx:for="{{usageNotice}}" wx:key="index">{{item}}</view>
+        </view>
+      </view>
+    </view>
     <view class="detail-block" wx:if="{{detailContent.length > 0}}">
       <view class="detail-block__title">商品详情</view>
       <view class="detail-block__list">
         <view wx:for="{{detailContent}}" wx:key="index" class="detail-block__item">{{item}}</view>
-      </view>
-    </view>
-
-    <view class="detail-block detail-block--plain" wx:if="{{deliverables.length > 0}}">
-      <view class="detail-block__title">交付内容</view>
-      <view class="detail-block__list">
-        <view wx:for="{{deliverables}}" wx:key="index" class="detail-block__item detail-block__item--dot">
-          {{item}}
-        </view>
-      </view>
-    </view>
-
-    <view class="detail-block detail-block--plain" wx:if="{{usageNotice.length > 0}}">
-      <view class="detail-block__title">使用说明</view>
-      <view class="detail-block__list">
-        <view wx:for="{{usageNotice}}" wx:key="index" class="detail-block__item detail-block__item--dot">
-          {{item}}
-        </view>
       </view>
     </view>
 

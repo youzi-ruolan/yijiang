@@ -64,6 +64,10 @@
   position: relative;
 }
 
+.order-detail .order-logistics--digital {
+  background: linear-gradient(180deg, #fff8f3 0%, #ffffff 100%);
+}
+
 .order-logistics .logistics-icon {
   width: 40rpx;
   height: 40rpx;
@@ -88,7 +92,7 @@
 }
 
 .order-logistics .edit-text {
-  color: #fa4126;
+  color: #ff6f61;
   font-size: 26rpx;
   line-height: 36rpx;
 }
@@ -146,7 +150,7 @@
   font-weight: bold;
 }
 .order-detail .pay-detail .pay-item .primary {
-  color: #fa4126;
+  color: #ff6f61;
 }
 .order-detail .pay-detail .pay-item .max-size {
   font-size: 36rpx;
@@ -241,5 +245,5 @@
 
 .t-button {
   --td-button-default-color: #000;
-  --td-button-primary-text-color: #fa4126;
+  --td-button-primary-text-color: #ff6f61;
 }
