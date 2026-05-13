@@ -1,10 +1,15 @@
 <view class="search-page">
+  <view class="search-hero">
+    <view class="search-hero__eyebrow">艺匠调色</view>
+    <view class="search-hero__title">搜索你需要的调色资产</view>
+    <view class="search-hero__desc">支持预设、LUT、模板、课程等关键词快速查找</view>
+  </view>
   <t-search
     t-class-input-container="t-class__input-container"
     t-class-input="t-search__input"
     value="{{searchValue}}"
     leftIcon=""
-    placeholder="iPhone12pro"
+    placeholder="搜索预设 / LUT / 模板 / 课程"
     bind:submit="handleSubmit"
     focus
   >
@@ -17,17 +22,20 @@
         <text class="search-clear" bind:tap="handleClearHistory">清除</text>
       </view>
       <view class="search-content">
-        <view
-          class="search-item"
-          hover-class="hover-history-item"
-          wx:for="{{historyWords}}"
-          bind:tap="handleHistoryTap"
-          bindlongpress="deleteCurr"
-          data-index="{{index}}"
-          wx:key="*this"
-        >
-          {{item}}
-        </view>
+        <block wx:if="{{historyWords.length}}">
+          <view
+            class="search-item"
+            hover-class="hover-history-item"
+            wx:for="{{historyWords}}"
+            bind:tap="handleHistoryTap"
+            bindlongpress="deleteCurr"
+            data-index="{{index}}"
+            wx:key="*this"
+          >
+            {{item}}
+          </view>
+        </block>
+        <view class="search-empty" wx:else>还没有搜索记录，试试搜索「胶片 LUT」或「人像预设」</view>
       </view>
     </view>
     <view class="popular-wrap">
@@ -39,7 +47,7 @@
           class="search-item"
           hover-class="hover-history-item"
           wx:for="{{popularWords}}"
-          bind:tap="handleHistoryTap"
+          bind:tap="handlePopularTap"
           data-index="{{index}}"
           wx:key="*this"
         >

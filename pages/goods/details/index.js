@@ -5,8 +5,9 @@ import {
   getGoodsDetailsCommentList,
   getGoodsDetailsCommentsCount,
 } from '../../../services/good/fetchGoodsDetailsComments';
-
 import { cdnBase } from '../../../config/index';
+import { getHomeGoodById } from '../../../utils/home-goods';
+import { addLocalCartItem, getLocalCartCount } from '../../../utils/local-cart';
 
 const imgPrefix = `${cdnBase}/`;
 
@@ -46,10 +47,10 @@ Page({
       },
     ],
     storeLogo: `${imgPrefix}common/store-logo.png`,
-    storeName: '云mall标准版旗舰店',
+    storeName: '艺匠调色数字资产商店',
     jumpArray: [
       {
-        title: '首页',
+        title: '全部商品',
         url: '/pages/home/home',
         iconName: 'home',
       },
@@ -86,6 +87,10 @@ Page({
     duration: 500,
     interval: 5000,
     soldNum: 0, // 已售数量
+    intro: '',
+    detailContent: [],
+    deliverables: [],
+    usageNotice: [],
   },
 
   handlePopupHide() {
@@ -117,12 +122,22 @@ Page({
     });
   },
 
+  onShow() {
+    this.refreshCartNum();
+  },
+
   showCurImg(e) {
-    const { index } = e.detail;
+    const index = e.detail?.index ?? e.currentTarget?.dataset?.index ?? 0;
     const { images } = this.data.details;
     wx.previewImage({
       current: images[index],
       urls: images, // 需要预览的图片http链接列表
+    });
+  },
+
+  handleSwiperChange(e) {
+    this.setData({
+      current: e.detail.current || 0,
     });
   },
 
@@ -153,7 +168,7 @@ Page({
       selectedAttrStr += `，${item.specValue}  `;
     });
     // eslint-disable-next-line array-callback-return
-    const skuItem = skuArray.filter((item) => {
+    const skuItems = skuArray.filter((item) => {
       let status = true;
       (item.specInfo || []).forEach((subItem) => {
         if (!selectedSku[subItem.specId] || selectedSku[subItem.specId] !== subItem.specValueId) {
@@ -162,6 +177,7 @@ Page({
       });
       if (status) return item;
     });
+    const skuItem = skuItems[0] || null;
     this.selectSpecsName(selectedSkuValues.length > 0 ? selectedAttrStr : '');
     if (skuItem) {
       this.setData({
@@ -217,12 +233,62 @@ Page({
 
   addCart() {
     const { isAllSelectedSku } = this.data;
+    if (isAllSelectedSku) {
+      const cartItem = this.buildCartItem();
+      addLocalCartItem(cartItem, this.data.buyNum);
+      this.refreshCartNum();
+      this.handlePopupHide();
+      const tabBar = this.getTabBar && this.getTabBar();
+      if (tabBar && tabBar.updateCartCount) {
+        tabBar.updateCartCount();
+      }
+    }
     Toast({
       context: this,
       selector: '#t-toast',
-      message: isAllSelectedSku ? '点击加入待购' : '请选择规格',
+      message: isAllSelectedSku ? '已加入购物车' : '请选择规格',
       icon: '',
       duration: 1000,
+    });
+  },
+
+  buildCartItem() {
+    const { details, selectItem, buyNum } = this.data;
+    const skuData = Array.isArray(selectItem) ? selectItem[0] : selectItem;
+    const fallbackSku = this.data.skuArray[0] || {};
+    const currentSku = skuData || fallbackSku;
+    const price = this.data.selectSkuSellsPrice || details.minSalePrice || 0;
+    const specInfo = (currentSku.specInfo || []).map((item) => ({
+      specTitle: item.specTitle || details.specList?.find((spec) => spec.specId === item.specId)?.title || '',
+      specValue:
+        item.specValue ||
+        details.specList
+          ?.find((spec) => spec.specId === item.specId)
+          ?.specValueList?.find((specValue) => specValue.specValueId === item.specValueId)?.specValue ||
+        '',
+    }));
+
+    return {
+      uid: `${details.spuId}_${currentSku.skuId || 'default'}`,
+      saasId: details.saasId || '88888888',
+      storeId: details.storeId || '1000',
+      storeName: '艺匠调色数字资产商店',
+      spuId: details.spuId,
+      skuId: currentSku.skuId || `${details.spuId}_default`,
+      title: details.title,
+      thumb: details.primaryImage,
+      primaryImage: details.primaryImage,
+      quantity: buyNum || 1,
+      price: `${price}`,
+      originPrice: `${details.maxLinePrice || details.minLinePrice || price}`,
+      specInfo,
+      joinCartTime: new Date().toISOString(),
+    };
+  },
+
+  refreshCartNum() {
+    this.setData({
+      cartNum: getLocalCartCount(),
     });
   },
 
@@ -301,39 +367,99 @@ Page({
     });
   },
 
-  getDetail(spuId) {
-    Promise.all([fetchGood(spuId), fetchActivityList()]).then((res) => {
-      const [details, activityList] = res;
-      const skuArray = [];
-      const { skuList, primaryImage, isPutOnSale, minSalePrice, maxSalePrice, maxLinePrice, soldNum } = details;
-      skuList.forEach((item) => {
-        skuArray.push({
-          skuId: item.skuId,
-          quantity: item.stockInfo ? item.stockInfo.stockQuantity : 0,
-          specInfo: item.specInfo,
-        });
-      });
-      const promotionArray = [];
-      activityList.forEach((item) => {
-        promotionArray.push({
-          tag: item.promotionSubCode === 'MYJ' ? '满减' : '满折',
-          label: '满100元减99.9元',
-        });
-      });
-      this.setData({
-        details,
-        activityList,
-        isStock: details.spuStockQuantity > 0,
-        maxSalePrice: maxSalePrice ? parseInt(maxSalePrice) : 0,
-        maxLinePrice: maxLinePrice ? parseInt(maxLinePrice) : 0,
-        minSalePrice: minSalePrice ? parseInt(minSalePrice) : 0,
-        list: promotionArray,
-        skuArray: skuArray,
-        primaryImage,
-        soldout: isPutOnSale === 0,
-        soldNum,
+  setDetailData(details, activityList = []) {
+    const skuArray = [];
+    const {
+      skuList = [],
+      primaryImage,
+      minSalePrice,
+      maxSalePrice,
+      maxLinePrice,
+      soldNum,
+      intro,
+      detailContent = [],
+      deliverables = [],
+      usageNotice = [],
+    } = details;
+
+    skuList.forEach((item) => {
+      skuArray.push({
+        skuId: item.skuId,
+        quantity: 1,
+        specInfo: item.specInfo,
+        price: item.priceInfo?.[0]?.price || minSalePrice || 0,
       });
     });
+
+    const promotionArray = [];
+    activityList.forEach((item) => {
+      promotionArray.push({
+        tag: item.promotionSubCode === 'MYJ' ? '满减' : '满折',
+        label: '满100元减99.9元',
+      });
+    });
+
+    const defaultSpecInfo =
+      skuList?.[0]?.specInfo?.reduce((result, item) => {
+        const specTitle = details.specList?.find((spec) => spec.specId === item.specId)?.title || '';
+        const specValue =
+          item.specValue ||
+          details.specList
+            ?.find((spec) => spec.specId === item.specId)
+            ?.specValueList?.find((specValueItem) => specValueItem.specValueId === item.specValueId)?.specValue ||
+          '';
+
+        result.push({
+          specTitle,
+          specValue,
+        });
+        return result;
+      }, []) || [];
+
+    const defaultAttrStr = defaultSpecInfo.length > 0 ? `件，${defaultSpecInfo.map((item) => item.specValue).join('，')}` : '';
+
+    this.setData({
+      details,
+      intro: intro || details.intro || details.description || '',
+      activityList,
+      isStock: true,
+      maxSalePrice: maxSalePrice ? parseInt(maxSalePrice) : 0,
+      maxLinePrice: maxLinePrice ? parseInt(maxLinePrice) : 0,
+      minSalePrice: minSalePrice ? parseInt(minSalePrice) : 0,
+      list: promotionArray,
+      skuArray,
+      skuList,
+      primaryImage,
+      specImg: primaryImage,
+      soldout: false,
+      soldNum,
+      isAllSelectedSku: true,
+      selectedAttrStr: defaultAttrStr,
+      selectItem: skuArray[0] || null,
+      selectSkuSellsPrice: skuArray[0]?.price || minSalePrice || 0,
+      detailContent,
+      deliverables,
+      usageNotice,
+    });
+  },
+
+  async getDetail(spuId) {
+    try {
+      const [details, activityList] = await Promise.all([fetchGood(spuId), fetchActivityList()]);
+      if (details) {
+        this.setDetailData(details, activityList || []);
+        this.refreshCartNum();
+        return;
+      }
+    } catch (error) {
+      console.error('fetch detail error:', error);
+    }
+
+    const localGood = getHomeGoodById(spuId);
+    if (localGood) {
+      this.setDetailData(localGood, []);
+      this.refreshCartNum();
+    }
   },
 
   async getCommentsList() {
@@ -413,6 +539,7 @@ Page({
     this.setData({
       spuId: spuId,
     });
+    this.refreshCartNum();
     this.getDetail(spuId);
     this.getCommentsList(spuId);
     this.getCommentsStatistics(spuId);

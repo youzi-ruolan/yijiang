@@ -1,8 +1,18 @@
 <view class="wrap">
+  <view class="category-hero" wx:if="{{activeCategory}}">
+    <view class="category-hero__content">
+      <view class="category-hero__eyebrow">分类导购</view>
+      <view class="category-hero__title">{{activeCategory.name}}</view>
+      <view class="category-hero__desc">{{activeCategory.description}}</view>
+      <view class="category-hero__meta">{{activeCategory.count}} 个内容</view>
+    </view>
+    <view class="category-hero__action" bindtap="onSearchTap">搜索商品</view>
+  </view>
   <goods-category
-    level="{{3}}"
+    level="{{2}}"
     custom-class="goods-category-class"
     category="{{list}}"
+    bind:change="onCategoryTabChange"
     bind:changeCategory="onChange"
   />
 </view>

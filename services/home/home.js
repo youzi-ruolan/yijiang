@@ -1,4 +1,5 @@
 import { config, cdnBase } from '../../config/index';
+import { apiRequest } from '../_utils/request';
 
 /** 获取首页数据 */
 function mockFetchHome() {
@@ -44,6 +45,11 @@ function mockFetchHome() {
 
 /** 获取首页数据 */
 export function fetchHome() {
+  if (config.enableBackendApi) {
+    return apiRequest({
+      url: '/api/home',
+    });
+  }
   if (config.useMock) {
     return mockFetchHome();
   }

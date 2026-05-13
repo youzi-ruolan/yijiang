@@ -1,5 +1,6 @@
 import { config } from '../../config/index';
 import { mockIp, mockReqId } from '../../utils/mock';
+import { apiRequest } from '../_utils/request';
 
 /** 获取结算mock数据 */
 function mockFetchSettleDetail(params) {
@@ -36,6 +37,13 @@ function mockDispatchCommitPay() {
 
 /** 获取结算数据 */
 export function fetchSettleDetail(params) {
+  if (config.enableBackendApi) {
+    return apiRequest({
+      url: '/api/orders/settle',
+      method: 'POST',
+      data: params,
+    });
+  }
   if (config.useMock) {
     return mockFetchSettleDetail(params);
   }
@@ -47,6 +55,13 @@ export function fetchSettleDetail(params) {
 
 /* 提交订单 */
 export function dispatchCommitPay(params) {
+  if (config.enableBackendApi) {
+    return apiRequest({
+      url: '/api/orders',
+      method: 'POST',
+      data: params,
+    });
+  }
   if (config.useMock) {
     return mockDispatchCommitPay(params);
   }

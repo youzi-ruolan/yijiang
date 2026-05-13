@@ -48,69 +48,6 @@
   text-overflow: ellipsis;
   margin-left: 12rpx;
 }
-.cart-group .cart-store__content .get-coupon {
-  width: 112rpx;
-  height: 40rpx;
-  border-radius: 20rpx;
-  background-color: #ffecf9;
-  line-height: 40rpx;
-  text-align: center;
-  font-size: 26rpx;
-  color: #fa4126;
-}
-
-.cart-group .promotion-wrap {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0rpx 24rpx 32rpx 36rpx;
-  background-color: #ffffff;
-  font-size: 24rpx;
-  line-height: 36rpx;
-  color: #222427;
-}
-.cart-group .promotion-wrap .promotion-title {
-  font-weight: bold;
-  flex: auto;
-  overflow: hidden;
-  margin-right: 20rpx;
-  display: flex;
-  align-items: center;
-}
-.cart-group .promotion-wrap .promotion-title .promotion-icon {
-  flex: none;
-  font-weight: normal;
-  display: inline-block;
-  padding: 0 8rpx;
-  color: #ffffff;
-  background: #fa4126;
-  font-size: 20rpx;
-  height: 32rpx;
-  line-height: 32rpx;
-  margin-right: 16rpx;
-  border-radius: 16rpx;
-}
-.cart-group .promotion-wrap .promotion-title .promotion-text {
-  flex: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cart-group .promotion-wrap .promotion-action {
-  flex: none;
-  color: #333333;
-}
-.cart-group .promotion-line-wrap {
-  background-color: #fff;
-  height: 2rpx;
-  display: flex;
-  justify-content: flex-end;
-}
-.cart-group .promotion-line-wrap .promotion-line {
-  width: 684rpx;
-  height: 2rpx;
-  background-color: #e6e6e6;
-}
 .cart-group .goods-item-info {
   display: flex;
   background-color: #fff;

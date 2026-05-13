@@ -1,6 +1,9 @@
 import {
+  clearSearchHistory,
+  deleteSearchHistoryItem,
   getSearchHistory,
   getSearchPopular,
+  saveSearchHistory,
 } from '../../../services/good/fetchSearchHistory';
 
 Page({
@@ -55,16 +58,14 @@ Page({
   },
 
   confirm() {
-    const { historyWords } = this.data;
     const { deleteType, deleteIndex } = this;
-    historyWords.splice(deleteIndex, 1);
     if (deleteType === 0) {
       this.setData({
-        historyWords,
+        historyWords: deleteSearchHistoryItem(deleteIndex),
         dialogShow: false,
       });
     } else {
-      this.setData({ historyWords: [], dialogShow: false });
+      this.setData({ historyWords: clearSearchHistory(), dialogShow: false });
     }
   },
 
@@ -103,15 +104,31 @@ Page({
     const { dataset } = e.currentTarget;
     const _searchValue = historyWords[dataset.index || 0] || '';
     if (_searchValue) {
+      saveSearchHistory(_searchValue);
       wx.navigateTo({
         url: `/pages/goods/result/index?searchValue=${_searchValue}`,
       });
     }
   },
 
+  handlePopularTap(e) {
+    const { popularWords } = this.data;
+    const { dataset } = e.currentTarget;
+    const searchValue = popularWords[dataset.index || 0] || '';
+    if (!searchValue) {
+      return;
+    }
+
+    saveSearchHistory(searchValue);
+    wx.navigateTo({
+      url: `/pages/goods/result/index?searchValue=${searchValue}`,
+    });
+  },
+
   handleSubmit(e) {
     const { value } = e.detail.value;
     if (value.length === 0) return;
+    saveSearchHistory(value);
     wx.navigateTo({
       url: `/pages/goods/result/index?searchValue=${value}`,
     });

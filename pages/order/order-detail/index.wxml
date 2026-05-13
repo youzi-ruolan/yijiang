@@ -100,17 +100,6 @@
           </view>
         </view>
         <view class="pay-item">
-          <text>优惠券</text>
-          <view class="pay-item__right" catchtap="onOpenCoupons">
-            <block wx:if="{{order.couponAmount}}">
-              -
-              <price fill decimalSmaller price="{{order.couponAmount}}" />
-            </block>
-            <text wx:else>无可用</text>
-            <!-- <t-icon name="chevron-right" size="32rpx" color="#BBBBBB" /> -->
-          </view>
-        </view>
-        <view class="pay-item">
           <text>{{isPaid ? '实付' : '应付'}}</text>
           <price
             fill

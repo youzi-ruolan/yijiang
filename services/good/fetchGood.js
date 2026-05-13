@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiRequest } from '../_utils/request';
 
 /** 获取商品列表 */
 function mockFetchGood(ID = 0) {
@@ -9,6 +10,11 @@ function mockFetchGood(ID = 0) {
 
 /** 获取商品列表 */
 export function fetchGood(ID = 0) {
+  if (config.enableBackendApi) {
+    return apiRequest({
+      url: `/api/products/${ID}`,
+    });
+  }
   if (config.useMock) {
     return mockFetchGood(ID);
   }

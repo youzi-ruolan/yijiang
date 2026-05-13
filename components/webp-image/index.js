@@ -20,7 +20,7 @@ Component({
     },
     webp: {
       type: Boolean,
-      value: true,
+      value: false,
     },
     lazyLoad: {
       type: Boolean,

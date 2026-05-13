@@ -1,15 +1,55 @@
 import { HOME_MOCK } from './mock';
+import { addLocalCartItem } from '../../utils/local-cart';
+import { fetchHome } from '../../services/home/home';
+import { buildCartItemFromGoods } from '../../utils/cart-item';
 
-Page({
-  data: {
+function buildDefaultState() {
+  return {
     appInfo: HOME_MOCK.app,
+    headline: HOME_MOCK.headline,
     metrics: HOME_MOCK.metrics,
+    quickEntryList: HOME_MOCK.quickEntries,
     bannerList: HOME_MOCK.banners,
     categoryList: HOME_MOCK.categories,
     inspirationList: HOME_MOCK.inspirations,
+    creatorList: HOME_MOCK.creators,
     productList: HOME_MOCK.products,
     filteredProductList: HOME_MOCK.products,
     articleList: HOME_MOCK.articles,
+  };
+}
+
+function normalizeHomePayload(payload = {}) {
+  const fallback = buildDefaultState();
+  const products = payload.products?.length ? payload.products : fallback.productList;
+  const categories = payload.categories?.length ? payload.categories : fallback.categoryList;
+
+  return {
+    appInfo: {
+      name: payload.app?.appName || fallback.appInfo.name,
+      slogan: payload.app?.appSlogan || fallback.appInfo.slogan,
+      version: fallback.appInfo.version,
+    },
+    headline: {
+      ...fallback.headline,
+      title: payload.headline?.title || fallback.headline.title,
+      subtitle: payload.headline?.subtitle || fallback.headline.subtitle,
+    },
+    metrics: fallback.metrics,
+    quickEntryList: fallback.quickEntryList,
+    bannerList: payload.banners?.length ? payload.banners : fallback.bannerList,
+    categoryList: categories,
+    inspirationList: payload.inspirations?.length ? payload.inspirations : fallback.inspirationList,
+    creatorList: fallback.creatorList,
+    productList: products,
+    filteredProductList: products,
+    articleList: payload.articles?.length ? payload.articles : fallback.articleList,
+  };
+}
+
+Page({
+  data: {
+    ...buildDefaultState(),
     pageLoading: false,
     activeCategoryId: 'all',
     currentBannerIndex: 0,
@@ -19,44 +59,46 @@ Page({
   },
 
   onShow() {
-    this.getTabBar().init();
+    const tabBar = this.getTabBar && this.getTabBar();
+    if (tabBar && tabBar.init) {
+      tabBar.init();
+    }
   },
 
   onLoad() {
     this.init();
   },
 
-  onReachBottom() {
-    if (this.data.goodsListLoadStatus === 0) {
-      this.loadGoodsList();
-    }
-  },
-
   onPullDownRefresh() {
     this.init();
   },
 
-  init() {
+  async init() {
     this.setData({
       pageLoading: true,
       currentBannerIndex: 0,
       activeCategoryId: 'all',
-      filteredProductList: HOME_MOCK.products,
+      filteredProductList: this.data.productList,
     });
 
-    setTimeout(() => {
+    try {
+      const payload = await fetchHome();
       this.setData({
         pageLoading: false,
-        metrics: HOME_MOCK.metrics,
-        bannerList: HOME_MOCK.banners,
-        categoryList: HOME_MOCK.categories,
-        inspirationList: HOME_MOCK.inspirations,
-        productList: HOME_MOCK.products,
-        filteredProductList: HOME_MOCK.products,
-        articleList: HOME_MOCK.articles,
+        ...normalizeHomePayload(payload),
       });
+    } catch (error) {
+      this.setData({
+        pageLoading: false,
+        ...buildDefaultState(),
+      });
+      wx.showToast({
+        title: '接口异常，已使用本地数据',
+        icon: 'none',
+      });
+    } finally {
       wx.stopPullDownRefresh();
-    }, 240);
+    }
   },
 
   onBannerChange(event) {
@@ -72,12 +114,26 @@ Page({
     });
   },
 
+  onQuickEntryTap(event) {
+    const { target } = event.currentTarget.dataset;
+    if (target) {
+      this.scrollToSection(target);
+      return;
+    }
+
+    wx.showToast({
+      title: '功能建设中',
+      icon: 'none',
+    });
+  },
+
   onCategoryTap(event) {
     const { id, filterKey, target } = event.currentTarget.dataset;
+    const sourceProducts = this.data.productList || [];
     const filteredProductList =
       filterKey && filterKey !== 'all'
-        ? HOME_MOCK.products.filter((item) => item.category === filterKey)
-        : HOME_MOCK.products;
+        ? sourceProducts.filter((item) => item.category === filterKey)
+        : sourceProducts;
 
     this.setData({
       activeCategoryId: id,
@@ -108,7 +164,7 @@ Page({
       if (activeCategory === 'all') {
         return true;
       }
-      const category = HOME_MOCK.categories.find((entry) => entry.id === activeCategory);
+      const category = this.data.categoryList.find((entry) => entry.id === activeCategory);
       if (!category || category.filterKey === 'all') {
         return true;
       }
@@ -131,6 +187,40 @@ Page({
   openArticleCard() {
     wx.showToast({
       title: '文章详情待接入',
+      icon: 'none',
+    });
+  },
+
+  addToCart(event) {
+    const { id, title } = event.currentTarget.dataset;
+    const goods = this.data.productList.find((item) => item.id === id);
+    if (goods) {
+      addLocalCartItem(
+        buildCartItemFromGoods({
+          spuId: goods.id,
+          skuId: `${goods.id}_standard`,
+          title: goods.title,
+          thumb: goods.cover,
+          primaryImage: goods.cover,
+          price: Math.round(goods.price * 100),
+          originPrice: Math.round(goods.originalPrice * 100),
+          tags: goods.tags,
+        }),
+      );
+      const tabBar = this.getTabBar && this.getTabBar();
+      if (tabBar && tabBar.updateCartCount) {
+        tabBar.updateCartCount();
+      }
+    }
+    wx.showToast({
+      title: `${title} 已加入清单`,
+      icon: 'none',
+    });
+  },
+
+  onCreatorTap() {
+    wx.showToast({
+      title: '创作者主页待接入',
       icon: 'none',
     });
   },

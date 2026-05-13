@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiRequest } from '../_utils/request';
 
 /** 获取商品列表 */
 function mockFetchGoodsList(pageIndex = 1, pageSize = 20) {
@@ -20,6 +21,20 @@ function mockFetchGoodsList(pageIndex = 1, pageSize = 20) {
 
 /** 获取商品列表 */
 export function fetchGoodsList(pageIndex = 1, pageSize = 20) {
+  if (config.enableBackendApi) {
+    return apiRequest({
+      url: '/api/products',
+    }).then((goods = []) =>
+      goods.slice((pageIndex - 1) * pageSize, pageIndex * pageSize).map((item) => ({
+        spuId: item.id,
+        thumb: item.cover,
+        title: item.title,
+        price: Math.round(Number(item.price || 0) * 100),
+        originPrice: Math.round(Number(item.originalPrice || 0) * 100),
+        tags: item.tags || [],
+      })),
+    );
+  }
   if (config.useMock) {
     return mockFetchGoodsList(pageIndex, pageSize);
   }

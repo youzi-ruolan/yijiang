@@ -1,7 +1,5 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 
-const shortageImg = 'https://tdesign.gtimg.com/miniprogram/template/retail/cart/shortage.png';
-
 Component({
   isSpecsTap: false, // 标记本次点击事件是否因为点击specs触发（由于底层goods-card组件没有catch specs点击事件，只能在此处加状态来避免点击specs时触发跳转商品详情）
   externalClasses: ['wr-class'],
@@ -37,7 +35,6 @@ Component({
   },
 
   data: {
-    shortageImg,
     isShowSpecs: false,
     currentGoods: {},
     isShowToggle: false,
@@ -98,12 +95,6 @@ Component({
       });
     },
 
-    // 去凑单/再逛逛
-    gotoBuyMore(e) {
-      const { promotion, storeId = '' } = e.currentTarget.dataset;
-      this.triggerEvent('gocollect', { promotion, storeId });
-    },
-
     // 选中门店
     selectStore(e) {
       const { storeIndex } = e.currentTarget.dataset;
@@ -153,10 +144,6 @@ Component({
       }
       const { goods } = e.currentTarget.dataset;
       this.triggerEvent('goodsclick', { goods });
-    },
-
-    gotoCoupons() {
-      wx.navigateTo({ url: '/pages/coupon/coupon-list/index' });
     },
   },
 });

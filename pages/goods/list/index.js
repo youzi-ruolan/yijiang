@@ -1,5 +1,7 @@
 import { fetchGoodsList } from '../../../services/good/fetchGoodsList';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { addLocalCartItem, getLocalCartCount } from '../../../utils/local-cart';
+import { buildCartItemFromGoods } from '../../../utils/cart-item';
 
 const initFilters = {
   overall: 1,
@@ -20,6 +22,7 @@ Page({
     hasLoaded: false,
     loadMoreStatus: 0,
     loading: true,
+    cartNum: 0,
   },
 
   pageNum: 1,
@@ -29,10 +32,17 @@ Page({
   handleFilterChange(e) {
     const { layout, overall, sorts } = e.detail;
     this.pageNum = 1;
+    const filter = {
+      layout,
+      overall,
+      sorts,
+    };
     this.setData({
+      filter,
       layout,
       sorts,
       overall,
+      goodsList: [],
       loadMoreStatus: 0,
     });
     this.init(true);
@@ -125,7 +135,12 @@ Page({
   },
 
   onLoad() {
+    this.refreshCartCount();
     this.init(true);
+  },
+
+  onShow() {
+    this.refreshCartCount();
   },
 
   onReachBottom() {
@@ -140,11 +155,29 @@ Page({
     this.init(false);
   },
 
-  handleAddCart() {
+  refreshCartCount() {
+    this.setData({
+      cartNum: getLocalCartCount(),
+    });
+  },
+
+  handleAddCart(event) {
+    const { index } = event.detail;
+    const goods = this.data.goodsList[index];
+    if (!goods) {
+      return;
+    }
+
+    addLocalCartItem(buildCartItemFromGoods(goods));
+    this.refreshCartCount();
+    const tabBar = this.getTabBar && this.getTabBar();
+    if (tabBar && tabBar.updateCartCount) {
+      tabBar.updateCartCount();
+    }
     Toast({
       context: this,
       selector: '#t-toast',
-      message: '点击加购',
+      message: '已加入购物车',
     });
   },
 
@@ -196,7 +229,7 @@ Page({
     if (minVal && !maxVal) {
       message = `价格最小是${minVal}`;
     } else if (!minVal && maxVal) {
-      message = `价格范围是0-${minVal}`;
+      message = `价格范围是0-${maxVal}`;
     } else if (minVal && maxVal && minVal <= maxVal) {
       message = `价格范围${minVal}-${this.data.maxVal}`;
     } else {
@@ -213,10 +246,8 @@ Page({
     this.setData(
       {
         show: false,
-        minVal: '',
         goodsList: [],
         loadMoreStatus: 0,
-        maxVal: '',
       },
       () => {
         this.init();

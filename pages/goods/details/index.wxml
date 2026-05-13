@@ -1,15 +1,26 @@
 <view class="goods-detail-page">
   <view class="goods-head">
-    <t-swiper
+    <swiper
       wx:if="{{details.images.length > 0}}"
-      height="750rpx"
+      class="detail-swiper"
       current="{{current}}"
       autoplay="{{autoplay}}"
       duration="{{duration}}"
       interval="{{interval}}"
-      navigation="{{navigation}}"
-      list="{{details.images}}"
-    ></t-swiper>
+      circular
+      bindchange="handleSwiperChange"
+    >
+      <block wx:for="{{details.images}}" wx:key="*this">
+        <swiper-item>
+          <view class="detail-swiper-item" data-index="{{index}}" bindtap="showCurImg">
+            <t-image class="detail-swiper-image" src="{{item}}" mode="aspectFit" lazy-load />
+          </view>
+        </swiper-item>
+      </block>
+    </swiper>
+    <view wx:if="{{details.images.length > 1}}" class="detail-swiper-indicator">
+      {{current + 1}} / {{details.images.length}}
+    </view>
     <view class="goods-info">
       <view class="goods-number">
         <view class="goods-price">
@@ -24,17 +35,6 @@
         </view>
         <view class="sold-num">已售{{soldNum}}</view>
       </view>
-      <view wx:if="{{activityList.length > 0}}" class="goods-activity" bindtap="showPromotionPopup">
-        <view class="tags-container">
-          <view wx:for="{{activityList}}" data-promotionId="{{item.promotionId}}" wx:key="index" wx:if="{{index<4}}">
-            <view class="goods-activity-tag">{{item.tag}}</view>
-          </view>
-        </view>
-        <view class="activity-show">
-          <view class="activity-show-text">领劵</view>
-          <t-icon name="chevron-right" size="42rpx" />
-        </view>
-      </view>
       <view class="goods-title">
         <view class="goods-name">{{details.title}}</view>
         <view class="goods-tag">
@@ -47,6 +47,20 @@
         </view>
       </view>
       <view class="goods-intro">{{intro}}</view>
+      <view class="goods-meta" wx:if="{{details.author || details.accent || details.format}}">
+        <view class="goods-meta-item" wx:if="{{details.author}}">
+          创作者 · {{details.author.name}}
+        </view>
+        <view class="goods-meta-item" wx:if="{{details.accent}}">
+          风格 · {{details.accent}}
+        </view>
+        <view class="goods-meta-item" wx:if="{{details.format}}">
+          交付 · {{details.format}}
+        </view>
+      </view>
+      <view class="goods-tags" wx:if="{{details.spuTagList && details.spuTagList.length}}">
+        <view class="goods-meta-tag" wx:for="{{details.spuTagList}}" wx:key="id">{{item.title}}</view>
+      </view>
     </view>
     <view class="spu-select" bindtap="showSkuSelectPopup">
       <view class="label">已选</view>
@@ -87,6 +101,31 @@
     </view>
   </view>
   <view class="desc-content">
+    <view class="detail-block" wx:if="{{detailContent.length > 0}}">
+      <view class="detail-block__title">商品详情</view>
+      <view class="detail-block__list">
+        <view wx:for="{{detailContent}}" wx:key="index" class="detail-block__item">{{item}}</view>
+      </view>
+    </view>
+
+    <view class="detail-block detail-block--plain" wx:if="{{deliverables.length > 0}}">
+      <view class="detail-block__title">交付内容</view>
+      <view class="detail-block__list">
+        <view wx:for="{{deliverables}}" wx:key="index" class="detail-block__item detail-block__item--dot">
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <view class="detail-block detail-block--plain" wx:if="{{usageNotice.length > 0}}">
+      <view class="detail-block__title">使用说明</view>
+      <view class="detail-block__list">
+        <view wx:for="{{usageNotice}}" wx:key="index" class="detail-block__item detail-block__item--dot">
+          {{item}}
+        </view>
+      </view>
+    </view>
+
     <view class="desc-content__title" wx:if="{{details.desc.length > 0}}">
       <t-image t-class="img" src="{{recLeftImg}}" />
       <span class="desc-content__title--text">详情介绍</span>
@@ -143,11 +182,5 @@
       </view>
     </view>
   </goods-specs-popup>
-  <promotion-popup
-    list="{{list}}"
-    bind:closePromotionPopup="closePromotionPopup"
-    show="{{isShowPromotionPop}}"
-    bind:promotionChange="promotionChange"
-  />
 </view>
 <t-toast id="t-toast" />

@@ -1,10 +1,13 @@
 export const config = {
   /** 是否使用mock代替api返回 */
   useMock: true,
+  /** 是否优先使用本地后端接口 */
+  enableBackendApi: true,
 };
 
-export const cdnBase =
-  'https://we-retail-static-1300977798.cos.ap-guangzhou.myqcloud.com/retail-mp';
+export const apiBaseUrl = 'http://127.0.0.1:3001';
+
+export const cdnBase = 'https://we-retail-static-1300977798.cos.ap-guangzhou.myqcloud.com/retail-mp';
 
 export const areaData = [
   {

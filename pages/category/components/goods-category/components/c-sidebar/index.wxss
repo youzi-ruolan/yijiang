@@ -1,7 +1,10 @@
 .c-sidebar {
-  width: 176rpx;
+  width: 188rpx;
   height: 100vh;
+  padding: 18rpx 0 28rpx;
+  box-sizing: border-box;
 }
+
 .c-sidebar::-webkit-scrollbar {
   width: 0;
   height: 0;

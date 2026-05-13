@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id          String   @id @default(cuid())
+  username    String   @unique
+  password    String
+  displayName String
+  role        String   @default("个人管理员")
+  avatar      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AppSetting {
+  id                String   @id @default("default")
+  appName           String
+  appSlogan         String
+  headlineTitle     String
+  headlineSubtitle  String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Category {
+  id        String   @id
+  name      String
+  filterKey String
+  target    String
+  sort      Int      @default(0)
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([target, sort])
+}
+
+model Product {
+  id            String   @id
+  title         String
+  description   String   @db.Text
+  price         Int
+  originalPrice Int
+  rating        Float    @default(5)
+  sales         Int      @default(0)
+  favorites     Int      @default(0)
+  cover         String
+  tags          Json
+  gallery       Json
+  detailContent Json
+  deliverables  Json
+  usageNotice   Json
+  format        String?
+  accent        String?
+  category      String
+  authorName    String?
+  authorAvatar  String?
+  isNew         Boolean  @default(false)
+  isHot         Boolean  @default(false)
+  sort          Int      @default(0)
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([category, sort])
+  @@index([status, sort])
+}
+
+model Banner {
+  id          String   @id
+  title       String
+  subtitle    String
+  description String?  @db.Text
+  image       String
+  buttonText  String?
+  badge       String?
+  sort        Int      @default(0)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Inspiration {
+  id        String   @id
+  title     String
+  subtitle  String
+  badge     String?
+  cover     String
+  sort      Int      @default(0)
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Article {
+  id          String   @id
+  title       String
+  cover       String
+  views       Int      @default(0)
+  author      String
+  publishTime String
+  sort        Int      @default(0)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id          String   @id
+  customer    String
+  amount      Int
+  status      String
+  items       Int
+  itemsDetail Json?
+  orderCreatedAt String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, createdAt])
+}

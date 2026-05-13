@@ -38,11 +38,10 @@
             wx:key="specValueId"
           >
             <view
-              class="popup-sku-row__item {{valuesItem.isSelected ? 'popup-sku-row__item--active' : ''}} {{!valuesItem.hasStockObj.hasStock || !isStock ? 'disabled-sku-selected' : ''}}"
+              class="popup-sku-row__item {{valuesItem.isSelected ? 'popup-sku-row__item--active' : ''}} {{!isStock ? 'disabled-sku-selected' : ''}}"
               data-specid="{{item.specId}}"
               data-id="{{valuesItem.specValueId}}"
               data-val="{{valuesItem.specValue}}"
-              data-hasStock="{{valuesItem.hasStockObj.hasStock}}"
               bindtap="toChooseItem"
             >
               {{valuesItem.specValue}}

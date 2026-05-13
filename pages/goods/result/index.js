@@ -1,6 +1,9 @@
 /* eslint-disable no-param-reassign */
 import { getSearchResult } from '../../../services/good/fetchSearchResult';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { addLocalCartItem, getLocalCartCount } from '../../../utils/local-cart';
+import { buildCartItemFromGoods } from '../../../utils/cart-item';
+import { saveSearchHistory } from '../../../services/good/fetchSearchHistory';
 
 const initFilters = {
   overall: 1,
@@ -22,6 +25,7 @@ Page({
     keywords: '',
     loadMoreStatus: 0,
     loading: true,
+    cartNum: 0,
   },
 
   total: 0,
@@ -38,6 +42,10 @@ Page({
         this.init(true);
       },
     );
+  },
+
+  onShow() {
+    this.refreshCartCount();
   },
 
   generalQueryData(reset = false) {
@@ -100,7 +108,12 @@ Page({
 
         const _goodsList = reset ? spuList : goodsList.concat(spuList);
         _goodsList.forEach((v) => {
-          v.tags = v.spuTagList.map((u) => u.title);
+          const tags = Array.isArray(v.tags)
+            ? v.tags
+            : Array.isArray(v.spuTagList)
+              ? v.spuTagList.map((u) => u.title)
+              : [];
+          v.tags = tags;
           v.hideKey = { desc: true };
         });
         const _loadMoreStatus = _goodsList.length === totalCount ? 2 : 0;
@@ -135,9 +148,23 @@ Page({
     });
   },
 
-  handleSubmit() {
+  refreshCartCount() {
+    this.setData({
+      cartNum: getLocalCartCount(),
+    });
+  },
+
+  handleSubmit(e) {
+    const inputValue = e && e.detail ? e.detail.value : '';
+    const value = `${inputValue || this.data.keywords || ''}`.trim();
+    if (!value) {
+      return;
+    }
+
+    saveSearchHistory(value);
     this.setData(
       {
+        keywords: value,
         goodsList: [],
         loadMoreStatus: 0,
       },
@@ -159,11 +186,23 @@ Page({
     this.init(false);
   },
 
-  handleAddCart() {
+  handleAddCart(event) {
+    const { index } = event.detail;
+    const goods = this.data.goodsList[index];
+    if (!goods) {
+      return;
+    }
+
+    addLocalCartItem(buildCartItemFromGoods(goods));
+    this.refreshCartCount();
+    const tabBar = this.getTabBar && this.getTabBar();
+    if (tabBar && tabBar.updateCartCount) {
+      tabBar.updateCartCount();
+    }
     Toast({
       context: this,
       selector: '#t-toast',
-      message: '点击加购',
+      message: '已加入购物车',
     });
   },
 
@@ -232,7 +271,7 @@ Page({
     if (minVal && !maxVal) {
       message = `价格最小是${minVal}`;
     } else if (!minVal && maxVal) {
-      message = `价格范围是0-${minVal}`;
+      message = `价格范围是0-${maxVal}`;
     } else if (minVal && maxVal && minVal <= maxVal) {
       message = `价格范围${minVal}-${this.data.maxVal}`;
     } else {
@@ -249,10 +288,8 @@ Page({
     this.setData(
       {
         show: false,
-        minVal: '',
         goodsList: [],
         loadMoreStatus: 0,
-        maxVal: '',
       },
       () => {
         this.init();

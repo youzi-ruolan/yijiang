@@ -131,7 +131,13 @@ function getSrc(options) {
     });
   }
 
-  return '';
+  if (!options.webp) {
+    return options.src;
+  }
+
+  return imageMogr(options.src, {
+    format: 'webp',
+  });
 }
 
 module.exports = {

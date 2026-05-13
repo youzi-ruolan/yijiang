@@ -2,6 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchSettleDetail } from '../../../services/order/orderConfirm';
 import { commitPay, wechatPayOrder } from './pay';
 import { getAddressPromise } from '../../../services/address/list';
+import { removeLocalCartItem } from '../../../utils/local-cart';
 
 const stripeImg = `https://tdesign.gtimg.com/miniprogram/template/retail/order/stripe.png`;
 
@@ -16,10 +17,8 @@ Page({
       abnormalDeliveryGoodsList: [], // 不能正常配送商品
       inValidGoodsList: [], // 失效或者库存不足
       limitGoodsList: [], //限购商品
-      couponList: [], //门店优惠券信息
     }, // 获取结算页详情 data
     orderCardList: [], // 仅用于商品卡片展示
-    couponsShow: false, // 显示优惠券的弹框
     invoiceData: {
       email: '', // 发票发送邮箱
       buyerTaxNo: '', // 税号
@@ -35,11 +34,9 @@ Page({
     notesPosition: 'center',
     storeInfoList: [],
     storeNoteIndex: 0, //当前填写备注门店index
-    promotionGoodsList: [], //当前门店商品列表(优惠券)
-    couponList: [], //当前门店所选优惠券
-    submitCouponList: [], //所有门店所选优惠券
-    currentStoreId: null, //当前优惠券storeId
     userAddress: null,
+    isDigitalOrder: false,
+    deliveryTips: ['下单完成后自动发货', '在订单详情页查看交付信息', '无需填写物流收货地址'],
   },
 
   payLock: false,
@@ -71,7 +68,7 @@ Page({
     this.handleOptionsParams({ goodsRequestList });
   },
   // 处理不同情况下跳转到结算页时需要的参数
-  handleOptionsParams(options, couponList) {
+  handleOptionsParams(options) {
     let { goodsRequestList } = this; // 商品列表
     let { userAddressReq } = this; // 收货地址
 
@@ -104,7 +101,7 @@ Page({
       goodsRequestList,
       storeInfoList,
       userAddressReq,
-      couponList,
+      couponList: [],
     };
     fetchSettleDetail(params).then(
       (res) => {
@@ -122,12 +119,21 @@ Page({
   initData(resData) {
     // 转换商品卡片显示数据
     const data = this.handleResToGoodsCard(resData);
+    const isDigitalOrder =
+      !resData.userAddress ||
+      `${resData.userAddress.receiverAddress || resData.userAddress.detailAddress || ''}`.includes('数字商品无需物流配送');
     this.userAddressReq = resData.userAddress;
 
-    if (resData.userAddress) {
-      this.setData({ userAddress: resData.userAddress });
-    }
-    this.setData({ settleDetailData: data });
+    this.setData({
+      settleDetailData: data,
+      isDigitalOrder,
+      userAddress: resData.userAddress || {
+        name: '数字订单',
+        phoneNumber: '',
+        detailAddress: '数字商品无需物流配送，下单后自动交付',
+        receiverAddress: '数字商品无需物流配送',
+      },
+    });
     this.isInvalidOrder(data);
   },
 
@@ -197,7 +203,6 @@ Page({
     // 转换数据 符合 goods-card展示
     const orderCardList = []; // 订单卡片列表
     const storeInfoList = [];
-    const submitCouponList = []; //使用优惠券列表;
 
     data.storeGoodsList &&
       data.storeGoodsList.forEach((ele) => {
@@ -230,16 +235,12 @@ Page({
           storeName: ele.storeName,
           remark: '',
         });
-        submitCouponList.push({
-          storeId: ele.storeId,
-          couponList: ele.couponList || [],
-        });
         this.noteInfo.push('');
         this.tempNoteInfo.push('');
         orderCardList.push(orderCard);
       });
 
-    this.setData({ orderCardList, storeInfoList, submitCouponList });
+    this.setData({ orderCardList, storeInfoList });
     return data;
   },
   onGotoAddress() {
@@ -336,10 +337,10 @@ Page({
   },
   // 提交订单
   submitOrder() {
-    const { settleDetailData, userAddressReq, invoiceData, storeInfoList, submitCouponList } = this.data;
+    const { settleDetailData, userAddressReq, invoiceData, storeInfoList } = this.data;
     const { goodsRequestList } = this;
 
-    if (!userAddressReq && !settleDetailData.userAddress) {
+    if (!this.data.isDigitalOrder && !userAddressReq && !settleDetailData.userAddress) {
       Toast({
         context: this,
         selector: '#t-toast',
@@ -354,15 +355,17 @@ Page({
       return;
     }
     this.payLock = true;
-    const resSubmitCouponList = this.handleCouponList(submitCouponList);
     const params = {
       userAddressReq: settleDetailData.userAddress || userAddressReq,
       goodsRequestList: goodsRequestList,
-      userName: settleDetailData.userAddress.name || userAddressReq.name,
+      userName:
+        (settleDetailData.userAddress && settleDetailData.userAddress.name) ||
+        (userAddressReq && userAddressReq.name) ||
+        '数字订单用户',
       totalAmount: settleDetailData.totalPayAmount, //取优惠后的结算金额
       invoiceRequest: null,
       storeInfoList,
-      couponList: resSubmitCouponList,
+      couponList: [],
     };
     if (invoiceData && invoiceData.email) {
       params.invoiceRequest = invoiceData;
@@ -445,6 +448,11 @@ Page({
   handlePay(data, settleDetailData) {
     const { channel, payInfo, tradeNo, interactId, transactionId } = data;
     const { totalAmount, totalPayAmount } = settleDetailData;
+    (this.goodsRequestList || []).forEach((item) => {
+      if (item.spuId && item.skuId) {
+        removeLocalCartItem(item.spuId, item.skuId);
+      }
+    });
     const payOrderInfo = {
       payInfo: payInfo,
       orderId: tradeNo,
@@ -472,38 +480,6 @@ Page({
     wx.navigateTo({
       url: `/pages/order/receipt/index?invoiceData=${JSON.stringify(invoiceData)}`,
     });
-  },
-
-  onCoupons(e) {
-    const { submitCouponList, currentStoreId } = this.data;
-    const { goodsRequestList } = this;
-    const { selectedList } = e.detail;
-    const tempSubmitCouponList = submitCouponList.map((storeCoupon) => {
-      return {
-        couponList: storeCoupon.storeId === currentStoreId ? selectedList : storeCoupon.couponList,
-      };
-    });
-    const resSubmitCouponList = this.handleCouponList(tempSubmitCouponList);
-    //确定选择优惠券
-    this.handleOptionsParams({ goodsRequestList }, resSubmitCouponList);
-    this.setData({ couponsShow: false });
-  },
-  onOpenCoupons(e) {
-    const { storeid } = e.currentTarget.dataset;
-    this.setData({
-      couponsShow: true,
-      currentStoreId: storeid,
-    });
-  },
-
-  handleCouponList(storeCouponList) {
-    //处理门店优惠券   转换成接口需要
-    if (!storeCouponList) return [];
-    const resSubmitCouponList = [];
-    storeCouponList.forEach((ele) => {
-      resSubmitCouponList.push(...ele.couponList);
-    });
-    return resSubmitCouponList;
   },
 
   onGoodsNumChange(e) {

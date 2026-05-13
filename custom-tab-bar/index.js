@@ -1,4 +1,6 @@
 import TabMenu from './data';
+import { getLocalCartCount } from '../utils/local-cart';
+
 Component({
   data: {
     active: 0,
@@ -19,11 +21,26 @@ Component({
       const page = getCurrentPages().pop();
       const route = page ? page.route.split('?')[0] : '';
       const active = this.data.list.findIndex(
-        (item) =>
-          (item.url.startsWith('/') ? item.url.substr(1) : item.url) ===
-          `${route}`,
+        (item) => (item.url.startsWith('/') ? item.url.substr(1) : item.url) === `${route}`,
       );
       this.setData({ active });
+      this.updateCartCount();
+    },
+
+    updateCartCount() {
+      const count = getLocalCartCount();
+      const nextList = this.data.list.map((item) => {
+        if (item.url === 'pages/cart/index') {
+          return {
+            ...item,
+            count,
+          };
+        }
+        return item;
+      });
+      this.setData({
+        list: nextList,
+      });
     },
   },
 });

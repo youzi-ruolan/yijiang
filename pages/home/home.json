@@ -1,11 +1,10 @@
 {
-  "navigationBarTitleText": "首页",
+  "navigationBarTitleText": "全部商品",
   "onReachBottomDistance": 10,
   "backgroundTextStyle": "light",
   "enablePullDownRefresh": true,
   "usingComponents": {
     "t-loading": "tdesign-miniprogram/loading/loading",
-    "t-image": "/components/webp-image/index",
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-toast": "tdesign-miniprogram/toast/toast"
   }
