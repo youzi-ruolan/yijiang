@@ -52,12 +52,6 @@
           <view class="hero-indicator {{currentBannerIndex === index ? 'active' : ''}}"></view>
         </block>
       </view>
-
-      <view class="hero-float-cart" bindtap="navToCartPage">
-        <view class="hero-float-ring">
-          <t-icon prefix="wr" name="cart" size="44rpx" color="#ff5c51" />
-        </view>
-      </view>
     </view>
 
     <view class="sticky-tabs">

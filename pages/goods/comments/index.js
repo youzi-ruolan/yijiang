@@ -64,7 +64,7 @@ Page({
     } catch (error) {}
   },
   generalQueryData(reset) {
-    const { hasImage, pageNum, pageSize, spuId, commentLevel } = this.data;
+    const { hasImage, pageNum, pageSize, spuId, commentLevel, commentType } = this.data;
     const params = {
       pageNum: 1,
       pageSize: 30,
@@ -72,17 +72,16 @@ Page({
         spuId,
       },
     };
-    if (
-      Number(commentLevel) === 3 ||
-      Number(commentLevel) === 2 ||
-      Number(commentLevel) === 1
-    ) {
+    if (Number(commentLevel) === 3 || Number(commentLevel) === 2 || Number(commentLevel) === 1) {
       params.queryParameter.commentLevel = Number(commentLevel);
     }
     if (hasImage && hasImage === '1') {
       params.queryParameter.hasImage = true;
     } else {
       delete params.queryParameter.hasImage;
+    }
+    if (commentType === '5') {
+      params.queryParameter.onlyMine = true;
     }
     // 重置请求
     if (reset) return params;
@@ -113,9 +112,7 @@ Page({
         const { pageList, totalCount = 0 } = data;
         pageList.forEach((item) => {
           // eslint-disable-next-line no-param-reassign
-          item.commentTime = dayjs(Number(item.commentTime)).format(
-            'YYYY/MM/DD HH:mm',
-          );
+          item.commentTime = dayjs(Number(item.commentTime)).format('YYYY/MM/DD HH:mm');
         });
 
         if (Number(totalCount) === 0 && reset) {
@@ -128,8 +125,7 @@ Page({
           return;
         }
         const _commentList = reset ? pageList : commentList.concat(pageList);
-        const _loadMoreStatus =
-          _commentList.length === Number(totalCount) ? 2 : 0;
+        const _loadMoreStatus = _commentList.length === Number(totalCount) ? 2 : 0;
         this.setData({
           commentList: _commentList,
           pageNum: params.pageNum || 1,
@@ -141,7 +137,15 @@ Page({
           title: '查询失败，请稍候重试',
         });
       }
-    } catch (error) {}
+    } catch (error) {
+      wx.showToast({
+        title: '评价加载失败',
+        icon: 'none',
+      });
+      this.setData({
+        loadMoreStatus: 0,
+      });
+    }
     this.setData({
       hasLoaded: true,
     });
@@ -201,10 +205,12 @@ Page({
     }
     if (commenttype === '5') {
       this.setData({
+        hasImage: '',
+        commentLevel: '',
         myLoadStatus: 1,
         commentType: commenttype,
       });
-      this.getMyCommentsList();
+      this.init(true);
     } else {
       this.setData({
         myLoadStatus: 0,

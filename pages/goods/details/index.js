@@ -481,7 +481,7 @@ Page({
   async getCommentsList() {
     try {
       const code = 'Success';
-      const data = await getGoodsDetailsCommentList();
+      const data = await getGoodsDetailsCommentList(this.data.spuId);
       const { homePageComments } = data;
       if (code.toUpperCase() === 'SUCCESS') {
         const nextState = {
@@ -522,7 +522,7 @@ Page({
   async getCommentsStatistics() {
     try {
       const code = 'Success';
-      const data = await getGoodsDetailsCommentsCount();
+      const data = await getGoodsDetailsCommentsCount(this.data.spuId);
       if (code.toUpperCase() === 'SUCCESS') {
         const { badCount, commentCount, goodCount, goodRate, hasImageCount, middleCount } = data;
         const nextState = {

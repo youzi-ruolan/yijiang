@@ -47,3 +47,21 @@ page {
   padding-left: 20rpx;
   padding-right: 20rpx;
 }
+
+.comments-empty {
+  padding: 160rpx 48rpx;
+  text-align: center;
+}
+
+.comments-empty-title {
+  color: #222222;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.comments-empty-desc {
+  margin-top: 16rpx;
+  color: #999999;
+  font-size: 24rpx;
+  line-height: 1.5;
+}

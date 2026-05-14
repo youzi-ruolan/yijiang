@@ -1,10 +1,11 @@
 // import { getCommentDetail } from '../../../../services/good/comments/fetchCommentDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { addLocalComment } from '../../../../utils/local-comments';
 Page({
   data: {
-    serviceRateValue: 1,
-    goodRateValue: 1,
-    conveyRateValue: 1,
+    serviceRateValue: 5,
+    goodRateValue: 5,
+    conveyRateValue: 5,
     isAnonymous: false,
     uploadFiles: [],
     gridConfig: {
@@ -16,6 +17,10 @@ Page({
     imgUrl: '',
     title: '',
     goodsDetail: '',
+    spuId: '',
+    skuId: '',
+    orderNo: '',
+    commentText: '',
     imageProps: {
       mode: 'aspectFit',
     },
@@ -23,9 +28,12 @@ Page({
 
   onLoad(options) {
     this.setData({
-      imgUrl: options.imgUrl,
-      title: options.title,
-      goodsDetail: options.specs,
+      imgUrl: decodeURIComponent(options.imgUrl || ''),
+      title: decodeURIComponent(options.title || ''),
+      goodsDetail: decodeURIComponent(options.specs || ''),
+      spuId: options.spuId || '',
+      skuId: options.skuId || '',
+      orderNo: options.orderNo || '',
     });
   },
 
@@ -60,27 +68,56 @@ Page({
   },
 
   onTextAreaChange(e) {
-    const value = e?.detail?.value;
+    const value = `${e?.detail?.value || ''}`.trim();
     this.textAreaValue = value;
+    this.setData({ commentText: value });
     this.updateButtonStatus();
   },
 
   updateButtonStatus() {
     const { serviceRateValue, goodRateValue, conveyRateValue, isAllowedSubmit } = this.data;
     const { textAreaValue } = this;
-    const temp = serviceRateValue && goodRateValue && conveyRateValue && textAreaValue;
+    const temp = Boolean(
+      serviceRateValue && goodRateValue && conveyRateValue && textAreaValue && textAreaValue.length >= 5,
+    );
     if (temp !== isAllowedSubmit) this.setData({ isAllowedSubmit: temp });
   },
 
   onSubmitBtnClick() {
-    const { isAllowedSubmit } = this.data;
+    const {
+      isAllowedSubmit,
+      spuId,
+      skuId,
+      goodsDetail,
+      goodRateValue,
+      serviceRateValue,
+      conveyRateValue,
+      isAnonymous,
+      uploadFiles,
+      orderNo,
+    } = this.data;
     if (!isAllowedSubmit) return;
+    addLocalComment({
+      spuId,
+      skuId,
+      orderNo,
+      specInfo: goodsDetail,
+      goodsDetailInfo: goodsDetail,
+      commentScore: goodRateValue,
+      serviceScore: serviceRateValue,
+      conveyScore: conveyRateValue,
+      commentContent: this.textAreaValue,
+      uploadFiles,
+      isAnonymity: isAnonymous,
+    });
     Toast({
       context: this,
       selector: '#t-toast',
       message: '评价提交成功',
       icon: 'check-circle',
     });
-    wx.navigateBack();
+    setTimeout(() => {
+      wx.navigateBack();
+    }, 700);
   },
 });

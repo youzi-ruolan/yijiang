@@ -107,10 +107,17 @@ Page({
     });
   },
 
-  onBannerAction() {
-    wx.showToast({
-      title: '已进入精选推荐',
-      icon: 'none',
+  onBannerAction(event) {
+    const { id } = event.currentTarget.dataset;
+    const products = this.data.productList || [];
+    const product = products.find((item) => item.id === id) || products[this.data.currentBannerIndex] || products[0];
+
+    if (!product) {
+      return;
+    }
+
+    wx.navigateTo({
+      url: `/pages/goods/details/index?spuId=${product.id}`,
     });
   },
 

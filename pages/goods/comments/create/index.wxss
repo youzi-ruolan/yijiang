@@ -106,6 +106,8 @@ page {
 .submit-button-container {
   padding: 12rpx 32rpx;
   display: flex;
+  flex-direction: column;
+  gap: 10rpx;
   width: 100vw;
   box-sizing: border-box;
   justify-content: center;
@@ -114,6 +116,13 @@ page {
   padding-bottom: calc(env(safe-area-inset-bottom) + 20rpx);
   background-color: #ffffff;
   z-index: 99;
+}
+
+.submit-button-container .submit-tip {
+  color: #999999;
+  font-size: 22rpx;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .submit-button-container .submit-button {

@@ -16,7 +16,7 @@ Component({
           this.setData({
             buttons: {
               left: [],
-              right: (goods.buttons || []).filter((b) => b.type == OrderButtonTypes.APPLY_REFUND),
+              right: (goods.buttons || []).filter((b) => b.type === OrderButtonTypes.APPLY_REFUND),
             },
           });
           return;
@@ -199,11 +199,14 @@ Component({
 
     /** 添加订单评论 */
     onAddComment(order) {
-      const imgUrl = order?.goodsList?.[0]?.thumb;
-      const title = order?.goodsList?.[0]?.title;
-      const specs = order?.goodsList?.[0]?.specs;
+      const goods = order?.goodsList?.[0] || {};
+      const imgUrl = encodeURIComponent(goods.thumb || '');
+      const title = encodeURIComponent(goods.title || '');
+      const specs = encodeURIComponent(Array.isArray(goods.specs) ? goods.specs.join(' ') : goods.specs || '');
       wx.navigateTo({
-        url: `/pages/goods/comments/create/index?specs=${specs}&title=${title}&orderNo=${order?.orderNo}&imgUrl=${imgUrl}`,
+        url: `/pages/goods/comments/create/index?specs=${specs}&title=${title}&orderNo=${
+          order?.orderNo || ''
+        }&imgUrl=${imgUrl}&spuId=${goods.spuId || ''}&skuId=${goods.skuId || ''}`,
       });
     },
   },

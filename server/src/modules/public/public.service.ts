@@ -214,7 +214,7 @@ export class PublicService {
       actualPrice: Number(item.price || 0),
       tagPrice: Number(item.price || 0),
       specifications: Array.isArray(item.specInfo)
-        ? item.specInfo.map((spec) => ({
+        ? item.specInfo.map((spec: { specValue?: unknown }) => ({
             specValue: `${spec.specValue || ''}`,
           }))
         : [],

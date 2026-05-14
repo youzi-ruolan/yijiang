@@ -27,7 +27,8 @@
         t-class="textarea"
         maxlength="{{500}}"
         indicator
-        placeholder="对商品满意吗？评论一下"
+        value="{{commentText}}"
+        placeholder="说说使用感受、适合的场景或交付效果，至少 5 个字"
         bind:change="onTextAreaChange"
       />
     </view>
@@ -79,6 +80,7 @@
   </view>
 </view>
 <view class="submit-button-container">
+  <view class="submit-tip" wx:if="{{!isAllowedSubmit}}">请填写至少 5 个字的评价内容</view>
   <t-button
     content="提交"
     block
