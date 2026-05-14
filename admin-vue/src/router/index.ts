@@ -48,8 +48,8 @@ const routes = [
         name: 'content',
         component: () => import('@/views/ContentView.vue'),
         meta: {
-          title: '内容运营',
-          subtitle: '统一管理 Banner、灵感内容和文章课程资源',
+          title: '首页 Banner',
+          subtitle: '维护小程序首页轮播 Banner 内容',
           requiresAuth: true,
         },
       },

@@ -1,19 +1,6 @@
 const AUTH_SESSION_KEY = 'yijiang_auth_session';
-const AUTH_USERS_KEY = 'yijiang_auth_users';
 const DEFAULT_AVATAR =
   'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png';
-
-function readUsers() {
-  try {
-    return wx.getStorageSync(AUTH_USERS_KEY) || [];
-  } catch (error) {
-    return [];
-  }
-}
-
-function writeUsers(users) {
-  wx.setStorageSync(AUTH_USERS_KEY, users);
-}
 
 function readSession() {
   try {
@@ -27,28 +14,19 @@ function writeSession(session) {
   wx.setStorageSync(AUTH_SESSION_KEY, session);
 }
 
-function createUser(payload) {
-  const phoneNumber = `${payload.phoneNumber || ''}`.trim();
-  const nickName = `${payload.nickName || ''}`.trim() || `艺匠用户${phoneNumber.slice(-4)}`;
+function createSessionFromProfile(userInfo = {}) {
   const now = Date.now();
-
   return {
-    uid: `user-${phoneNumber}`,
-    phoneNumber,
-    password: `${payload.password || ''}`,
-    nickName,
-    avatarUrl: payload.avatarUrl || DEFAULT_AVATAR,
-    gender: 0,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function toSession(user) {
-  const { password, ...safeUser } = user;
-  return {
-    token: `local-token-${Date.now()}`,
-    userInfo: safeUser,
+    token: `wechat-local-token-${now}`,
+    userInfo: {
+      uid: `wechat-${now}`,
+      nickName: userInfo.nickName || '微信用户',
+      avatarUrl: userInfo.avatarUrl || DEFAULT_AVATAR,
+      gender: Number(userInfo.gender || 0),
+      phoneNumber: '',
+      createdAt: now,
+      updatedAt: now,
+    },
   };
 }
 
@@ -60,36 +38,56 @@ export function isLoggedIn() {
   return Boolean(getCurrentUser());
 }
 
-export function registerLocalUser(payload) {
-  const users = readUsers();
-  const phoneNumber = `${payload.phoneNumber || ''}`.trim();
-  const exists = users.some((user) => user.phoneNumber === phoneNumber);
-
-  if (exists) {
-    throw new Error('该手机号已注册，请直接登录');
-  }
-
-  const user = createUser(payload);
-  users.unshift(user);
-  writeUsers(users);
-
-  const session = toSession(user);
-  writeSession(session);
-  return session.userInfo;
+export function authorizeWechatUser() {
+  return new Promise((resolve, reject) => {
+    wx.getUserProfile({
+      desc: '用于展示头像昵称、管理订单和提交商品评价',
+      success(res) {
+        const session = createSessionFromProfile(res.userInfo);
+        writeSession(session);
+        resolve(session.userInfo);
+      },
+      fail(error) {
+        reject(error);
+      },
+    });
+  });
 }
 
-export function loginLocalUser(payload) {
-  const phoneNumber = `${payload.phoneNumber || ''}`.trim();
-  const password = `${payload.password || ''}`;
-  const user = readUsers().find((item) => item.phoneNumber === phoneNumber && item.password === password);
-
-  if (!user) {
-    throw new Error('手机号或密码不正确');
+export function ensureWechatLogin(options = {}) {
+  if (getCurrentUser()) {
+    return Promise.resolve(true);
   }
 
-  const session = toSession(user);
-  writeSession(session);
-  return session.userInfo;
+  const { title = '需要登录', content = '该功能需要微信授权登录后才能继续使用。', confirmText = '去登录' } = options;
+
+  return new Promise((resolve) => {
+    wx.showModal({
+      title,
+      content,
+      confirmText,
+      confirmColor: '#FA550F',
+      cancelText: '取消',
+      success: async (res) => {
+        if (!res.confirm) {
+          resolve(false);
+          return;
+        }
+
+        try {
+          await authorizeWechatUser();
+          resolve(true);
+        } catch (error) {
+          wx.showToast({
+            title: '授权登录未完成',
+            icon: 'none',
+          });
+          resolve(false);
+        }
+      },
+      fail: () => resolve(false),
+    });
+  });
 }
 
 export function updateCurrentUser(patch) {
@@ -103,16 +101,7 @@ export function updateCurrentUser(patch) {
     ...patch,
     updatedAt: Date.now(),
   };
-  const users = readUsers().map((user) => {
-    if (user.uid !== nextUserInfo.uid) return user;
-    return {
-      ...user,
-      ...patch,
-      updatedAt: nextUserInfo.updatedAt,
-    };
-  });
 
-  writeUsers(users);
   writeSession({
     ...session,
     userInfo: nextUserInfo,
@@ -123,9 +112,4 @@ export function updateCurrentUser(patch) {
 
 export function logoutLocalUser() {
   wx.removeStorageSync(AUTH_SESSION_KEY);
-}
-
-export function getLoginPageUrl(redirectUrl = '') {
-  const query = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '';
-  return `/pages/user/login/index${query}`;
 }

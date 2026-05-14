@@ -25,7 +25,7 @@ const menus = [
   { path: '/dashboard', label: '项目总览', icon: DashboardIcon },
   { path: '/products', label: '商品管理', icon: ShopIcon },
   { path: '/categories', label: '分类管理', icon: LayersIcon },
-  { path: '/content', label: '内容运营', icon: AppIcon },
+  { path: '/content', label: '首页 Banner', icon: AppIcon },
   { path: '/orders', label: '订单管理', icon: CartIcon },
   { path: '/settings', label: '系统设置', icon: SettingIcon },
 ];

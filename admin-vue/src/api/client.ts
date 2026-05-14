@@ -2,9 +2,9 @@ import { AUTH_STORAGE_KEY } from '@/constants/storage';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
 
-interface RequestOptions extends RequestInit {
-  body?: BodyInit | Record<string, unknown> | null;
-}
+type RequestOptions = Omit<RequestInit, 'body'> & {
+  body?: BodyInit | object | null;
+};
 
 function getToken() {
   try {

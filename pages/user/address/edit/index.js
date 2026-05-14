@@ -2,6 +2,17 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchDeliveryAddress } from '../../../../services/address/fetchAddress';
 import { areaData } from '../../../../config/index';
 import { resolveAddress, rejectAddress } from '../../../../services/address/list';
+import { ensureWechatLogin } from '../../../../utils/local-auth';
+
+function leaveCurrentPage() {
+  const pages = getCurrentPages();
+  if (pages.length > 1) {
+    wx.navigateBack({ delta: 1 });
+    return;
+  }
+
+  wx.switchTab({ url: '/pages/usercenter/index' });
+}
 
 const innerPhoneReg = '^1(?:3\\d|4[4-9]|5[0-35-9]|6[67]|7[0-8]|8\\d|9\\d)\\d{8}$';
 const innerNameReg = '^[a-zA-Z\\d\\u4e00-\\u9fa5]+$';
@@ -47,8 +58,16 @@ Page({
   privateData: {
     verifyTips: '',
   },
-  onLoad(options) {
+  async onLoad(options) {
     const { id } = options;
+    const authed = await ensureWechatLogin({
+      content: '编辑收货地址需要先完成微信授权登录。',
+    });
+    if (!authed) {
+      leaveCurrentPage();
+      return;
+    }
+
     this.init(id);
   },
 

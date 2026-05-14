@@ -3,6 +3,17 @@ import { fetchDeliveryAddressList } from '../../../../services/address/fetchAddr
 import Toast from 'tdesign-miniprogram/toast/index';
 import { resolveAddress, rejectAddress } from '../../../../services/address/list';
 import { getAddressPromise } from '../../../../services/address/edit';
+import { ensureWechatLogin } from '../../../../utils/local-auth';
+
+function leaveCurrentPage() {
+  const pages = getCurrentPages();
+  if (pages.length > 1) {
+    wx.navigateBack({ delta: 1 });
+    return;
+  }
+
+  wx.switchTab({ url: '/pages/usercenter/index' });
+}
 
 Page({
   data: {
@@ -17,13 +28,26 @@ Page({
   /** 是否已经选择地址，不置为true的话页面离开时会触发取消选择行为 */
   hasSelect: false,
 
-  onLoad(query) {
+  async onLoad(query) {
     const { selectMode = '', isOrderSure = '', id = '' } = query;
     this.setData({
       isOrderSure: !!isOrderSure,
       id,
     });
     this.selectMode = !!selectMode;
+
+    const authed = await ensureWechatLogin({
+      content: '管理收货地址需要先完成微信授权登录。',
+    });
+    if (!authed) {
+      if (this.selectMode) {
+        rejectAddress();
+        this.hasSelect = true;
+      }
+      leaveCurrentPage();
+      return;
+    }
+
     this.init();
   },
 

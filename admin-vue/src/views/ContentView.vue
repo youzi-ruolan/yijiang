@@ -2,11 +2,10 @@
 import { reactive, ref } from 'vue';
 import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
 import { useAdminStore } from '@/stores/admin';
-import type { ArticleItem, BannerItem, InspirationItem } from '@/types';
+import type { BannerItem } from '@/types';
 
 const adminStore = useAdminStore();
 const dialogVisible = ref(false);
-const currentType = ref<'banner' | 'inspiration' | 'article'>('banner');
 const editingId = ref('');
 
 const form = reactive({
@@ -16,9 +15,6 @@ const form = reactive({
   image: '',
   badge: '',
   buttonText: '',
-  author: '',
-  publishTime: '',
-  views: 0,
 });
 
 function resetForm() {
@@ -28,35 +24,27 @@ function resetForm() {
   form.image = '';
   form.badge = '';
   form.buttonText = '';
-  form.author = '';
-  form.publishTime = '';
-  form.views = 0;
 }
 
-function openCreate(type: 'banner' | 'inspiration' | 'article') {
-  currentType.value = type;
+function openCreate() {
   editingId.value = '';
   resetForm();
   dialogVisible.value = true;
 }
 
-function openEdit(type: 'banner' | 'inspiration' | 'article', item: BannerItem | InspirationItem | ArticleItem) {
-  currentType.value = type;
+function openEdit(item: BannerItem) {
   editingId.value = item.id;
   form.title = item.title;
-  form.image = 'image' in item ? item.image : item.cover;
-  form.badge = 'badge' in item ? item.badge || '' : '';
-  form.subtitle = 'subtitle' in item ? item.subtitle : '';
-  form.description = 'description' in item ? item.description || '' : '';
-  form.buttonText = 'buttonText' in item ? item.buttonText || '' : '';
-  form.author = 'author' in item ? item.author : '';
-  form.publishTime = 'publishTime' in item ? item.publishTime : '';
-  form.views = 'views' in item ? item.views : 0;
+  form.subtitle = item.subtitle;
+  form.description = item.description || '';
+  form.image = item.image;
+  form.badge = item.badge || '';
+  form.buttonText = item.buttonText || '';
   dialogVisible.value = true;
 }
 
 async function saveCurrent() {
-  const id = editingId.value || `${currentType.value}_${Date.now()}`;
+  const id = editingId.value || `banner_${Date.now()}`;
   const title = form.title.trim();
   const image = form.image.trim();
 
@@ -66,60 +54,35 @@ async function saveCurrent() {
   }
 
   try {
-    if (currentType.value === 'banner') {
-      await adminStore.upsertBanner({
-        id,
-        title,
-        subtitle: form.subtitle.trim(),
-        description: form.description.trim(),
-        image,
-        buttonText: form.buttonText.trim(),
-        badge: form.badge.trim(),
-      });
-    }
-
-    if (currentType.value === 'inspiration') {
-      await adminStore.upsertInspiration({
-        id,
-        title,
-        subtitle: form.subtitle.trim(),
-        badge: form.badge.trim(),
-        cover: image,
-      });
-    }
-
-    if (currentType.value === 'article') {
-      await adminStore.upsertArticle({
-        id,
-        title,
-        cover: image,
-        views: Number(form.views),
-        author: form.author.trim(),
-        publishTime: form.publishTime.trim(),
-      });
-    }
+    await adminStore.upsertBanner({
+      id,
+      title,
+      subtitle: form.subtitle.trim(),
+      description: form.description.trim(),
+      image,
+      buttonText: form.buttonText.trim(),
+      badge: form.badge.trim(),
+    });
 
     dialogVisible.value = false;
-    MessagePlugin.success(editingId.value ? '内容已更新' : '内容已新增');
+    MessagePlugin.success(editingId.value ? 'Banner 已更新' : 'Banner 已新增');
   } catch (error) {
-    MessagePlugin.error(error instanceof Error ? error.message : '内容保存失败');
+    MessagePlugin.error(error instanceof Error ? error.message : 'Banner 保存失败');
   }
 }
 
-function removeCurrent(type: 'banner' | 'inspiration' | 'article', item: BannerItem | InspirationItem | ArticleItem) {
+function removeCurrent(item: BannerItem) {
   const dialog = DialogPlugin({
-    header: '确认删除内容？',
+    header: '确认删除 Banner？',
     body: `确认删除「${item.title}」吗？`,
     confirmBtn: '删除',
     cancelBtn: '取消',
     onConfirm: async () => {
       try {
-        if (type === 'banner') await adminStore.removeBanner(item.id);
-        if (type === 'inspiration') await adminStore.removeInspiration(item.id);
-        if (type === 'article') await adminStore.removeArticle(item.id);
-        MessagePlugin.success('内容已删除');
+        await adminStore.removeBanner(item.id);
+        MessagePlugin.success('Banner 已删除');
       } catch (error) {
-        MessagePlugin.error(error instanceof Error ? error.message : '内容删除失败');
+        MessagePlugin.error(error instanceof Error ? error.message : 'Banner 删除失败');
       }
       dialog.hide();
     },
@@ -132,8 +95,8 @@ function removeCurrent(type: 'banner' | 'inspiration' | 'article', item: BannerI
   <div class="admin-page">
     <t-card class="admin-card">
       <div class="section-toolbar">
-        <div class="section-title">Banner 管理</div>
-        <t-button theme="primary" @click="openCreate('banner')">新增 Banner</t-button>
+        <div class="section-title">首页 Banner</div>
+        <t-button theme="primary" @click="openCreate">新增 Banner</t-button>
       </div>
       <div class="content-table">
         <div class="content-table__head">
@@ -151,64 +114,8 @@ function removeCurrent(type: 'banner' | 'inspiration' | 'article', item: BannerI
           </div>
           <div class="content-extra">{{ item.badge || '无角标' }} · {{ item.buttonText || '无按钮文案' }}</div>
           <div class="content-actions">
-            <t-link theme="primary" hover="color" @click="openEdit('banner', item)">编辑</t-link>
-            <t-link theme="danger" hover="color" @click="removeCurrent('banner', item)">删除</t-link>
-          </div>
-        </div>
-      </div>
-    </t-card>
-
-    <t-card class="admin-card">
-      <div class="section-toolbar">
-        <div class="section-title">灵感内容</div>
-        <t-button theme="primary" @click="openCreate('inspiration')">新增灵感</t-button>
-      </div>
-      <div class="content-table">
-        <div class="content-table__head">
-          <span>内容信息</span>
-          <span>补充信息</span>
-          <span>操作</span>
-        </div>
-        <div v-for="item in adminStore.dataset.inspirations" :key="item.id" class="content-row">
-          <div class="content-main">
-            <img :src="item.cover" :alt="item.title" class="content-thumb" />
-            <div>
-              <div class="content-title">{{ item.title }}</div>
-              <div class="content-meta">{{ item.subtitle }}</div>
-            </div>
-          </div>
-          <div class="content-extra">{{ item.badge || '无角标' }}</div>
-          <div class="content-actions">
-            <t-link theme="primary" hover="color" @click="openEdit('inspiration', item)">编辑</t-link>
-            <t-link theme="danger" hover="color" @click="removeCurrent('inspiration', item)">删除</t-link>
-          </div>
-        </div>
-      </div>
-    </t-card>
-
-    <t-card class="admin-card">
-      <div class="section-toolbar">
-        <div class="section-title">文章与课程</div>
-        <t-button theme="primary" @click="openCreate('article')">新增文章</t-button>
-      </div>
-      <div class="content-table">
-        <div class="content-table__head">
-          <span>内容信息</span>
-          <span>补充信息</span>
-          <span>操作</span>
-        </div>
-        <div v-for="item in adminStore.dataset.articles" :key="item.id" class="content-row">
-          <div class="content-main">
-            <img :src="item.cover" :alt="item.title" class="content-thumb" />
-            <div>
-              <div class="content-title">{{ item.title }}</div>
-              <div class="content-meta">{{ item.author }}</div>
-            </div>
-          </div>
-          <div class="content-extra">{{ item.publishTime }} · {{ item.views }} 阅读</div>
-          <div class="content-actions">
-            <t-link theme="primary" hover="color" @click="openEdit('article', item)">编辑</t-link>
-            <t-link theme="danger" hover="color" @click="removeCurrent('article', item)">删除</t-link>
+            <t-link theme="primary" hover="color" @click="openEdit(item)">编辑</t-link>
+            <t-link theme="danger" hover="color" @click="removeCurrent(item)">删除</t-link>
           </div>
         </div>
       </div>
@@ -216,7 +123,7 @@ function removeCurrent(type: 'banner' | 'inspiration' | 'article', item: BannerI
 
     <t-dialog
       v-model:visible="dialogVisible"
-      :header="editingId ? '编辑内容' : '新增内容'"
+      :header="editingId ? '编辑 Banner' : '新增 Banner'"
       width="760px"
       confirm-btn="保存"
       cancel-btn="取消"
@@ -227,41 +134,25 @@ function removeCurrent(type: 'banner' | 'inspiration' | 'article', item: BannerI
           <span>标题</span>
           <t-input v-model="form.title" placeholder="请输入标题" />
         </div>
-        <div v-if="currentType !== 'article'" class="field field-full">
+        <div class="field field-full">
           <span>副标题</span>
           <t-input v-model="form.subtitle" placeholder="请输入副标题" />
         </div>
         <div class="field field-full">
-          <span>{{ currentType === 'banner' ? '图片 URL' : '封面图 URL' }}</span>
+          <span>图片 URL</span>
           <t-input v-model="form.image" placeholder="请输入图片链接" />
         </div>
-        <div v-if="currentType === 'banner'" class="field">
+        <div class="field">
           <span>角标</span>
           <t-input v-model="form.badge" placeholder="请输入角标文案" />
         </div>
-        <div v-if="currentType === 'banner'" class="field">
+        <div class="field">
           <span>按钮文案</span>
           <t-input v-model="form.buttonText" placeholder="请输入按钮文案" />
         </div>
-        <div v-if="currentType === 'banner'" class="field field-full">
+        <div class="field field-full">
           <span>补充描述</span>
           <t-textarea v-model="form.description" :autosize="{ minRows: 3, maxRows: 5 }" placeholder="请输入描述" />
-        </div>
-        <div v-if="currentType === 'inspiration'" class="field">
-          <span>角标</span>
-          <t-input v-model="form.badge" placeholder="可选填写" />
-        </div>
-        <div v-if="currentType === 'article'" class="field">
-          <span>作者</span>
-          <t-input v-model="form.author" placeholder="请输入作者名称" />
-        </div>
-        <div v-if="currentType === 'article'" class="field">
-          <span>发布时间</span>
-          <t-input v-model="form.publishTime" placeholder="如：2026-05-13" />
-        </div>
-        <div v-if="currentType === 'article'" class="field field-full">
-          <span>阅读数</span>
-          <t-input-number v-model="form.views" theme="normal" :min="0" />
         </div>
       </div>
     </t-dialog>

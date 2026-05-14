@@ -62,7 +62,6 @@
               class="category-chip {{activeCategoryId === item.id ? 'active' : ''}}"
               data-id="{{item.id}}"
               data-filter-key="{{item.filterKey}}"
-              data-target="{{item.target}}"
               bindtap="onCategoryTap"
             >
               {{item.name}}
@@ -72,82 +71,28 @@
       </scroll-view>
     </view>
 
-    <view class="section" id="inspirationSection">
-      <view class="section-head">
-        <view>
-          <view class="section-title">今日灵感</view>
-        </view>
-        <view class="section-link" bindtap="navToSearchPage">更多</view>
-      </view>
-      <scroll-view class="inspiration-row" scroll-x show-scrollbar="false">
-        <view class="inspiration-track">
-          <block wx:for="{{inspirationList}}" wx:key="id">
-            <view class="inspiration-card" data-id="{{item.id}}" bindtap="onBannerAction">
-              <image class="inspiration-cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
-              <view class="inspiration-overlay"></view>
-              <view class="inspiration-body">
-                <view class="inspiration-badge">{{item.badge}}</view>
-                <view class="inspiration-title">{{item.title}}</view>
-                <view class="inspiration-subtitle">{{item.subtitle}}</view>
+    <view class="product-grid">
+      <block wx:for="{{filteredProductList}}" wx:key="id">
+        <view class="product-card" data-id="{{item.id}}" bindtap="openProductCard">
+          <view class="product-cover-wrap">
+            <image class="product-cover" src="{{item.cover}}" mode="aspectFit" lazy-load />
+          </view>
+
+          <view class="product-body">
+            <view class="product-title">{{item.title}}</view>
+
+            <view class="price-row">
+              <view class="price-meta">
+                <view class="price-main">¥{{item.price}}</view>
+                <view class="price-origin">¥{{item.originalPrice}}</view>
               </view>
-            </view>
-          </block>
-        </view>
-      </scroll-view>
-    </view>
-
-    <view class="section" id="productSection">
-      <view class="section-head">
-        <view>
-          <view class="section-title">全部商品</view>
-        </view>
-      </view>
-
-      <view class="product-grid">
-        <block wx:for="{{filteredProductList}}" wx:key="id">
-          <view class="product-card" data-id="{{item.id}}" bindtap="openProductCard">
-            <view class="product-cover-wrap">
-              <image class="product-cover" src="{{item.cover}}" mode="aspectFit" lazy-load />
-            </view>
-
-            <view class="product-body">
-              <view class="product-title">{{item.title}}</view>
-
-              <view class="price-row">
-                <view class="price-meta">
-                  <view class="price-main">¥{{item.price}}</view>
-                  <view class="price-origin">¥{{item.originalPrice}}</view>
-                </view>
-                <view class="cart-mini-button" data-id="{{item.id}}" data-title="{{item.title}}" catchtap="addToCart">
-                  <t-icon prefix="wr" name="cart" size="34rpx" color="#ff5c51" />
-                </view>
+              <view class="cart-mini-button" data-id="{{item.id}}" data-title="{{item.title}}" catchtap="addToCart">
+                <t-icon prefix="wr" name="cart" size="34rpx" color="#ff5c51" />
               </view>
             </view>
           </view>
-        </block>
-      </view>
-    </view>
-
-    <view class="section" id="articleSection">
-      <view class="section-head">
-        <view>
-          <view class="section-title">文章与课程</view>
         </view>
-        <view class="section-link" bindtap="openArticleCard">更多</view>
-      </view>
-
-      <view class="article-list">
-        <block wx:for="{{articleList}}" wx:key="id">
-          <view class="article-card" data-id="{{item.id}}" bindtap="openArticleCard">
-            <image class="article-cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
-            <view class="article-body">
-              <view class="article-title">{{item.title}}</view>
-              <view class="article-meta">{{item.author}} · {{item.publishTime}}</view>
-              <view class="article-footer">{{item.views}} 次阅读</view>
-            </view>
-          </view>
-        </block>
-      </view>
+      </block>
     </view>
 
     <view class="bottom-spacer"></view>

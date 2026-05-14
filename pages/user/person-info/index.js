@@ -2,7 +2,7 @@ import { fetchPerson } from '../../../services/usercenter/fetchPerson';
 import { phoneEncryption } from '../../../utils/util';
 import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from 'tdesign-miniprogram/dialog/index';
-import { getCurrentUser, getLoginPageUrl, logoutLocalUser, updateCurrentUser } from '../../../utils/local-auth';
+import { getCurrentUser, logoutLocalUser, updateCurrentUser } from '../../../utils/local-auth';
 
 Page({
   data: {
@@ -36,9 +36,7 @@ Page({
     fetchPerson().then((personInfo) => {
       const currentUser = getCurrentUser();
       if (!currentUser) {
-        wx.redirectTo({
-          url: getLoginPageUrl('/pages/user/person-info/index'),
-        });
+        wx.switchTab({ url: '/pages/usercenter/index' });
         return;
       }
       const nextPersonInfo = {
@@ -146,9 +144,7 @@ Page({
       cancelBtn: '取消',
     }).then(() => {
       logoutLocalUser();
-      wx.redirectTo({
-        url: getLoginPageUrl(),
-      });
+      wx.switchTab({ url: '/pages/usercenter/index' });
     });
   },
 });

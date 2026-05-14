@@ -1,7 +1,7 @@
 // import { getCommentDetail } from '../../../../services/good/comments/fetchCommentDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { addLocalComment } from '../../../../utils/local-comments';
-import { getCurrentUser, getLoginPageUrl } from '../../../../utils/local-auth';
+import { ensureWechatLogin, getCurrentUser } from '../../../../utils/local-auth';
 Page({
   data: {
     serviceRateValue: 5,
@@ -28,13 +28,6 @@ Page({
   },
 
   onLoad(options) {
-    if (!getCurrentUser()) {
-      wx.redirectTo({
-        url: getLoginPageUrl(`/pages/goods/comments/create/index?${this.buildQuery(options)}`),
-      });
-      return;
-    }
-
     this.setData({
       imgUrl: decodeURIComponent(options.imgUrl || ''),
       title: decodeURIComponent(options.title || ''),
@@ -43,12 +36,6 @@ Page({
       skuId: options.skuId || '',
       orderNo: options.orderNo || '',
     });
-  },
-
-  buildQuery(options) {
-    return Object.keys(options || {})
-      .map((key) => `${key}=${encodeURIComponent(options[key] || '')}`)
-      .join('&');
   },
 
   onRateChange(e) {
@@ -97,7 +84,7 @@ Page({
     if (temp !== isAllowedSubmit) this.setData({ isAllowedSubmit: temp });
   },
 
-  onSubmitBtnClick() {
+  async onSubmitBtnClick() {
     const {
       isAllowedSubmit,
       spuId,
@@ -111,6 +98,21 @@ Page({
       orderNo,
     } = this.data;
     if (!isAllowedSubmit) return;
+    if (!getCurrentUser()) {
+      const authed = await ensureWechatLogin({
+        content: '提交商品评价需要先完成微信授权登录。',
+      });
+
+      if (!authed) {
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: '登录后才能评价',
+          icon: '',
+        });
+        return;
+      }
+    }
     try {
       addLocalComment({
         spuId,

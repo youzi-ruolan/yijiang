@@ -156,8 +156,6 @@ export const HOME_MOCK = {
     { id: 'documentary', name: '纪实纪录', filterKey: 'documentary_grade', target: 'productSection' },
     { id: 'davinci', name: '节点工程', filterKey: 'davinci_nodes', target: 'productSection' },
     { id: 'workflow', name: '交付流程', filterKey: 'delivery_workflow', target: 'productSection' },
-    { id: 'inspiration', name: '灵感库', filterKey: 'all', target: 'inspirationSection' },
-    { id: 'articles', name: '文章课程', filterKey: 'all', target: 'articleSection' },
   ],
   inspirations: [
     {

@@ -1,6 +1,6 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { getCurrentUser, getLoginPageUrl } from '../../utils/local-auth';
+import { ensureWechatLogin, getCurrentUser } from '../../utils/local-auth';
 
 const menuData = [
   [
@@ -101,28 +101,34 @@ Page({
   },
 
   fetUseriInfoHandle() {
-    fetchUserCenter().then(({ userInfo, countsData, orderTagInfos: orderInfo, customerServiceInfo }) => {
+    fetchUserCenter().then(({ countsData, orderTagInfos: orderInfo, customerServiceInfo }) => {
       const currentUser = getCurrentUser();
-      // eslint-disable-next-line no-unused-expressions
-      menuData?.[0].forEach((v) => {
-        countsData.forEach((counts) => {
-          if (counts.type === v.type) {
-            // eslint-disable-next-line no-param-reassign
-            v.tit = counts.num;
-          }
+      const nextMenuData = menuData.map((group) =>
+        group.map((item) => ({
+          ...item,
+          tit: '',
+        })),
+      );
+
+      if (currentUser && nextMenuData[0]) {
+        nextMenuData[0].forEach((v) => {
+          countsData.forEach((counts) => {
+            if (counts.type === v.type) {
+              // eslint-disable-next-line no-param-reassign
+              v.tit = counts.num;
+            }
+          });
         });
-      });
+      }
+
       const info = orderTagInfos.map((v, index) => ({
         ...v,
-        ...orderInfo[index],
+        ...(currentUser ? orderInfo[index] : {}),
+        orderNum: currentUser ? orderInfo[index]?.orderNum || 0 : 0,
       }));
       this.setData({
-        userInfo: currentUser || {
-          avatarUrl: userInfo.avatarUrl,
-          nickName: '',
-          phoneNumber: '',
-        },
-        menuData,
+        userInfo: currentUser || getDefaultData().userInfo,
+        menuData: nextMenuData,
         orderTagInfos: info,
         customerServiceInfo,
         currAuthStep: currentUser ? 3 : 1,
@@ -131,12 +137,12 @@ Page({
     });
   },
 
-  onClickCell({ currentTarget }) {
+  async onClickCell({ currentTarget }) {
     const { type } = currentTarget.dataset;
 
     switch (type) {
       case 'address': {
-        if (!this.ensureLogin('/pages/user/address/list/index')) return;
+        if (!(await this.ensureLogin())) return;
         wx.navigateTo({ url: '/pages/user/address/list/index' });
         break;
       }
@@ -167,21 +173,21 @@ Page({
     }
   },
 
-  jumpNav(e) {
+  async jumpNav(e) {
     const status = e.detail.tabType;
 
     if (status === 0) {
-      if (!this.ensureLogin('/pages/order/after-service-list/index')) return;
+      if (!(await this.ensureLogin())) return;
       wx.navigateTo({ url: '/pages/order/after-service-list/index' });
     } else {
       const url = `/pages/order/order-list/index?status=${status}`;
-      if (!this.ensureLogin(url)) return;
+      if (!(await this.ensureLogin())) return;
       wx.navigateTo({ url });
     }
   },
 
-  jumpAllOrder() {
-    if (!this.ensureLogin('/pages/order/order-list/index')) return;
+  async jumpAllOrder() {
+    if (!(await this.ensureLogin())) return;
     wx.navigateTo({ url: '/pages/order/order-list/index' });
   },
 
@@ -199,20 +205,33 @@ Page({
     });
   },
 
-  gotoUserEditPage() {
+  async gotoUserEditPage() {
     if (getCurrentUser()) {
       wx.navigateTo({ url: '/pages/user/person-info/index' });
     } else {
-      wx.navigateTo({
-        url: getLoginPageUrl(),
-      });
+      const authed = await this.ensureLogin();
+      if (authed) {
+        wx.navigateTo({ url: '/pages/user/person-info/index' });
+      }
     }
   },
 
-  ensureLogin(redirectUrl = '') {
+  async ensureLogin() {
     if (getCurrentUser()) return true;
-    wx.navigateTo({
-      url: getLoginPageUrl(redirectUrl),
+    const authed = await ensureWechatLogin({
+      content: '这里需要微信授权登录后才能继续使用。',
+    });
+
+    if (authed) {
+      this.init();
+      return true;
+    }
+
+    Toast({
+      context: this,
+      selector: '#t-toast',
+      message: '登录后才能继续',
+      icon: '',
     });
     return false;
   },
