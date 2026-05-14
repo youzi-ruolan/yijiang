@@ -1,5 +1,6 @@
+import { getCurrentUser } from './local-auth';
+
 const LOCAL_COMMENTS_KEY = 'yijiang_local_comments';
-const LOCAL_UID = 'local-user';
 const DEFAULT_AVATAR = 'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png';
 
 function readAllComments() {
@@ -40,6 +41,11 @@ function normalizeResources(files = []) {
 }
 
 export function addLocalComment(payload) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    throw new Error('请先登录后再评价');
+  }
+
   const now = Date.now();
   const score = Number(payload.commentScore || 5);
   const comment = {
@@ -52,9 +58,9 @@ export function addLocalComment(payload) {
     commentResources: normalizeResources(payload.uploadFiles),
     commentScore: score,
     commentLevel: getCommentLevel(score),
-    uid: LOCAL_UID,
-    userName: payload.isAnonymity ? '匿名用户' : '我',
-    userHeadUrl: DEFAULT_AVATAR,
+    uid: currentUser.uid,
+    userName: payload.isAnonymity ? '匿名用户' : currentUser.nickName || '我',
+    userHeadUrl: currentUser.avatarUrl || DEFAULT_AVATAR,
     isAnonymity: Boolean(payload.isAnonymity),
     commentTime: `${now}`,
     isAutoComment: false,
@@ -77,11 +83,12 @@ export function getLocalComments(spuId) {
 
 export function mergeCommentPage(params, baseResult) {
   const query = params?.queryParameter || {};
+  const currentUser = getCurrentUser();
   const pageNum = Number(params?.pageNum || 1);
   const pageSize = Number(params?.pageSize || 10);
   const localComments = getLocalComments(query.spuId).filter((comment) => {
     if (query.hasImage && !comment.commentResources?.length) return false;
-    if (query.onlyMine && comment.uid !== LOCAL_UID) return false;
+    if (query.onlyMine && (!currentUser || comment.uid !== currentUser.uid)) return false;
     if (query.commentLevel && comment.commentLevel !== Number(query.commentLevel)) return false;
     return true;
   });
@@ -101,6 +108,7 @@ export function mergeCommentPage(params, baseResult) {
 
 export function mergeCommentCount(spuId, baseCount) {
   const localComments = getLocalComments(spuId);
+  const currentUser = getCurrentUser();
   const base = {
     commentCount: Number(baseCount?.commentCount || 0),
     badCount: Number(baseCount?.badCount || 0),
@@ -126,7 +134,7 @@ export function mergeCommentCount(spuId, baseCount) {
     goodCount: `${base.goodCount}`,
     hasImageCount: `${base.hasImageCount}`,
     goodRate,
-    uidCount: `${localComments.length}`,
+    uidCount: `${currentUser ? localComments.filter((comment) => comment.uid === currentUser.uid).length : 0}`,
   };
 }
 

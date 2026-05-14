@@ -1,6 +1,7 @@
 // import { getCommentDetail } from '../../../../services/good/comments/fetchCommentDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { addLocalComment } from '../../../../utils/local-comments';
+import { getCurrentUser, getLoginPageUrl } from '../../../../utils/local-auth';
 Page({
   data: {
     serviceRateValue: 5,
@@ -27,6 +28,13 @@ Page({
   },
 
   onLoad(options) {
+    if (!getCurrentUser()) {
+      wx.redirectTo({
+        url: getLoginPageUrl(`/pages/goods/comments/create/index?${this.buildQuery(options)}`),
+      });
+      return;
+    }
+
     this.setData({
       imgUrl: decodeURIComponent(options.imgUrl || ''),
       title: decodeURIComponent(options.title || ''),
@@ -35,6 +43,12 @@ Page({
       skuId: options.skuId || '',
       orderNo: options.orderNo || '',
     });
+  },
+
+  buildQuery(options) {
+    return Object.keys(options || {})
+      .map((key) => `${key}=${encodeURIComponent(options[key] || '')}`)
+      .join('&');
   },
 
   onRateChange(e) {
@@ -97,19 +111,29 @@ Page({
       orderNo,
     } = this.data;
     if (!isAllowedSubmit) return;
-    addLocalComment({
-      spuId,
-      skuId,
-      orderNo,
-      specInfo: goodsDetail,
-      goodsDetailInfo: goodsDetail,
-      commentScore: goodRateValue,
-      serviceScore: serviceRateValue,
-      conveyScore: conveyRateValue,
-      commentContent: this.textAreaValue,
-      uploadFiles,
-      isAnonymity: isAnonymous,
-    });
+    try {
+      addLocalComment({
+        spuId,
+        skuId,
+        orderNo,
+        specInfo: goodsDetail,
+        goodsDetailInfo: goodsDetail,
+        commentScore: goodRateValue,
+        serviceScore: serviceRateValue,
+        conveyScore: conveyRateValue,
+        commentContent: this.textAreaValue,
+        uploadFiles,
+        isAnonymity: isAnonymous,
+      });
+    } catch (error) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: error.message || '评价提交失败',
+        icon: '',
+      });
+      return;
+    }
     Toast({
       context: this,
       selector: '#t-toast',

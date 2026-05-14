@@ -12,3 +12,4 @@
     <t-button block shape="round" disabled="{{!nameValue}}" bind:tap="onSubmit">保存</t-button>
   </view>
 </view>
+<t-toast id="t-toast" />

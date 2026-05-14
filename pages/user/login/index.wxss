@@ -1,0 +1,69 @@
+page {
+  background: #f6f3ef;
+}
+
+.login-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 72rpx 32rpx 48rpx;
+}
+
+.login-head {
+  padding: 24rpx 8rpx 36rpx;
+}
+
+.login-title {
+  color: #111111;
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.login-subtitle {
+  margin-top: 16rpx;
+  color: #8a8179;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.mode-switch {
+  display: flex;
+  height: 76rpx;
+  padding: 6rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10rpx 28rpx rgba(114, 88, 63, 0.08);
+}
+
+.mode-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  color: #8a8179;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.mode-item.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #ff8574 0%, #ff5c51 100%);
+}
+
+.form-card {
+  overflow: hidden;
+  margin-top: 28rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 16rpx 34rpx rgba(114, 88, 63, 0.08);
+}
+
+.submit-wrap {
+  margin-top: 40rpx;
+}
+
+.submit-wrap .t-button {
+  --td-button-primary-bg-color: #ff5c51;
+  --td-button-primary-border-color: #ff5c51;
+}

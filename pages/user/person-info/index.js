@@ -1,6 +1,8 @@
 import { fetchPerson } from '../../../services/usercenter/fetchPerson';
 import { phoneEncryption } from '../../../utils/util';
 import Toast from 'tdesign-miniprogram/toast/index';
+import Dialog from 'tdesign-miniprogram/dialog/index';
+import { getCurrentUser, getLoginPageUrl, logoutLocalUser, updateCurrentUser } from '../../../utils/local-auth';
 
 Page({
   data: {
@@ -32,9 +34,20 @@ Page({
   },
   fetchData() {
     fetchPerson().then((personInfo) => {
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        wx.redirectTo({
+          url: getLoginPageUrl('/pages/user/person-info/index'),
+        });
+        return;
+      }
+      const nextPersonInfo = {
+        ...personInfo,
+        ...currentUser,
+      };
       this.setData({
-        personInfo,
-        'personInfo.phoneNumber': phoneEncryption(personInfo.phoneNumber),
+        personInfo: nextPersonInfo,
+        'personInfo.phoneNumber': phoneEncryption(nextPersonInfo.phoneNumber),
       });
     });
   },
@@ -74,6 +87,7 @@ Page({
         'personInfo.gender': value,
       },
       () => {
+        updateCurrentUser({ gender: Number(value) });
         Toast({
           context: this,
           selector: '#t-toast',
@@ -109,6 +123,10 @@ Page({
         message: `已选择图片-${tempFileName}`,
         theme: 'success',
       });
+      const nextUser = updateCurrentUser({ avatarUrl: tempFilePath });
+      this.setData({
+        'personInfo.avatarUrl': nextUser.avatarUrl,
+      });
     } catch (error) {
       if (error.errMsg === 'chooseImage:fail cancel') return;
       Toast({
@@ -118,5 +136,19 @@ Page({
         theme: 'error',
       });
     }
+  },
+
+  openUnbindConfirm() {
+    Dialog.confirm({
+      title: '切换账号',
+      content: '退出当前账号后，可重新登录或注册新账号。',
+      confirmBtn: '退出登录',
+      cancelBtn: '取消',
+    }).then(() => {
+      logoutLocalUser();
+      wx.redirectTo({
+        url: getLoginPageUrl(),
+      });
+    });
   },
 });

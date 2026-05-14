@@ -52,3 +52,4 @@
   bind:close="onClose"
 />
 <t-toast id="t-toast" />
+<t-dialog id="t-dialog" />

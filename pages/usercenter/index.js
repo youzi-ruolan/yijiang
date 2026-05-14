@@ -1,5 +1,6 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { getCurrentUser, getLoginPageUrl } from '../../utils/local-auth';
 
 const menuData = [
   [
@@ -69,7 +70,7 @@ const getDefaultData = () => ({
   showMakePhone: false,
   userInfo: {
     avatarUrl: '',
-    nickName: '正在登录...',
+    nickName: '',
     phoneNumber: '',
   },
   menuData,
@@ -101,6 +102,7 @@ Page({
 
   fetUseriInfoHandle() {
     fetchUserCenter().then(({ userInfo, countsData, orderTagInfos: orderInfo, customerServiceInfo }) => {
+      const currentUser = getCurrentUser();
       // eslint-disable-next-line no-unused-expressions
       menuData?.[0].forEach((v) => {
         countsData.forEach((counts) => {
@@ -115,11 +117,15 @@ Page({
         ...orderInfo[index],
       }));
       this.setData({
-        userInfo,
+        userInfo: currentUser || {
+          avatarUrl: userInfo.avatarUrl,
+          nickName: '',
+          phoneNumber: '',
+        },
         menuData,
         orderTagInfos: info,
         customerServiceInfo,
-        currAuthStep: 2,
+        currAuthStep: currentUser ? 3 : 1,
       });
       wx.stopPullDownRefresh();
     });
@@ -130,6 +136,7 @@ Page({
 
     switch (type) {
       case 'address': {
+        if (!this.ensureLogin('/pages/user/address/list/index')) return;
         wx.navigateTo({ url: '/pages/user/address/list/index' });
         break;
       }
@@ -164,13 +171,17 @@ Page({
     const status = e.detail.tabType;
 
     if (status === 0) {
+      if (!this.ensureLogin('/pages/order/after-service-list/index')) return;
       wx.navigateTo({ url: '/pages/order/after-service-list/index' });
     } else {
-      wx.navigateTo({ url: `/pages/order/order-list/index?status=${status}` });
+      const url = `/pages/order/order-list/index?status=${status}`;
+      if (!this.ensureLogin(url)) return;
+      wx.navigateTo({ url });
     }
   },
 
   jumpAllOrder() {
+    if (!this.ensureLogin('/pages/order/order-list/index')) return;
     wx.navigateTo({ url: '/pages/order/order-list/index' });
   },
 
@@ -189,12 +200,21 @@ Page({
   },
 
   gotoUserEditPage() {
-    const { currAuthStep } = this.data;
-    if (currAuthStep === 2) {
+    if (getCurrentUser()) {
       wx.navigateTo({ url: '/pages/user/person-info/index' });
     } else {
-      this.fetUseriInfoHandle();
+      wx.navigateTo({
+        url: getLoginPageUrl(),
+      });
     }
+  },
+
+  ensureLogin(redirectUrl = '') {
+    if (getCurrentUser()) return true;
+    wx.navigateTo({
+      url: getLoginPageUrl(redirectUrl),
+    });
+    return false;
   },
 
   getVersionInfo() {
