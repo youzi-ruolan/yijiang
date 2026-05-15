@@ -208,7 +208,7 @@ Page({
           thumb: goods.cover,
           primaryImage: goods.cover,
           price: Math.round(goods.price * 100),
-          originPrice: Math.round(goods.originalPrice * 100),
+          originPrice: Math.round(goods.price * 100),
           tags: goods.tags,
         }),
       );
@@ -219,13 +219,6 @@ Page({
     }
     wx.showToast({
       title: `${title} 已加入清单`,
-      icon: 'none',
-    });
-  },
-
-  onCreatorTap() {
-    wx.showToast({
-      title: '创作者主页待接入',
       icon: 'none',
     });
   },

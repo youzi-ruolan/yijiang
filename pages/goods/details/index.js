@@ -421,16 +421,8 @@ Page({
 
     const defaultAttrStr =
       defaultSpecInfo.length > 0 ? `件，${defaultSpecInfo.map((item) => item.specValue).join('，')}` : '';
-    const servicePromises = [
-      '支付成功后自动交付',
-      details.format ? `支持 ${details.format} 格式` : '支持多端使用',
-      '购买后可在订单详情中查看',
-    ];
-    const quickFacts = [
-      details.author?.name ? `创作者：${details.author.name}` : '',
-      details.accent ? `风格：${details.accent}` : '',
-      tags[0] ? `类型：${tags[0]}` : '类型：数字商品',
-    ].filter(Boolean);
+    const servicePromises = ['支付成功后自动交付', '支持多端使用', '购买后可在订单详情中查看'];
+    const quickFacts = [tags[0] ? `类型：${tags[0]}` : '类型：数字商品'].filter(Boolean);
 
     this.setData({
       details,

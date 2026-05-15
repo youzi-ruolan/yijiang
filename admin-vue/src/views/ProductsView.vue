@@ -14,16 +14,10 @@ const form = reactive({
   title: '',
   description: '',
   price: 0,
-  originalPrice: 0,
   category: '',
-  rating: 5,
   sales: 0,
-  favorites: 0,
   cover: '',
   tags: '',
-  authorName: '',
-  accent: '',
-  format: '',
   gallery: '',
   detailContent: '',
   deliverables: '',
@@ -49,25 +43,23 @@ const columns = [
   { colKey: 'cover', title: '封面', width: 90 },
   { colKey: 'title', title: '名称', width: 280 },
   { colKey: 'category', title: '分类', width: 120 },
-  { colKey: 'price', title: '价格', width: 160 },
+  { colKey: 'price', title: '价格', width: 120 },
   { colKey: 'tags', title: '标签' },
   { colKey: 'actions', title: '操作', width: 150 },
 ];
+
+const categoryNameMap = computed(() =>
+  Object.fromEntries(adminStore.productCategories.map((item) => [item.filterKey, item.name])),
+);
 
 function resetForm() {
   form.title = '';
   form.description = '';
   form.price = 0;
-  form.originalPrice = 0;
-  form.category = categoryOptions.value[0]?.value || 'all';
-  form.rating = 5;
+  form.category = '';
   form.sales = 0;
-  form.favorites = 0;
   form.cover = '';
   form.tags = '';
-  form.authorName = '';
-  form.accent = '';
-  form.format = '';
   form.gallery = '';
   form.detailContent = '';
   form.deliverables = '';
@@ -85,16 +77,10 @@ function openEdit(product: ProductItem) {
   form.title = product.title;
   form.description = product.description;
   form.price = product.price;
-  form.originalPrice = product.originalPrice;
   form.category = product.category;
-  form.rating = product.rating;
   form.sales = product.sales;
-  form.favorites = product.favorites;
   form.cover = product.cover;
   form.tags = (product.tags || []).join(', ');
-  form.authorName = product.author?.name || '';
-  form.accent = product.accent;
-  form.format = product.format;
   form.gallery = (product.gallery || []).join('\n');
   form.detailContent = (product.detailContent || []).join('\n');
   form.deliverables = (product.deliverables || []).join('\n');
@@ -103,27 +89,23 @@ function openEdit(product: ProductItem) {
 }
 
 async function saveProduct() {
+  if (!form.category || form.category === 'all') {
+    MessagePlugin.warning('请选择商品分类');
+    return;
+  }
+
   const product: ProductItem = {
     id: editingId.value || `product_${Date.now()}`,
     title: form.title.trim(),
     description: form.description.trim(),
     price: Number(form.price),
-    originalPrice: Number(form.originalPrice),
-    rating: Number(form.rating),
     sales: Number(form.sales),
-    favorites: Number(form.favorites),
     cover: form.cover.trim(),
     tags: form.tags
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean),
     category: form.category,
-    author: {
-      name: form.authorName.trim(),
-      avatar: 'https://i.pravatar.cc/100?img=1',
-    },
-    accent: form.accent.trim(),
-    format: form.format.trim(),
     gallery: form.gallery
       .split('\n')
       .map((item) => item.trim())
@@ -195,14 +177,11 @@ function removeProduct(product: ProductItem) {
         </template>
 
         <template #category="{ row }">
-          <span class="admin-chip">{{ row.category }}</span>
+          <span class="admin-chip">{{ categoryNameMap[row.category] || row.category }}</span>
         </template>
 
         <template #price="{ row }">
-          <div class="price-stack">
-            <span class="price-current">¥{{ row.price }}</span>
-            <span class="price-origin">¥{{ row.originalPrice }}</span>
-          </div>
+          <span class="price-current">¥{{ row.price }}</span>
         </template>
 
         <template #tags="{ row }">
@@ -242,24 +221,12 @@ function removeProduct(product: ProductItem) {
           <t-input-number v-model="form.price" theme="normal" />
         </div>
         <div class="field">
-          <span>原价</span>
-          <t-input-number v-model="form.originalPrice" theme="normal" />
-        </div>
-        <div class="field">
           <span>分类</span>
-          <t-select v-model="form.category" :options="categoryOptions" />
-        </div>
-        <div class="field">
-          <span>评分</span>
-          <t-input-number v-model="form.rating" theme="normal" :min="0" :max="5" :step="0.1" />
+          <t-select v-model="form.category" :options="categoryOptions" placeholder="请选择商品分类" />
         </div>
         <div class="field">
           <span>销量</span>
           <t-input-number v-model="form.sales" theme="normal" />
-        </div>
-        <div class="field">
-          <span>收藏数</span>
-          <t-input-number v-model="form.favorites" theme="normal" />
         </div>
         <div class="field field-full">
           <span>封面图 URL</span>
@@ -300,18 +267,6 @@ function removeProduct(product: ProductItem) {
             placeholder="每行一条使用说明"
             :autosize="{ minRows: 3, maxRows: 6 }"
           />
-        </div>
-        <div class="field">
-          <span>创作者</span>
-          <t-input v-model="form.authorName" placeholder="请输入创作者名称" />
-        </div>
-        <div class="field">
-          <span>风格标签</span>
-          <t-input v-model="form.accent" placeholder="请输入风格标签" />
-        </div>
-        <div class="field field-full">
-          <span>交付格式</span>
-          <t-input v-model="form.format" placeholder="请输入交付格式" />
         </div>
       </div>
     </t-dialog>
@@ -382,20 +337,8 @@ function removeProduct(product: ProductItem) {
   font-size: 13px;
 }
 
-.price-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 .price-current {
   font-weight: 700;
-}
-
-.price-origin {
-  color: var(--admin-text-soft);
-  font-size: 12px;
-  text-decoration: line-through;
 }
 
 .form-grid {

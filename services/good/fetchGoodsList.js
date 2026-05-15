@@ -57,7 +57,7 @@ export function fetchGoodsList(params) {
           thumb: item.cover,
           title: item.title,
           price: Math.round(Number(item.price || 0) * 100),
-          originPrice: Math.round(Number(item.originalPrice || 0) * 100),
+          originPrice: Math.round(Number(item.price || 0) * 100),
           desc: item.description || '',
           tags: item.tags || [],
           primaryImage: item.cover,

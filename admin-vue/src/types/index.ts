@@ -3,19 +3,10 @@ export interface ProductItem {
   title: string;
   description: string;
   price: number;
-  originalPrice: number;
-  rating: number;
   sales: number;
-  favorites: number;
   cover: string;
   tags: string[];
-  format: string;
-  accent: string;
   category: string;
-  author?: {
-    name: string;
-    avatar?: string;
-  };
   gallery?: string[];
   detailContent?: string[];
   deliverables?: string[];

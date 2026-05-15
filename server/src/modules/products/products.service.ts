@@ -46,7 +46,7 @@ export class ProductsService {
       title: payload.title,
       description: payload.description,
       price: payload.price,
-      originalPrice: payload.originalPrice,
+      originalPrice: payload.originalPrice ?? payload.price,
       rating: payload.rating ?? 5,
       sales: payload.sales ?? 0,
       favorites: payload.favorites ?? 0,

@@ -278,20 +278,14 @@ export class PublicService {
     description: string;
     price: number;
     originalPrice: number;
-    rating: number;
     sales: number;
-    favorites: number;
     cover: string;
     tags: unknown;
     gallery: unknown;
     detailContent: unknown;
     deliverables: unknown;
     usageNotice: unknown;
-    format: string | null;
-    accent: string | null;
     category: string;
-    authorName: string | null;
-    authorAvatar: string | null;
     isNew: boolean;
     isHot: boolean;
     sort: number;
@@ -302,25 +296,15 @@ export class PublicService {
       title: product.title,
       description: product.description,
       price: product.price,
-      originalPrice: product.originalPrice,
-      rating: product.rating,
+      originalPrice: product.price,
       sales: product.sales,
-      favorites: product.favorites,
       cover: product.cover,
       tags: this.toStringArray(product.tags),
       gallery: this.toStringArray(product.gallery),
       detailContent: this.toStringArray(product.detailContent),
       deliverables: this.toStringArray(product.deliverables),
       usageNotice: this.toStringArray(product.usageNotice),
-      format: product.format ?? '',
-      accent: product.accent ?? '',
       category: product.category,
-      author: product.authorName
-        ? {
-            name: product.authorName,
-            avatar: product.authorAvatar ?? '',
-          }
-        : null,
       isNew: product.isNew,
       isHot: product.isHot,
       sort: product.sort,
@@ -334,7 +318,7 @@ export class PublicService {
     const gallery = productCard.gallery;
     const standardPrice = Math.round(product.price * 100);
     const proPrice = Math.round((product.price + 40) * 100);
-    const linePrice = Math.round(product.originalPrice * 100);
+    const linePrice = Math.round(product.price * 100);
 
     return {
       saasId: '88888888',
@@ -430,10 +414,6 @@ export class PublicService {
       limitInfo: [{ text: '数字商品，购买后永久可用' }],
       desc: [product.cover, ...gallery],
       etitle: '',
-      author: productCard.author,
-      rating: product.rating,
-      accent: product.accent ?? '',
-      format: product.format ?? '',
       detailContent: productCard.detailContent,
       deliverables: productCard.deliverables,
       usageNotice: productCard.usageNotice,

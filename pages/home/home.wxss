@@ -302,11 +302,6 @@ page {
   font-weight: 700;
 }
 
-.price-origin {
-  color: #c9c0b8;
-  font-size: 20rpx;
-  text-decoration: line-through;
-}
 
 .cart-mini-button {
   width: 64rpx;

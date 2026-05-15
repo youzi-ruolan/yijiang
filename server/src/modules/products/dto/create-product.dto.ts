@@ -13,17 +13,20 @@ export class CreateProductDto {
   @IsNumber()
   price!: number;
 
+  @IsOptional()
   @IsNumber()
-  originalPrice!: number;
+  originalPrice?: number;
 
+  @IsOptional()
   @IsNumber()
-  rating!: number;
+  rating?: number;
 
   @IsNumber()
   sales!: number;
 
+  @IsOptional()
   @IsNumber()
-  favorites!: number;
+  favorites?: number;
 
   @IsString()
   cover!: string;

@@ -116,7 +116,6 @@
               <view class="price-row">
                 <view class="price-meta">
                   <view class="price-main">¥{{item.price}}</view>
-                  <view class="price-origin">¥{{item.originalPrice}}</view>
                 </view>
                 <view class="cart-mini-button" data-id="{{item.id}}" data-title="{{item.title}}" catchtap="addToCart">
                   <t-icon prefix="wr" name="cart" size="34rpx" color="#ff5c51" />
