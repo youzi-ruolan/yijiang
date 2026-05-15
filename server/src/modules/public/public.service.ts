@@ -277,7 +277,6 @@ export class PublicService {
     title: string;
     description: string;
     price: number;
-    originalPrice: number;
     sales: number;
     cover: string;
     tags: unknown;
@@ -296,7 +295,6 @@ export class PublicService {
       title: product.title,
       description: product.description,
       price: product.price,
-      originalPrice: product.price,
       sales: product.sales,
       cover: product.cover,
       tags: this.toStringArray(product.tags),

@@ -259,13 +259,22 @@ export function mapOrderFromApi(order: OrderResponse): OrderItem {
 
 function toProductPayload(product: ProductItem) {
   return {
-    ...product,
-    originalPrice: product.price,
-    rating: 5,
-    favorites: 0,
-    format: '',
-    accent: '',
-    author: undefined,
+    id: product.id,
+    title: product.title,
+    description: product.description,
+    price: product.price,
+    sales: product.sales,
+    cover: product.cover,
+    tags: product.tags || [],
+    category: product.category,
+    gallery: product.gallery || [],
+    detailContent: product.detailContent || [],
+    deliverables: product.deliverables || [],
+    usageNotice: product.usageNotice || [],
+    isNew: product.isNew,
+    isHot: product.isHot,
+    sort: product.sort,
+    status: product.status,
   };
 }
 
