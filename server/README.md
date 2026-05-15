@@ -6,16 +6,13 @@
 - MySQL
 - TypeScript
 
-## 为什么这是当前更优方案
-- 约 `8000` 用户规模下，`NestJS + Prisma + MySQL` 足够轻量，部署和维护压力更小
-- 和现有 `admin-vue`、小程序、前端 TypeScript 生态一致，协作成本更低
-- Prisma 的模型定义、迁移、类型推导都更适合你这个项目持续迭代
-
 ## 核心职责
 - 为 `admin-vue` 提供后台管理接口
 - 为小程序提供聚合消费接口
+- 为 Northflank 等平台提供可直接部署的生产服务
 
-## 模块
+## 接口模块
+- `GET /health`
 - `POST /admin/auth/login`
 - `GET /admin/dashboard/overview`
 - `GET /admin/settings`
@@ -51,43 +48,36 @@
 - `GET /api/products`
 - `GET /api/products/:id`
 
-## 当前数据边界
-- 后台管理端统一走 `/admin/*`
-- 小程序消费端统一走 `/api/*`
-- `GET /api/home` 返回首页聚合数据
-- `GET /api/products/:id` 已按当前商品详情页需要补齐规格、SKU、详情段落等字段
+## 环境变量
+- `DATABASE_URL`：MySQL 连接串
+- `JWT_SECRET`：登录与鉴权相关密钥
+- `NODE_ENV`：推荐生产环境设为 `production`
+- `PORT`：服务监听端口，Northflank 会自动注入
+- `CORS_ORIGIN`：允许跨域来源，多个地址用英文逗号分隔
 
-## 建议的接口对接顺序
-1. 先接 `admin-vue` 的登录、设置、分类、商品、内容管理
-2. 再把小程序首页从 `mock` 切到 `/api/home`
-3. 最后把商品详情、购物车下单、订单列表切到真实接口
+参考文件：`D:\new-data\tdesign-miniprogram-starter-retail\server\.env.example`
 
-## admin-vue 对接建议
-- 把 `D:\new-data\tdesign-miniprogram-starter-retail\admin-vue\src\stores\admin.ts` 的本地 `localStorage` 数据源替换成接口仓
-- 推荐新增 `admin-vue/src/api/` 目录，按模块拆分 `auth.ts`、`settings.ts`、`categories.ts`、`products.ts`、`content.ts`、`orders.ts`
-- 登录成功后只保存 `token` 和当前用户信息，业务数据全部改为页面请求
-
-## 小程序对接建议
-- 首页：`D:\new-data\tdesign-miniprogram-starter-retail\pages\home\mock.js` -> `/api/home`
-- 分类 Tab：复用 `/api/categories` 与 `/api/products?category=xxx`
-- 商品详情：`D:\new-data\tdesign-miniprogram-starter-retail\utils\home-goods.js` 的本地适配可逐步下线，直接请求 `/api/products/:id`
-- 购物车：本地购物车逻辑可以先保留，后续需要多端同步时再补 `cart`/`order` 接口
-
-## 推荐的接口规范
-- 管理端统一返回：`{ code, message, data }`
-- 列表接口统一返回：`{ list, total }`
-- 状态值统一使用：`ACTIVE | INACTIVE`
-- 图片字段统一存完整 URL，避免小程序和后台各自拼接
-
-## 启动
+## 本地开发
 1. 复制 `.env.example` 为 `.env`
-2. 配置 MySQL `DATABASE_URL`
-3. 安装依赖：`npm install`
-4. 生成 Prisma Client：`npm run prisma:generate`
-5. 执行迁移：`npm run prisma:migrate`
-6. 启动开发服务：`npm run dev`
+2. 安装依赖：`npm install`
+3. 生成 Prisma Client：`npm run prisma:generate`
+4. 执行迁移：`npm run prisma:migrate`
+5. 启动开发服务：`npm run dev`
 
-## 下一步建议
-- 补一个 `prisma/seed.ts`，把首页 mock 数据初始化进 MySQL
-- 给 `admin-vue` 增加统一请求封装、登录拦截和错误提示
-- 给小程序补一层 `services/` 请求封装，方便从 mock 平滑切换到线上接口
+## 生产部署脚本
+- 构建：`npm run build:prod`
+- 启动：`npm run start:prod`
+- 生产迁移：`npm run prisma:migrate:deploy`
+
+## 重要说明
+- `prisma migrate dev` 只适合本地开发，不要在生产环境执行
+- `prisma/seed.ts` 当前会清空并重建业务数据，只适合空库初始化或测试环境
+- 生产环境如需初始化演示数据，请先确认数据库为空，再手动执行 `npm run prisma:seed`
+
+## Northflank 推荐
+- 免费档优先用 `1 个 MySQL Database + 1 个 Service`
+- Service 的工作目录设为 `server`
+- 健康检查地址使用 `/health`
+
+完整步骤见：
+`D:\new-data\tdesign-miniprogram-starter-retail\server\docs\northflank-deploy.md`
