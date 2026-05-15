@@ -15,20 +15,29 @@ function normalizeProductCategories(categories = []) {
   return [{ id: 'all', name: '全部', filterKey: 'all', target: 'productSection' }, ...normalizedCategories];
 }
 
+function normalizeProducts(products = []) {
+  return products.map((item) => ({
+    ...item,
+    displayDescription: item.description || item.accent || '',
+  }));
+}
+
 function buildDefaultState() {
+  const products = normalizeProducts(HOME_MOCK.products);
+
   return {
     appInfo: HOME_MOCK.app,
     headline: HOME_MOCK.headline,
     bannerList: HOME_MOCK.banners,
     categoryList: normalizeProductCategories(HOME_MOCK.categories),
-    productList: HOME_MOCK.products,
-    filteredProductList: HOME_MOCK.products,
+    productList: products,
+    filteredProductList: products,
   };
 }
 
 function normalizeHomePayload(payload = {}) {
   const fallback = buildDefaultState();
-  const products = payload.products?.length ? payload.products : fallback.productList;
+  const products = normalizeProducts(payload.products?.length ? payload.products : fallback.productList);
   const categories = payload.categories?.length ? payload.categories : fallback.categoryList;
 
   return {
