@@ -150,38 +150,6 @@ Page({
     }
   },
 
-  toggleFavorite(event) {
-    const { id } = event.currentTarget.dataset;
-    const nextProductList = this.data.productList.map((item) => {
-      if (item.id !== id) {
-        return item;
-      }
-
-      return {
-        ...item,
-        favorited: !item.favorited,
-        favorites: item.favorited ? item.favorites - 1 : item.favorites + 1,
-      };
-    });
-
-    const nextFilteredProductList = nextProductList.filter((item) => {
-      const activeCategory = this.data.activeCategoryId;
-      if (activeCategory === 'all') {
-        return true;
-      }
-      const category = this.data.categoryList.find((entry) => entry.id === activeCategory);
-      if (!category || category.filterKey === 'all') {
-        return true;
-      }
-      return item.category === category.filterKey;
-    });
-
-    this.setData({
-      productList: nextProductList,
-      filteredProductList: nextFilteredProductList,
-    });
-  },
-
   openProductCard(event) {
     const { id } = event.currentTarget.dataset;
     wx.navigateTo({

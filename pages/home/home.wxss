@@ -263,14 +263,6 @@ page {
   padding: 20rpx 18rpx 20rpx;
 }
 
-.product-accent,
-.product-desc,
-.author-row,
-.stats-row,
-.tag-row {
-  display: none;
-}
-
 .product-title {
   font-size: 28rpx;
   line-height: 1.45;

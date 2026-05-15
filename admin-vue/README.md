@@ -4,7 +4,6 @@
 
 ## 目标
 
-- 取代仓库中的静态轻量后台原型
 - 对齐 `TDesign Vue Next Starter` 的正式后台方向
 - 对接 `NestJS + Prisma + MySQL` 后端，统一后台与小程序数据源
 
