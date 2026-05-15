@@ -27,25 +27,14 @@ interface ProductResponse {
   title: string;
   description: string;
   price: number;
-  originalPrice: number;
-  rating: number;
   sales: number;
-  favorites: number;
   cover: string;
   tags: string[];
   gallery: string[];
   detailContent: string[];
   deliverables: string[];
   usageNotice: string[];
-  format: string;
-  accent: string;
   category: string;
-  authorName?: string;
-  authorAvatar?: string;
-  author?: {
-    name: string;
-    avatar?: string;
-  } | null;
   isNew?: boolean;
   isHot?: boolean;
 }
@@ -244,22 +233,14 @@ export function mapProductFromApi(product: ProductResponse): ProductItem {
     title: product.title,
     description: product.description,
     price: product.price,
-    originalPrice: product.originalPrice,
-    rating: product.rating,
     sales: product.sales,
-    favorites: product.favorites,
     cover: product.cover,
     tags: product.tags || [],
     gallery: product.gallery || [],
     detailContent: product.detailContent || [],
     deliverables: product.deliverables || [],
     usageNotice: product.usageNotice || [],
-    format: product.format || '',
-    accent: product.accent || '',
     category: product.category,
-    author:
-      product.author ||
-      (product.authorName ? { name: product.authorName, avatar: product.authorAvatar || '' } : undefined),
     isNew: Boolean(product.isNew),
     isHot: Boolean(product.isHot),
   };
@@ -278,13 +259,22 @@ export function mapOrderFromApi(order: OrderResponse): OrderItem {
 
 function toProductPayload(product: ProductItem) {
   return {
-    ...product,
-    author: product.author?.name
-      ? {
-          name: product.author.name,
-          avatar: product.author.avatar || '',
-        }
-      : undefined,
+    id: product.id,
+    title: product.title,
+    description: product.description,
+    price: product.price,
+    sales: product.sales,
+    cover: product.cover,
+    tags: product.tags || [],
+    category: product.category,
+    gallery: product.gallery || [],
+    detailContent: product.detailContent || [],
+    deliverables: product.deliverables || [],
+    usageNotice: product.usageNotice || [],
+    isNew: product.isNew,
+    isHot: product.isHot,
+    sort: product.sort,
+    status: product.status,
   };
 }
 

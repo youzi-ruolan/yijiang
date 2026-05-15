@@ -12,7 +12,7 @@ function mockFetchGoodsList(pageIndex = 1, pageSize = 20) {
         thumb: item.primaryImage,
         title: item.title,
         price: item.minSalePrice,
-        originPrice: item.maxLinePrice,
+        originPrice: item.minSalePrice,
         tags: item.spuTagList.map((tag) => tag.title),
       };
     }),
@@ -30,7 +30,7 @@ export function fetchGoodsList(pageIndex = 1, pageSize = 20) {
         thumb: item.cover,
         title: item.title,
         price: Math.round(Number(item.price || 0) * 100),
-        originPrice: Math.round(Number(item.originalPrice || 0) * 100),
+        originPrice: Math.round(Number(item.price || 0) * 100),
         tags: item.tags || [],
       })),
     );

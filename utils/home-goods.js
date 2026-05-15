@@ -54,7 +54,7 @@ function buildSkuList(product) {
       ],
       priceInfo: [
         { priceType: 1, price: `${basePrice}` },
-        { priceType: 2, price: `${Math.round(product.originalPrice * 100)}` },
+        { priceType: 2, price: `${basePrice}` },
       ],
     },
     {
@@ -74,7 +74,7 @@ function buildSkuList(product) {
       ],
       priceInfo: [
         { priceType: 1, price: `${proPrice}` },
-        { priceType: 2, price: `${Math.round(product.originalPrice * 100)}` },
+        { priceType: 2, price: `${basePrice}` },
       ],
     },
   ];
@@ -107,9 +107,9 @@ export function getHomeGoodById(spuId) {
     images,
     available: 1,
     minSalePrice: Math.round(product.price * 100),
-    minLinePrice: Math.round(product.originalPrice * 100),
+    minLinePrice: Math.round(product.price * 100),
     maxSalePrice: Math.round((product.price + 40) * 100),
-    maxLinePrice: Math.round(product.originalPrice * 100),
+    maxLinePrice: Math.round(product.price * 100),
     soldNum: product.sales,
     isPutOnSale: 1,
     specList: buildSpecList(product.tags),
@@ -122,10 +122,6 @@ export function getHomeGoodById(spuId) {
     limitInfo: [{ text: '数字商品，购买后永久可用' }],
     desc: buildDesc(product),
     etitle: '',
-    author: product.author,
-    rating: product.rating,
-    accent: product.accent,
-    format: product.format,
     detailContent: product.detailContent || [],
     deliverables: product.deliverables || [],
     usageNotice: product.usageNotice || [],

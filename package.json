@@ -7,7 +7,6 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint --cache --fix --ext .js",
     "check": "node config/eslintCheck.js",
-    "admin:start": "node admin/server.js",
     "admin:pro:dev": "npm --prefix admin-vue run dev",
     "admin:pro:build": "npm --prefix admin-vue run build",
     "server:dev": "npm --prefix server run dev",

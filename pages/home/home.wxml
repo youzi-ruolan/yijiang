@@ -75,20 +75,26 @@
       <block wx:for="{{filteredProductList}}" wx:key="id">
         <view class="product-card" data-id="{{item.id}}" bindtap="openProductCard">
           <view class="product-cover-wrap">
-            <image class="product-cover" src="{{item.cover}}" mode="aspectFit" lazy-load />
+            <image class="product-cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
           </view>
 
           <view class="product-body">
+            <view class="product-topline">
+              <text class="product-badge">调色课程</text>
+              <text class="product-format" wx:if="{{item.format}}">{{item.format}}</text>
+            </view>
             <view class="product-title">{{item.title}}</view>
+            <view class="product-desc">{{item.description || item.accent}}</view>
+            <view class="tag-row" wx:if="{{item.tags && item.tags.length}}">
+              <text class="product-tag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+            </view>
 
             <view class="price-row">
               <view class="price-meta">
                 <view class="price-main">¥{{item.price}}</view>
                 <view class="price-origin">¥{{item.originalPrice}}</view>
               </view>
-              <view class="cart-mini-button" data-id="{{item.id}}" data-title="{{item.title}}" catchtap="addToCart">
-                <t-icon prefix="wr" name="cart" size="34rpx" color="#ff5c51" />
-              </view>
+              <view class="course-action">查看课程</view>
             </view>
           </view>
         </view>

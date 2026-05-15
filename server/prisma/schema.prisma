@@ -46,21 +46,14 @@ model Product {
   title         String
   description   String   @db.Text
   price         Int
-  originalPrice Int
-  rating        Float    @default(5)
   sales         Int      @default(0)
-  favorites     Int      @default(0)
   cover         String
   tags          Json
   gallery       Json
   detailContent Json
   deliverables  Json
   usageNotice   Json
-  format        String?
-  accent        String?
   category      String
-  authorName    String?
-  authorAvatar  String?
   isNew         Boolean  @default(false)
   isHot         Boolean  @default(false)
   sort          Int      @default(0)

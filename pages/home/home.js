@@ -154,7 +154,7 @@ Page({
           thumb: goods.cover,
           primaryImage: goods.cover,
           price: Math.round(goods.price * 100),
-          originPrice: Math.round(goods.originalPrice * 100),
+          originPrice: Math.round(goods.price * 100),
           tags: goods.tags,
         }),
       );
