@@ -15,6 +15,16 @@ export class PublicController {
     return this.publicService.login(payload);
   }
 
+  @Get('usercenter')
+  getUserCenter(@Query('uid') uid?: string) {
+    return this.publicService.getUserCenter(uid);
+  }
+
+  @Get('person')
+  getPerson(@Query('uid') uid?: string) {
+    return this.publicService.getPerson(uid);
+  }
+
   @Get('categories')
   getCategories() {
     return this.publicService.getCategories();
@@ -31,13 +41,13 @@ export class PublicController {
   }
 
   @Get('orders')
-  getOrders(@Query('status') status?: string) {
-    return this.publicService.getOrders(status);
+  getOrders(@Query('status') status?: string, @Query('uid') uid?: string) {
+    return this.publicService.getOrders(status, uid);
   }
 
   @Get('orders/count')
-  getOrdersCount() {
-    return this.publicService.getOrdersCount();
+  getOrdersCount(@Query('uid') uid?: string) {
+    return this.publicService.getOrdersCount(uid);
   }
 
   @Post('orders/settle')
@@ -46,8 +56,8 @@ export class PublicController {
   }
 
   @Get('orders/:id')
-  getOrderDetail(@Param('id') id: string) {
-    return this.publicService.getOrderDetail(id);
+  getOrderDetail(@Param('id') id: string, @Query('uid') uid?: string) {
+    return this.publicService.getOrderDetail(id, uid);
   }
 
   @Post('orders')

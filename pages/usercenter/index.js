@@ -217,11 +217,6 @@ Page({
   },
 
   async ensureLogin() {
-    wx.showToast({
-      title: '点到登录了',
-      icon: 'none',
-      duration: 1000,
-    });
     if (getCurrentUser()) return true;
     const authed = await ensureWechatLogin({
       content: '这里需要微信授权登录后才能继续使用。',

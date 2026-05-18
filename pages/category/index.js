@@ -8,6 +8,9 @@ function buildProductChild(product) {
     thumbnail: product.cover,
     type: 'product',
     spuId: product.id,
+    price: product.price,
+    description: product.description || '',
+    tags: Array.isArray(product.tags) ? product.tags.slice(0, 2) : [],
   };
 }
 

@@ -1,5 +1,6 @@
 import { config } from '../../config/index';
 import { apiRequest } from '../_utils/request';
+import { getCurrentUser } from '../../utils/local-auth';
 
 /** 获取订单列表mock数据 */
 function mockFetchOrders(params) {
@@ -13,7 +14,15 @@ function mockFetchOrders(params) {
 export function fetchOrders(params) {
   if (config.enableBackendApi) {
     const status = params?.parameter?.orderStatus;
-    const query = status !== undefined && status !== -1 ? `?status=${encodeURIComponent(mapStatusToText(status))}` : '';
+    const currentUser = getCurrentUser();
+    const queryList = [];
+    if (status !== undefined && status !== -1) {
+      queryList.push(`status=${encodeURIComponent(mapStatusToText(status))}`);
+    }
+    if (currentUser?.uid) {
+      queryList.push(`uid=${encodeURIComponent(currentUser.uid)}`);
+    }
+    const query = queryList.length ? `?${queryList.join('&')}` : '';
 
     return apiRequest({
       url: `/api/orders${query}`,
@@ -72,8 +81,10 @@ function mockFetchOrdersCount(params) {
 /** 获取订单列表统计 */
 export function fetchOrdersCount(params) {
   if (config.enableBackendApi) {
+    const currentUser = getCurrentUser();
+    const query = currentUser?.uid ? `?uid=${encodeURIComponent(currentUser.uid)}` : '';
     return apiRequest({
-      url: '/api/orders/count',
+      url: `/api/orders/count${query}`,
     }).then((data = []) => ({
       data,
     }));

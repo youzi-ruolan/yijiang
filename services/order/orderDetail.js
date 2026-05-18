@@ -1,5 +1,6 @@
 import { config } from '../../config/index';
 import { apiRequest } from '../_utils/request';
+import { getCurrentUser } from '../../utils/local-auth';
 
 /** 获取订单详情mock数据 */
 function mockFetchOrderDetail(params) {
@@ -12,8 +13,10 @@ function mockFetchOrderDetail(params) {
 /** 获取订单详情数据 */
 export function fetchOrderDetail(params) {
   if (config.enableBackendApi) {
+    const currentUser = getCurrentUser();
+    const query = currentUser?.uid ? `?uid=${encodeURIComponent(currentUser.uid)}` : '';
     return apiRequest({
-      url: `/api/orders/${params?.parameter}`,
+      url: `/api/orders/${params?.parameter}${query}`,
     }).then((data) => ({
       data,
     }));

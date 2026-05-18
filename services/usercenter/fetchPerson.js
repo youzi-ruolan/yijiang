@@ -1,4 +1,6 @@
 import { config } from '../../config/index';
+import { apiRequest } from '../_utils/request';
+import { getCurrentUser } from '../../utils/local-auth';
 
 /** 获取个人中心信息 */
 function mockFetchPerson() {
@@ -19,6 +21,15 @@ function mockFetchPerson() {
 
 /** 获取个人中心信息 */
 export function fetchPerson() {
+  if (config.enableBackendApi) {
+    const currentUser = getCurrentUser();
+    if (!currentUser?.uid) {
+      return Promise.reject(new Error('请先登录'));
+    }
+    return apiRequest({
+      url: `/api/person?uid=${encodeURIComponent(currentUser.uid)}`,
+    });
+  }
   if (config.useMock) {
     return mockFetchPerson();
   }

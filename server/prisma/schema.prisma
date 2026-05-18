@@ -106,6 +106,7 @@ model Article {
 
 model Order {
   id          String   @id
+  userId      String?
   customer    String
   amount      Int
   status      String
@@ -115,6 +116,7 @@ model Order {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([userId, createdAt])
   @@index([status, createdAt])
 }
 

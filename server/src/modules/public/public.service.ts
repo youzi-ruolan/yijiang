@@ -82,6 +82,80 @@ export class PublicService {
     };
   }
 
+  async getUserCenter(uid?: string) {
+    const customerServiceInfo = {
+      servicePhone: '4006336868',
+      serviceTimeDuration: '周一至周日 09:00-21:00',
+    };
+
+    const countsData = [
+      {
+        num: 0,
+        name: '收货地址',
+        type: 'address',
+      },
+    ];
+
+    const [user, orders] = await Promise.all([
+      uid ? this.prisma.miniProgramUser.findUnique({ where: { id: uid } }) : Promise.resolve(null),
+      this.prisma.order.findMany({
+        where: uid ? { userId: uid } : undefined,
+        orderBy: [{ createdAt: 'desc' }],
+      }),
+    ]);
+
+    const orderTagInfos = [
+      { orderNum: orders.filter((item) => item.status === '待处理').length, tabType: 5 },
+      { orderNum: orders.filter((item) => ['已付款', '待交付'].includes(item.status)).length, tabType: 10 },
+      { orderNum: orders.filter((item) => item.status === '待收货').length, tabType: 40 },
+      { orderNum: 0, tabType: 60 },
+      { orderNum: 0, tabType: 0 },
+    ];
+
+    return {
+      userInfo: user
+        ? {
+            uid: user.id,
+            nickName: user.nickName,
+            avatarUrl: user.avatarUrl || '',
+            gender: user.gender,
+            phoneNumber: user.phoneNumber || '',
+          }
+        : null,
+      countsData,
+      orderTagInfos,
+      customerServiceInfo,
+    };
+  }
+
+  async getPerson(uid?: string) {
+    if (!uid) {
+      throw new BadRequestException('缺少用户标识');
+    }
+
+    const user = await this.prisma.miniProgramUser.findUnique({
+      where: { id: uid },
+    });
+
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    return {
+      uid: user.id,
+      nickName: user.nickName,
+      avatarUrl: user.avatarUrl || '',
+      gender: user.gender,
+      phoneNumber: user.phoneNumber || '',
+      address: {
+        provinceName: '',
+        provinceCode: '',
+        cityName: '',
+        cityCode: '',
+      },
+    };
+  }
+
   async getCategories() {
     const categories = await this.prisma.category.findMany({
       where: { status: 'ACTIVE' },
@@ -111,17 +185,21 @@ export class PublicService {
     return product ? this.formatProductDetail(product) : null;
   }
 
-  async getOrders(status?: string) {
+  async getOrders(status?: string, uid?: string) {
     const orders = await this.prisma.order.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        ...(status ? { status } : {}),
+        ...(uid ? { userId: uid } : {}),
+      },
       orderBy: [{ createdAt: 'desc' }],
     });
 
     return orders.map((item) => this.formatPublicOrder(item));
   }
 
-  async getOrdersCount() {
+  async getOrdersCount(uid?: string) {
     const orders = await this.prisma.order.findMany({
+      where: uid ? { userId: uid } : undefined,
       select: { status: true },
     });
 
@@ -240,10 +318,14 @@ export class PublicService {
     };
   }
 
-  async getOrderDetail(id: string) {
+  async getOrderDetail(id: string, uid?: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
     });
+
+    if (uid && order?.userId && order.userId !== uid) {
+      throw new BadRequestException('订单不存在');
+    }
 
     return order ? this.formatOrderDetail(order) : null;
   }
@@ -252,6 +334,7 @@ export class PublicService {
     const goodsRequestList = Array.isArray(payload.goodsRequestList) ? payload.goodsRequestList : [];
     const totalAmount = Number(payload.totalAmount || 0);
     const userName = `${payload.userName || '艺匠调色用户'}`.trim() || '艺匠调色用户';
+    const userId = `${payload.uid || ''}`.trim() || null;
     const orderNo = this.generateOrderNo();
     const items = goodsRequestList.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 
@@ -277,6 +360,7 @@ export class PublicService {
     const order = await this.prisma.order.create({
       data: {
         id: orderNo,
+        userId,
         customer: userName,
         amount: totalAmount,
         status: '待交付',

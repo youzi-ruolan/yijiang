@@ -16,6 +16,7 @@ export const commitPay = (params) => {
     orderType: params.orderType || 0, // 订单类型 0=普通订单 1=虚拟订单
     payType: params.payType || 1, // 支付类型(0=线上、1=线下)
     totalAmount: params.totalAmount, // 新增字段"totalAmount"总的支付金额
+    uid: params.uid,
     userName: params.userName, // 用户名
     payWay: 1,
     authorizationCode: '', //loginCode, // 登录凭证

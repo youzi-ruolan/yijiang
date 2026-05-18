@@ -3,6 +3,7 @@ import { fetchSettleDetail } from '../../../services/order/orderConfirm';
 import { commitPay, wechatPayOrder } from './pay';
 import { getAddressPromise } from '../../../services/address/list';
 import { removeLocalCartItem } from '../../../utils/local-cart';
+import { getCurrentUser } from '../../../utils/local-auth';
 
 const stripeImg = `https://tdesign.gtimg.com/miniprogram/template/retail/order/stripe.png`;
 
@@ -360,6 +361,7 @@ Page({
     const params = {
       userAddressReq: settleDetailData.userAddress || userAddressReq,
       goodsRequestList: goodsRequestList,
+      uid: getCurrentUser()?.uid || '',
       userName:
         (settleDetailData.userAddress && settleDetailData.userAddress.name) ||
         (userAddressReq && userAddressReq.name) ||
