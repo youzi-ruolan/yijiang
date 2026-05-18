@@ -1,4 +1,5 @@
 import { fetchPerson } from '../../../services/usercenter/fetchPerson';
+import { updatePersonProfile } from '../../../services/usercenter/updatePerson';
 import { phoneEncryption } from '../../../utils/util';
 import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from 'tdesign-miniprogram/dialog/index';
@@ -64,9 +65,6 @@ Page({
           url: `/pages/user/name-edit/index?name=${nickName}`,
         });
         break;
-      case 'avatarUrl':
-        this.toModifyAvatar();
-        break;
       default: {
         break;
       }
@@ -85,55 +83,41 @@ Page({
         'personInfo.gender': value,
       },
       () => {
-        updateCurrentUser({ gender: Number(value) });
-        Toast({
-          context: this,
-          selector: '#t-toast',
-          message: '设置成功',
-          theme: 'success',
-        });
+        this.saveProfilePatch({ gender: Number(value) }, '设置成功');
       },
     );
   },
-  async toModifyAvatar() {
+  async onChooseAvatar(e) {
+    const { avatarUrl } = e.detail;
+    if (!avatarUrl) return;
+
     try {
-      const tempFilePath = await new Promise((resolve, reject) => {
-        wx.chooseImage({
-          count: 1,
-          sizeType: ['compressed'],
-          sourceType: ['album', 'camera'],
-          success: (res) => {
-            const { path, size } = res.tempFiles[0];
-            if (size <= 10485760) {
-              resolve(path);
-            } else {
-              reject({ errMsg: '图片大小超出限制，请重新上传' });
-            }
-          },
-          fail: (err) => reject(err),
-        });
-      });
-      const tempUrlArr = tempFilePath.split('/');
-      const tempFileName = tempUrlArr[tempUrlArr.length - 1];
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message: `已选择图片-${tempFileName}`,
-        theme: 'success',
-      });
-      const nextUser = updateCurrentUser({ avatarUrl: tempFilePath });
-      this.setData({
-        'personInfo.avatarUrl': nextUser.avatarUrl,
-      });
+      await this.saveProfilePatch({ avatarUrl }, '微信头像已更新');
     } catch (error) {
-      if (error.errMsg === 'chooseImage:fail cancel') return;
       Toast({
         context: this,
         selector: '#t-toast',
-        message: error.errMsg || error.msg || '修改头像出错了',
+        message: error.message || error.errMsg || '修改头像出错了',
         theme: 'error',
       });
     }
+  },
+  async saveProfilePatch(patch, successMessage = '保存成功') {
+    const savedProfile = await updatePersonProfile(patch);
+    const nextUser = updateCurrentUser(savedProfile);
+    this.setData({
+      personInfo: {
+        ...this.data.personInfo,
+        ...nextUser,
+      },
+    });
+    Toast({
+      context: this,
+      selector: '#t-toast',
+      message: successMessage,
+      theme: 'success',
+    });
+    return nextUser;
   },
 
   openUnbindConfirm() {

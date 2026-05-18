@@ -1,7 +1,7 @@
 // import { getCommentDetail } from '../../../../services/good/comments/fetchCommentDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { addLocalComment } from '../../../../utils/local-comments';
-import { ensureWechatLogin, getCurrentUser } from '../../../../utils/local-auth';
+import { ensureWechatLoginWithGuide, getCurrentUser } from '../../../../utils/local-auth';
 Page({
   data: {
     serviceRateValue: 5,
@@ -99,11 +99,11 @@ Page({
     } = this.data;
     if (!isAllowedSubmit) return;
     if (!getCurrentUser()) {
-      const authed = await ensureWechatLogin({
+      const loginResult = await ensureWechatLoginWithGuide({
         content: '提交商品评价需要先完成微信授权登录。',
       });
 
-      if (!authed) {
+      if (!loginResult.authed) {
         Toast({
           context: this,
           selector: '#t-toast',
@@ -112,6 +112,8 @@ Page({
         });
         return;
       }
+
+      if (loginResult.guided) return;
     }
     try {
       addLocalComment({

@@ -1,6 +1,7 @@
 import { apiRequest } from '../services/_utils/request';
 
 const AUTH_SESSION_KEY = 'yijiang_auth_session';
+const PROFILE_GUIDE_KEY = 'yijiang_profile_guide';
 const DEFAULT_AVATAR =
   'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png';
 
@@ -16,6 +17,45 @@ function writeSession(session) {
   wx.setStorageSync(AUTH_SESSION_KEY, session);
 }
 
+function readProfileGuideState() {
+  try {
+    return wx.getStorageSync(PROFILE_GUIDE_KEY) || {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writeProfileGuideState(state) {
+  wx.setStorageSync(PROFILE_GUIDE_KEY, state);
+}
+
+function markPendingProfileGuide(uid) {
+  if (!uid) return;
+  const state = readProfileGuideState();
+  state[uid] = true;
+  writeProfileGuideState(state);
+}
+
+function consumePendingProfileGuide(uid) {
+  if (!uid) return false;
+  const state = readProfileGuideState();
+  const pending = Boolean(state[uid]);
+  if (pending) {
+    delete state[uid];
+    writeProfileGuideState(state);
+  }
+  return pending;
+}
+
+function clearPendingProfileGuide(uid) {
+  if (!uid) return;
+  const state = readProfileGuideState();
+  if (state[uid]) {
+    delete state[uid];
+    writeProfileGuideState(state);
+  }
+}
+
 export function getCurrentUser() {
   return readSession()?.userInfo || null;
 }
@@ -24,12 +64,15 @@ export function isLoggedIn() {
   return Boolean(getCurrentUser());
 }
 
+export function isWechatProfileComplete(user = getCurrentUser()) {
+  if (!user) return false;
+  const nickName = `${user.nickName || ''}`.trim();
+  const avatarUrl = `${user.avatarUrl || ''}`.trim();
+
+  return Boolean(nickName && nickName !== '微信用户' && avatarUrl && avatarUrl !== DEFAULT_AVATAR);
+}
+
 export function authorizeWechatUser() {
-  wx.showToast({
-    title: '新登录逻辑',
-    icon: 'none',
-    duration: 1500,
-  });
   console.log('[auth] authorizeWechatUser:start');
   return new Promise((resolve, reject) => {
     wx.getUserProfile({
@@ -74,6 +117,9 @@ export function authorizeWechatUser() {
                 },
               };
               writeSession(nextSession);
+              if (!isWechatProfileComplete(nextSession.userInfo)) {
+                markPendingProfileGuide(nextSession.userInfo.uid);
+              }
               resolve(nextSession.userInfo);
             } catch (error) {
               console.log('[auth] /api/auth/login:fail', error);
@@ -113,6 +159,65 @@ export function ensureWechatLogin(options = {}) {
   });
 }
 
+export async function maybeGuideWechatProfileCompletion() {
+  const currentUser = getCurrentUser();
+  if (!currentUser?.uid) {
+    return false;
+  }
+
+  if (!consumePendingProfileGuide(currentUser.uid)) {
+    return false;
+  }
+
+  if (isWechatProfileComplete(currentUser)) {
+    return false;
+  }
+
+  const pages = getCurrentPages();
+  const currentRoute = pages[pages.length - 1]?.route || '';
+  if (currentRoute === 'pages/user/person-info/index') {
+    return false;
+  }
+
+  await new Promise((resolve, reject) => {
+    wx.navigateTo({
+      url: '/pages/user/person-info/index?from=first-login',
+      success: resolve,
+      fail: reject,
+    });
+  });
+
+  return true;
+}
+
+export async function ensureWechatLoginWithGuide(options = {}) {
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    return {
+      authed: true,
+      guided: false,
+    };
+  }
+
+  const authed = await ensureWechatLogin(options);
+  if (!authed) {
+    return {
+      authed: false,
+      guided: false,
+    };
+  }
+
+  const guided = await maybeGuideWechatProfileCompletion().catch((error) => {
+    console.log('[auth] maybeGuideWechatProfileCompletion:fail', error);
+    return false;
+  });
+
+  return {
+    authed: true,
+    guided,
+  };
+}
+
 export function updateCurrentUser(patch) {
   const session = readSession();
   if (!session?.userInfo) {
@@ -129,6 +234,10 @@ export function updateCurrentUser(patch) {
     ...session,
     userInfo: nextUserInfo,
   });
+
+  if (isWechatProfileComplete(nextUserInfo)) {
+    clearPendingProfileGuide(nextUserInfo.uid);
+  }
 
   return nextUserInfo;
 }

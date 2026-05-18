@@ -1,4 +1,5 @@
 import Toast from 'tdesign-miniprogram/toast/index';
+import { updatePersonProfile } from '../../../services/usercenter/updatePerson';
 import { updateCurrentUser } from '../../../utils/local-auth';
 
 Page({
@@ -11,9 +12,11 @@ Page({
       nameValue: name,
     });
   },
-  onSubmit() {
+  async onSubmit() {
     try {
-      updateCurrentUser({ nickName: this.data.nameValue.trim() });
+      const nickName = this.data.nameValue.trim();
+      const savedProfile = await updatePersonProfile({ nickName });
+      updateCurrentUser(savedProfile);
       Toast({
         context: this,
         selector: '#t-toast',
@@ -27,7 +30,7 @@ Page({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: error.message || '保存失败',
+        message: error.message || error.errMsg || '保存失败',
         theme: 'error',
       });
     }

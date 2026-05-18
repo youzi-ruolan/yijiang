@@ -3,7 +3,7 @@ import { fetchDeliveryAddressList } from '../../../../services/address/fetchAddr
 import Toast from 'tdesign-miniprogram/toast/index';
 import { resolveAddress, rejectAddress } from '../../../../services/address/list';
 import { getAddressPromise } from '../../../../services/address/edit';
-import { ensureWechatLogin } from '../../../../utils/local-auth';
+import { ensureWechatLoginWithGuide } from '../../../../utils/local-auth';
 
 function leaveCurrentPage() {
   const pages = getCurrentPages();
@@ -36,10 +36,10 @@ Page({
     });
     this.selectMode = !!selectMode;
 
-    const authed = await ensureWechatLogin({
+    const loginResult = await ensureWechatLoginWithGuide({
       content: '管理收货地址需要先完成微信授权登录。',
     });
-    if (!authed) {
+    if (!loginResult.authed) {
       if (this.selectMode) {
         rejectAddress();
         this.hasSelect = true;
@@ -47,6 +47,8 @@ Page({
       leaveCurrentPage();
       return;
     }
+
+    if (loginResult.guided) return;
 
     this.init();
   },

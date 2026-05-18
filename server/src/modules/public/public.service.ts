@@ -156,6 +156,46 @@ export class PublicService {
     };
   }
 
+  async updatePersonProfile(payload: Record<string, unknown>) {
+    const uid = `${payload.uid || ''}`.trim();
+    if (!uid) {
+      throw new BadRequestException('缺少用户标识');
+    }
+
+    const currentUser = await this.prisma.miniProgramUser.findUnique({
+      where: { id: uid },
+    });
+
+    if (!currentUser) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    const nickName = `${payload.nickName || ''}`.trim();
+    const avatarUrl = `${payload.avatarUrl || ''}`.trim();
+    const phoneNumber = `${payload.phoneNumber || ''}`.trim();
+    const gender = Number(payload.gender);
+
+    const nextUser = await this.prisma.miniProgramUser.update({
+      where: { id: uid },
+      data: {
+        ...(nickName ? { nickName } : {}),
+        ...(avatarUrl ? { avatarUrl } : {}),
+        ...(phoneNumber ? { phoneNumber } : {}),
+        ...(Number.isFinite(gender) ? { gender } : {}),
+      },
+    });
+
+    return {
+      uid: nextUser.id,
+      nickName: nextUser.nickName,
+      avatarUrl: nextUser.avatarUrl || '',
+      gender: nextUser.gender,
+      phoneNumber: nextUser.phoneNumber || '',
+      createdAt: nextUser.createdAt.getTime(),
+      updatedAt: nextUser.updatedAt.getTime(),
+    };
+  }
+
   async getCategories() {
     const categories = await this.prisma.category.findMany({
       where: { status: 'ACTIVE' },

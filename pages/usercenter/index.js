@@ -1,6 +1,6 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { ensureWechatLogin, getCurrentUser } from '../../utils/local-auth';
+import { ensureWechatLoginWithGuide, getCurrentUser } from '../../utils/local-auth';
 
 const menuData = [
   [
@@ -177,17 +177,20 @@ Page({
     const status = e.detail.tabType;
 
     if (status === 0) {
-      if (!(await this.ensureLogin())) return;
+      const loginResult = await this.ensureLogin();
+      if (!loginResult.authed || loginResult.guided) return;
       wx.navigateTo({ url: '/pages/order/after-service-list/index' });
     } else {
       const url = `/pages/order/order-list/index?status=${status}`;
-      if (!(await this.ensureLogin())) return;
+      const loginResult = await this.ensureLogin();
+      if (!loginResult.authed || loginResult.guided) return;
       wx.navigateTo({ url });
     }
   },
 
   async jumpAllOrder() {
-    if (!(await this.ensureLogin())) return;
+    const loginResult = await this.ensureLogin();
+    if (!loginResult.authed || loginResult.guided) return;
     wx.navigateTo({ url: '/pages/order/order-list/index' });
   },
 
@@ -209,22 +212,27 @@ Page({
     if (getCurrentUser()) {
       wx.navigateTo({ url: '/pages/user/person-info/index' });
     } else {
-      const authed = await this.ensureLogin();
-      if (authed) {
+      const loginResult = await this.ensureLogin();
+      if (loginResult.authed && !loginResult.guided) {
         wx.navigateTo({ url: '/pages/user/person-info/index' });
       }
     }
   },
 
   async ensureLogin() {
-    if (getCurrentUser()) return true;
-    const authed = await ensureWechatLogin({
+    if (getCurrentUser()) {
+      return {
+        authed: true,
+        guided: false,
+      };
+    }
+    const loginResult = await ensureWechatLoginWithGuide({
       content: '这里需要微信授权登录后才能继续使用。',
     });
 
-    if (authed) {
+    if (loginResult.authed) {
       this.init();
-      return true;
+      return loginResult;
     }
 
     Toast({
@@ -233,7 +241,10 @@ Page({
       message: '登录后才能继续',
       icon: '',
     });
-    return false;
+    return {
+      authed: false,
+      guided: false,
+    };
   },
 
   getVersionInfo() {

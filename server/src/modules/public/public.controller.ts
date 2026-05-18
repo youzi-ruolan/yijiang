@@ -25,6 +25,11 @@ export class PublicController {
     return this.publicService.getPerson(uid);
   }
 
+  @Post('person/profile')
+  updatePersonProfile(@Body() payload: Record<string, unknown>) {
+    return this.publicService.updatePersonProfile(payload);
+  }
+
   @Get('categories')
   getCategories() {
     return this.publicService.getCategories();
