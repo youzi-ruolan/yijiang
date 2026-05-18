@@ -43,13 +43,13 @@
               <t-image src="{{item.thumbnail}}" t-class="image" mode="aspectFill" />
               <view class="goods-category-normal-item-second-container-item-content">
                 <view class="goods-category-normal-item-second-container-item-title">{{item.name}}</view>
-                <view
-                  class="goods-category-normal-item-second-container-item-desc"
-                  wx:if="{{item.description}}"
-                >
+                <view class="goods-category-normal-item-second-container-item-desc" wx:if="{{item.description}}">
                   {{item.description}}
                 </view>
-                <view class="goods-category-normal-item-second-container-item-tags" wx:if="{{item.tags && item.tags.length}}">
+                <view
+                  class="goods-category-normal-item-second-container-item-tags"
+                  wx:if="{{item.tags && item.tags.length}}"
+                >
                   <view
                     class="goods-category-normal-item-second-container-item-tag"
                     wx:for="{{item.tags}}"
@@ -59,7 +59,10 @@
                   </view>
                 </view>
                 <view class="goods-category-normal-item-second-container-item-footer">
-                  <view class="goods-category-normal-item-second-container-item-price" wx:if="{{item.price !== undefined}}">
+                  <view
+                    class="goods-category-normal-item-second-container-item-price"
+                    wx:if="{{item.price !== undefined}}"
+                  >
                     <text class="goods-category-normal-item-second-container-item-price-symbol">¥</text>{{item.price}}
                   </view>
                   <view class="goods-category-normal-item-second-container-item-action">查看详情</view>
