@@ -25,19 +25,32 @@ export function isLoggedIn() {
 }
 
 export function authorizeWechatUser() {
+  wx.showToast({
+    title: '新登录逻辑',
+    icon: 'none',
+    duration: 1500,
+  });
+  console.log('[auth] authorizeWechatUser:start');
   return new Promise((resolve, reject) => {
-    wx.login({
-      success(loginRes) {
-        const { code } = loginRes;
-        if (!code) {
-          reject(new Error('未获取到微信登录凭证'));
-          return;
-        }
+    wx.getUserProfile({
+      desc: '用于完善会员资料与订单服务',
+      success(res) {
+        console.log('[auth] wx.getUserProfile:success', res);
+        wx.login({
+          async success(loginRes) {
+            console.log('[auth] wx.login:success', loginRes);
+            const { code } = loginRes;
+            if (!code) {
+              console.log('[auth] wx.login:no-code', loginRes);
+              reject(new Error('未获取到微信登录凭证'));
+              return;
+            }
 
-        wx.getUserProfile({
-          desc: '用于展示头像昵称、管理订单和提交商品评价',
-          async success(res) {
             try {
+              console.log('[auth] request:/api/auth/login', {
+                code,
+                userInfo: res.userInfo,
+              });
               const session = await apiRequest({
                 url: '/api/auth/login',
                 method: 'POST',
@@ -46,6 +59,7 @@ export function authorizeWechatUser() {
                   userInfo: res.userInfo,
                 },
               });
+              console.log('[auth] /api/auth/login:success', session);
               const nextSession = {
                 token: session?.token || '',
                 userInfo: {
@@ -62,15 +76,18 @@ export function authorizeWechatUser() {
               writeSession(nextSession);
               resolve(nextSession.userInfo);
             } catch (error) {
+              console.log('[auth] /api/auth/login:fail', error);
               reject(error);
             }
           },
           fail(error) {
+            console.log('[auth] wx.login:fail', error);
             reject(error);
           },
         });
       },
       fail(error) {
+        console.log('[auth] wx.getUserProfile:fail', error);
         reject(error);
       },
     });
@@ -82,34 +99,17 @@ export function ensureWechatLogin(options = {}) {
     return Promise.resolve(true);
   }
 
-  const { title = '需要登录', content = '该功能需要微信授权登录后才能继续使用。', confirmText = '去登录' } = options;
-
   return new Promise((resolve) => {
-    wx.showModal({
-      title,
-      content,
-      confirmText,
-      confirmColor: '#FA550F',
-      cancelText: '取消',
-      success: async (res) => {
-        if (!res.confirm) {
-          resolve(false);
-          return;
-        }
-
-        try {
-          await authorizeWechatUser();
-          resolve(true);
-        } catch (error) {
-          wx.showToast({
-            title: '授权登录未完成',
-            icon: 'none',
-          });
-          resolve(false);
-        }
-      },
-      fail: () => resolve(false),
-    });
+    authorizeWechatUser()
+      .then(() => resolve(true))
+      .catch((error) => {
+        console.log('[auth] ensureWechatLogin:fail', error, options);
+        wx.showToast({
+          title: error?.message || error?.errMsg || '授权登录未完成',
+          icon: 'none',
+        });
+        resolve(false);
+      });
   });
 }
 
