@@ -1,10 +1,60 @@
-import { Injectable } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class PublicService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly configService: ConfigService) {}
+
+  async login(payload: Record<string, unknown>) {
+    const code = `${payload.code || ''}`.trim();
+    if (!code) {
+      throw new BadRequestException('缺少微信登录 code');
+    }
+
+    const appId = this.configService.get<string>('WECHAT_APP_ID');
+    const appSecret = this.configService.get<string>('WECHAT_APP_SECRET');
+
+    if (!appId || !appSecret) {
+      throw new BadRequestException('服务端未配置微信小程序登录参数');
+    }
+
+    const session = await this.fetchWechatSession(appId, appSecret, code);
+    const rawUserInfo = payload.userInfo && typeof payload.userInfo === 'object' ? payload.userInfo : {};
+    const userInfo = rawUserInfo as Record<string, unknown>;
+
+    const user = await this.prisma.miniProgramUser.upsert({
+      where: { openid: session.openid },
+      update: {
+        unionId: session.unionid || null,
+        nickName: `${userInfo.nickName || '微信用户'}`.trim() || '微信用户',
+        avatarUrl: userInfo.avatarUrl ? `${userInfo.avatarUrl}` : null,
+        gender: Number(userInfo.gender || 0),
+      },
+      create: {
+        openid: session.openid,
+        unionId: session.unionid || null,
+        nickName: `${userInfo.nickName || '微信用户'}`.trim() || '微信用户',
+        avatarUrl: userInfo.avatarUrl ? `${userInfo.avatarUrl}` : null,
+        gender: Number(userInfo.gender || 0),
+      },
+    });
+
+    return {
+      token: `wechat-${user.id}-${Date.now()}`,
+      userInfo: {
+        uid: user.id,
+        openId: user.openid,
+        nickName: user.nickName,
+        avatarUrl: user.avatarUrl || '',
+        gender: user.gender,
+        phoneNumber: user.phoneNumber || '',
+        createdAt: user.createdAt.getTime(),
+        updatedAt: user.updatedAt.getTime(),
+      },
+    };
+  }
 
   async getHome() {
     const [settings, banners, categories, inspirations, articles, products] = await Promise.all([
@@ -528,5 +578,34 @@ export class PublicService {
 
   private toStringArray(value: unknown) {
     return Array.isArray(value) ? value.map((item) => `${item}`) : [];
+  }
+
+  private async fetchWechatSession(appId: string, appSecret: string, code: string) {
+    const url =
+      `https://api.weixin.qq.com/sns/jscode2session?appid=${encodeURIComponent(appId)}` +
+      `&secret=${encodeURIComponent(appSecret)}` +
+      `&js_code=${encodeURIComponent(code)}` +
+      '&grant_type=authorization_code';
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new BadGatewayException('微信登录服务请求失败');
+    }
+
+    const payload = (await response.json()) as {
+      openid?: string;
+      unionid?: string;
+      errcode?: number;
+      errmsg?: string;
+    };
+
+    if (payload.errcode || !payload.openid) {
+      throw new UnauthorizedException(payload.errmsg || '微信登录失败');
+    }
+
+    return {
+      openid: payload.openid,
+      unionid: payload.unionid,
+    };
   }
 }

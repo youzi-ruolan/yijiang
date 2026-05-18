@@ -18,9 +18,9 @@
 
 ## 数据来源
 
-当前后台默认请求本地开发接口：
+当前后台默认请求线上接口：
 
-- `http://localhost:3001/admin/*`
+- `https://api.senbochen.vip/admin/*`
 
 其中：
 

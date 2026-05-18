@@ -10,6 +10,11 @@ export class PublicController {
     return this.publicService.getHome();
   }
 
+  @Post('auth/login')
+  login(@Body() payload: Record<string, unknown>) {
+    return this.publicService.login(payload);
+  }
+
   @Get('categories')
   getCategories() {
     return this.publicService.getCategories();

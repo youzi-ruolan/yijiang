@@ -1,6 +1,6 @@
 import { AUTH_STORAGE_KEY } from '@/constants/storage';
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://api.senbochen.vip').replace(/\/$/, '');
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | object | null;

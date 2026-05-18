@@ -1,3 +1,5 @@
+import { apiRequest } from '../services/_utils/request';
+
 const AUTH_SESSION_KEY = 'yijiang_auth_session';
 const DEFAULT_AVATAR =
   'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png';
@@ -14,22 +16,6 @@ function writeSession(session) {
   wx.setStorageSync(AUTH_SESSION_KEY, session);
 }
 
-function createSessionFromProfile(userInfo = {}) {
-  const now = Date.now();
-  return {
-    token: `wechat-local-token-${now}`,
-    userInfo: {
-      uid: `wechat-${now}`,
-      nickName: userInfo.nickName || '微信用户',
-      avatarUrl: userInfo.avatarUrl || DEFAULT_AVATAR,
-      gender: Number(userInfo.gender || 0),
-      phoneNumber: '',
-      createdAt: now,
-      updatedAt: now,
-    },
-  };
-}
-
 export function getCurrentUser() {
   return readSession()?.userInfo || null;
 }
@@ -40,12 +26,49 @@ export function isLoggedIn() {
 
 export function authorizeWechatUser() {
   return new Promise((resolve, reject) => {
-    wx.getUserProfile({
-      desc: '用于展示头像昵称、管理订单和提交商品评价',
-      success(res) {
-        const session = createSessionFromProfile(res.userInfo);
-        writeSession(session);
-        resolve(session.userInfo);
+    wx.login({
+      success(loginRes) {
+        const { code } = loginRes;
+        if (!code) {
+          reject(new Error('未获取到微信登录凭证'));
+          return;
+        }
+
+        wx.getUserProfile({
+          desc: '用于展示头像昵称、管理订单和提交商品评价',
+          async success(res) {
+            try {
+              const session = await apiRequest({
+                url: '/api/auth/login',
+                method: 'POST',
+                data: {
+                  code,
+                  userInfo: res.userInfo,
+                },
+              });
+              const nextSession = {
+                token: session?.token || '',
+                userInfo: {
+                  uid: session?.userInfo?.uid || `wechat-${Date.now()}`,
+                  openId: session?.userInfo?.openId || '',
+                  nickName: session?.userInfo?.nickName || res.userInfo.nickName || '微信用户',
+                  avatarUrl: session?.userInfo?.avatarUrl || res.userInfo.avatarUrl || DEFAULT_AVATAR,
+                  gender: Number(session?.userInfo?.gender ?? res.userInfo.gender ?? 0),
+                  phoneNumber: session?.userInfo?.phoneNumber || '',
+                  createdAt: Number(session?.userInfo?.createdAt || Date.now()),
+                  updatedAt: Number(session?.userInfo?.updatedAt || Date.now()),
+                },
+              };
+              writeSession(nextSession);
+              resolve(nextSession.userInfo);
+            } catch (error) {
+              reject(error);
+            }
+          },
+          fail(error) {
+            reject(error);
+          },
+        });
       },
       fail(error) {
         reject(error);

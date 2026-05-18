@@ -54,6 +54,8 @@
 - `NODE_ENV`：推荐生产环境设为 `production`
 - `PORT`：服务监听端口，Northflank 会自动注入
 - `CORS_ORIGIN`：允许跨域来源，多个地址用英文逗号分隔
+- `WECHAT_APP_ID`：微信小程序 AppID（真机登录必填）
+- `WECHAT_APP_SECRET`：微信小程序 AppSecret（真机登录必填）
 
 参考文件：`D:\new-data\tdesign-miniprogram-starter-retail\server\.env.example`
 

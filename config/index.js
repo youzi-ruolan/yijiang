@@ -5,7 +5,7 @@ export const config = {
   enableBackendApi: true,
 };
 
-export const apiBaseUrl = 'http://127.0.0.1:3001';
+export const apiBaseUrl = 'https://api.senbochen.vip';
 
 export const cdnBase = 'https://we-retail-static-1300977798.cos.ap-guangzhou.myqcloud.com/retail-mp';
 
