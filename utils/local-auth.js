@@ -2,6 +2,7 @@ import { apiRequest } from '../services/_utils/request';
 
 const AUTH_SESSION_KEY = 'yijiang_auth_session';
 const PROFILE_GUIDE_KEY = 'yijiang_profile_guide';
+const LOCAL_AVATAR_KEY = 'yijiang_local_avatar_map';
 const DEFAULT_AVATAR =
   'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png';
 
@@ -14,7 +15,58 @@ function readSession() {
 }
 
 function writeSession(session) {
-  wx.setStorageSync(AUTH_SESSION_KEY, session);
+  const nextSession = {
+    ...session,
+    userInfo: applyLocalAvatar(session?.userInfo),
+  };
+  wx.setStorageSync(AUTH_SESSION_KEY, nextSession);
+}
+
+function readLocalAvatarState() {
+  try {
+    return wx.getStorageSync(LOCAL_AVATAR_KEY) || {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writeLocalAvatarState(state) {
+  wx.setStorageSync(LOCAL_AVATAR_KEY, state);
+}
+
+function isTemporaryAvatarUrl(avatarUrl = '') {
+  const value = `${avatarUrl}`.trim();
+  return Boolean(
+    value &&
+      (value.startsWith('wxfile://') ||
+        value.startsWith('http://tmp/') ||
+        value.startsWith('https://tmp/') ||
+        value.includes('/tmp/')),
+  );
+}
+
+function getLocalAvatar(uid) {
+  if (!uid) return '';
+  const state = readLocalAvatarState();
+  return state[uid] || '';
+}
+
+function setLocalAvatar(uid, avatarUrl) {
+  if (!uid || !avatarUrl) return;
+  const state = readLocalAvatarState();
+  state[uid] = avatarUrl;
+  writeLocalAvatarState(state);
+}
+
+function applyLocalAvatar(userInfo) {
+  if (!userInfo?.uid) return userInfo || null;
+  const localAvatar = getLocalAvatar(userInfo.uid);
+  if (!localAvatar) return userInfo;
+
+  return {
+    ...userInfo,
+    avatarUrl: localAvatar,
+  };
 }
 
 function readProfileGuideState() {
@@ -57,7 +109,7 @@ function clearPendingProfileGuide(uid) {
 }
 
 export function getCurrentUser() {
-  return readSession()?.userInfo || null;
+  return applyLocalAvatar(readSession()?.userInfo) || null;
 }
 
 export function isLoggedIn() {
@@ -230,6 +282,17 @@ export function updateCurrentUser(patch) {
     updatedAt: Date.now(),
   };
 
+  if (nextUserInfo.uid && nextUserInfo.avatarUrl) {
+    if (isTemporaryAvatarUrl(nextUserInfo.avatarUrl)) {
+      const localAvatar = getLocalAvatar(nextUserInfo.uid);
+      if (localAvatar) {
+        nextUserInfo.avatarUrl = localAvatar;
+      }
+    } else if (nextUserInfo.avatarUrl !== DEFAULT_AVATAR) {
+      setLocalAvatar(nextUserInfo.uid, nextUserInfo.avatarUrl);
+    }
+  }
+
   writeSession({
     ...session,
     userInfo: nextUserInfo,
@@ -244,4 +307,32 @@ export function updateCurrentUser(patch) {
 
 export function logoutLocalUser() {
   wx.removeStorageSync(AUTH_SESSION_KEY);
+}
+
+export function saveLocalAvatarToSession(tempAvatarUrl) {
+  const currentUser = getCurrentUser();
+  if (!currentUser?.uid) {
+    return Promise.reject(new Error('请先登录'));
+  }
+
+  if (!tempAvatarUrl) {
+    return Promise.reject(new Error('未获取到头像文件'));
+  }
+
+  return new Promise((resolve, reject) => {
+    wx.saveFile({
+      tempFilePath: tempAvatarUrl,
+      success: ({ savedFilePath }) => {
+        setLocalAvatar(currentUser.uid, savedFilePath);
+        const nextUser = updateCurrentUser({ avatarUrl: savedFilePath });
+        resolve(nextUser);
+      },
+      fail: (error) => {
+        console.log('[auth] saveLocalAvatarToSession:saveFileFail', error);
+        setLocalAvatar(currentUser.uid, tempAvatarUrl);
+        const nextUser = updateCurrentUser({ avatarUrl: tempAvatarUrl });
+        resolve(nextUser);
+      },
+    });
+  });
 }

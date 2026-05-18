@@ -3,7 +3,7 @@ import { updatePersonProfile } from '../../../services/usercenter/updatePerson';
 import { phoneEncryption } from '../../../utils/util';
 import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from 'tdesign-miniprogram/dialog/index';
-import { getCurrentUser, logoutLocalUser, updateCurrentUser } from '../../../utils/local-auth';
+import { getCurrentUser, logoutLocalUser, saveLocalAvatarToSession, updateCurrentUser } from '../../../utils/local-auth';
 
 Page({
   data: {
@@ -92,7 +92,19 @@ Page({
     if (!avatarUrl) return;
 
     try {
-      await this.saveProfilePatch({ avatarUrl }, '微信头像已更新');
+      const nextUser = await saveLocalAvatarToSession(avatarUrl);
+      this.setData({
+        personInfo: {
+          ...this.data.personInfo,
+          ...nextUser,
+        },
+      });
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '微信头像已更新',
+        theme: 'success',
+      });
     } catch (error) {
       Toast({
         context: this,
