@@ -2,6 +2,31 @@
 import { config } from '../../config/index';
 import { apiRequest } from '../_utils/request';
 
+function buildSearchText(item = {}) {
+  const tags = Array.isArray(item.tags) ? item.tags.join(' ') : '';
+  return `${item.title || ''} ${item.description || ''} ${tags} ${item.category || ''}`.toLowerCase();
+}
+
+function compareRecommendPriority(prev, next) {
+  const prevHot = prev.isHot ? 1 : 0;
+  const nextHot = next.isHot ? 1 : 0;
+  if (prevHot !== nextHot) return nextHot - prevHot;
+
+  const prevNew = prev.isNew ? 1 : 0;
+  const nextNew = next.isNew ? 1 : 0;
+  if (prevNew !== nextNew) return nextNew - prevNew;
+
+  const prevSales = Number(prev.sales || 0);
+  const nextSales = Number(next.sales || 0);
+  if (prevSales !== nextSales) return nextSales - prevSales;
+
+  const prevSort = Number(prev.sort || 0);
+  const nextSort = Number(next.sort || 0);
+  if (prevSort !== nextSort) return prevSort - nextSort;
+
+  return `${prev.title || ''}`.localeCompare(`${next.title || ''}`, 'zh-Hans-CN');
+}
+
 /** 获取商品列表 */
 function mockFetchGoodsList(params) {
   const { delay } = require('../_utils/delay');
@@ -46,12 +71,18 @@ export function fetchGoodsList(params) {
       let list = goods
         .filter((item) => {
           if (!keyword) return true;
-          return `${item.title || ''}${item.description || ''}`.toLowerCase().includes(keyword);
+          return buildSearchText(item).includes(keyword);
         })
         .filter((item) => {
           const price = Math.round(Number(item.price || 0) * 100);
           return price >= minPrice && price <= maxPrice;
-        })
+        });
+
+      if (!keyword) {
+        list = list.sort(compareRecommendPriority);
+      }
+
+      list = list
         .map((item) => ({
           spuId: item.id,
           thumb: item.cover,
@@ -61,6 +92,10 @@ export function fetchGoodsList(params) {
           desc: item.description || '',
           tags: item.tags || [],
           primaryImage: item.cover,
+          isHot: Boolean(item.isHot),
+          isNew: Boolean(item.isNew),
+          sales: Number(item.sales || 0),
+          sort: Number(item.sort || 0),
         }));
 
       if (sort === 1) {

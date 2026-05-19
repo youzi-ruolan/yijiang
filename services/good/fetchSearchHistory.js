@@ -1,16 +1,48 @@
 import { config } from '../../config/index';
+import { apiRequest } from '../_utils/request';
 
 const SEARCH_HISTORY_KEY = 'colorist.search.history';
 const DEFAULT_POPULAR_WORDS = [
-  '小红书调色预设',
-  '人像奶油风 LUT',
-  '婚礼纪实调色包',
-  '胶片复古预设',
-  '室内静物调色模板',
-  '旅拍清透风格',
-  '短视频电影感 LUT',
-  '日系通透滤镜',
+  '人像肤色',
+  '胶片仿真',
+  '婚礼纪实',
+  '商业广告',
+  '纪录片',
+  'DaVinci 节点',
+  '交付流程',
+  'LUT',
 ];
+
+function collectPopularWords(products = []) {
+  const bucket = new Map();
+  const pushWord = (word, score = 1) => {
+    const value = `${word || ''}`.trim();
+    if (!value || value.length < 2 || value.length > 18) return;
+    bucket.set(value, (bucket.get(value) || 0) + score);
+  };
+
+  products.forEach((product) => {
+    const tags = Array.isArray(product?.tags) ? product.tags : [];
+    tags.forEach((tag, index) => pushWord(tag, Math.max(6 - index, 2)));
+
+    const title = `${product?.title || ''}`.trim();
+    if (title) {
+      pushWord(title, 1);
+      title
+        .split(/[\/|｜·\s]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .forEach((item) => pushWord(item, 1));
+    }
+  });
+
+  const words = [...bucket.entries()]
+    .sort((prev, next) => next[1] - prev[1])
+    .map(([word]) => word)
+    .slice(0, 8);
+
+  return words.length ? words : DEFAULT_POPULAR_WORDS;
+}
 
 function safeGetStorage(key, fallback) {
   try {
@@ -64,11 +96,15 @@ function mockSearchPopular() {
 /** 获取搜索历史 */
 export function getSearchPopular() {
   if (config.enableBackendApi) {
-    return new Promise((resolve) => {
-      resolve({
+    return apiRequest({
+      url: '/api/products',
+    })
+      .then((products = []) => ({
+        popularWords: collectPopularWords(products),
+      }))
+      .catch(() => ({
         popularWords: DEFAULT_POPULAR_WORDS,
-      });
-    });
+      }));
   }
   if (config.useMock) {
     return mockSearchPopular();

@@ -128,6 +128,33 @@ model MiniProgramUser {
   avatarUrl   String?
   gender      Int      @default(0)
   phoneNumber String?
+  addresses   UserAddress[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model UserAddress {
+  id            String          @id @default(cuid())
+  userId        String
+  user          MiniProgramUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  phone         String
+  countryName   String          @default("中国")
+  countryCode   String          @default("chn")
+  provinceName  String
+  provinceCode  String
+  cityName      String
+  cityCode      String
+  districtName  String
+  districtCode  String
+  detailAddress String
+  addressTag    String?
+  latitude      Float?
+  longitude     Float?
+  isDefault     Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([userId, isDefault, createdAt])
+  @@index([userId, createdAt])
 }

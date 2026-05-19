@@ -4,21 +4,10 @@
 <wxs module="getNotes" src="./getNotes.wxs" />
 <view class="order-sure" wx:if="{{!loading}}">
   <address-card
-    wx:if="{{!isDigitalOrder}}"
     addressData="{{userAddress}}"
     bind:addclick="onGotoAddress"
     bind:addressclick="onGotoAddress"
   />
-  <view class="digital-delivery-card" wx:else>
-    <view class="digital-delivery-card__header">
-      <t-icon prefix="wr" size="36rpx" color="#ff6f61" name="time-filled" />
-      <text>数字商品自动交付</text>
-    </view>
-    <view class="digital-delivery-card__desc">无需物流地址，支付成功后将自动生成交付内容。</view>
-    <view class="digital-delivery-card__tags">
-      <view class="digital-delivery-card__tag" wx:for="{{deliveryTips}}" wx:key="*this">{{item}}</view>
-    </view>
-  </view>
   <view
     class="order-wrapper"
     wx:for="{{settleDetailData.storeGoodsList}}"
@@ -69,12 +58,6 @@
         <text wx:else>免运费</text>
       </view>
     </view>
-    <view class="pay-item" wx:if="{{isDigitalOrder}}">
-      <text>交付方式</text>
-      <view class="pay-item__right">
-        <text>在线交付</text>
-      </view>
-    </view>
     <view class="pay-item">
       <text>活动优惠</text>
       <view class="pay-item__right primary font-bold">
@@ -110,7 +93,7 @@
     <view class="wx-pay">
       <price decimalSmaller fill class="price" price="{{settleDetailData.totalPayAmount || '0'}}" />
       <view class="submit-btn {{ settleDetailData.settleType === 1 ? '':'btn-gray'}}" bindtap="submitOrder">
-        {{isDigitalOrder ? '立即支付' : '提交订单'}}
+        提交订单
       </view>
     </view>
   </view>

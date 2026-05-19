@@ -2,6 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchSettleDetail } from '../../../services/order/orderConfirm';
 import { commitPay, wechatPayOrder } from './pay';
 import { getAddressPromise } from '../../../services/address/list';
+import { fetchDefaultDeliveryAddress } from '../../../services/address/fetchAddress';
 import { removeLocalCartItem } from '../../../utils/local-cart';
 import { getCurrentUser } from '../../../utils/local-auth';
 
@@ -37,7 +38,6 @@ Page({
     storeNoteIndex: 0, //当前填写备注门店index
     userAddress: null,
     isDigitalOrder: false,
-    deliveryTips: ['下单完成后自动发货', '在订单详情页查看交付信息', '无需填写物流收货地址'],
   },
 
   payLock: false,
@@ -69,7 +69,7 @@ Page({
     this.handleOptionsParams({ goodsRequestList });
   },
   // 处理不同情况下跳转到结算页时需要的参数
-  handleOptionsParams(options) {
+  async handleOptionsParams(options) {
     let { goodsRequestList } = this; // 商品列表
     let { userAddressReq } = this; // 收货地址
 
@@ -85,6 +85,13 @@ Page({
     } else if (typeof options.goodsRequestList === 'string') {
       goodsRequestList = JSON.parse(options.goodsRequestList);
     }
+    if (!userAddressReq && getCurrentUser()) {
+      try {
+        userAddressReq = await fetchDefaultDeliveryAddress();
+      } catch (error) {
+        console.warn('获取默认地址失败', error);
+      }
+    }
     //获取结算页请求数据列表
     const storeMap = {};
     goodsRequestList.forEach((goods) => {
@@ -98,6 +105,7 @@ Page({
     });
     this.goodsRequestList = goodsRequestList;
     this.storeInfoList = storeInfoList;
+    this.userAddressReq = userAddressReq || null;
     const params = {
       goodsRequestList,
       storeInfoList,
@@ -120,22 +128,12 @@ Page({
   initData(resData) {
     // 转换商品卡片显示数据
     const data = this.handleResToGoodsCard(resData);
-    const isDigitalOrder =
-      !resData.userAddress ||
-      `${resData.userAddress.receiverAddress || resData.userAddress.detailAddress || ''}`.includes(
-        '数字商品无需物流配送',
-      );
     this.userAddressReq = resData.userAddress;
 
     this.setData({
       settleDetailData: data,
-      isDigitalOrder,
-      userAddress: resData.userAddress || {
-        name: '数字订单',
-        phoneNumber: '',
-        detailAddress: '数字商品无需物流配送，下单后自动交付',
-        receiverAddress: '数字商品无需物流配送',
-      },
+      isDigitalOrder: false,
+      userAddress: resData.userAddress || null,
     });
     this.isInvalidOrder(data);
   },
@@ -260,8 +258,8 @@ Page({
 
     let id = '';
 
-    if (userAddressReq?.id) {
-      id = `&id=${userAddressReq.id}`;
+    if (userAddressReq?.id || userAddressReq?.addressId) {
+      id = `&id=${userAddressReq.addressId || userAddressReq.id}`;
     }
 
     wx.navigateTo({
@@ -343,7 +341,7 @@ Page({
     const { settleDetailData, userAddressReq, invoiceData, storeInfoList } = this.data;
     const { goodsRequestList } = this;
 
-    if (!this.data.isDigitalOrder && !userAddressReq && !settleDetailData.userAddress) {
+    if (!userAddressReq && !settleDetailData.userAddress) {
       Toast({
         context: this,
         selector: '#t-toast',
@@ -365,7 +363,8 @@ Page({
       userName:
         (settleDetailData.userAddress && settleDetailData.userAddress.name) ||
         (userAddressReq && userAddressReq.name) ||
-        '数字订单用户',
+        getCurrentUser()?.nickName ||
+        '艺匠调色用户',
       totalAmount: settleDetailData.totalPayAmount, //取优惠后的结算金额
       invoiceRequest: null,
       storeInfoList,

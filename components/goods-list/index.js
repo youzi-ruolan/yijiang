@@ -6,6 +6,10 @@ Component({
       type: Array,
       value: [],
     },
+    compact: {
+      type: Boolean,
+      value: false,
+    },
     id: {
       type: String,
       value: '',

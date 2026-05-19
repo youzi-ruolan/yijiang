@@ -1,31 +1,19 @@
-/* eslint-disable no-param-reassign */
 import { getSearchResult } from '../../../services/good/fetchSearchResult';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { addLocalCartItem, getLocalCartCount } from '../../../utils/local-cart';
 import { buildCartItemFromGoods } from '../../../utils/cart-item';
 import { saveSearchHistory } from '../../../services/good/fetchSearchHistory';
 
-const initFilters = {
-  overall: 1,
-  sorts: '',
-};
-
 Page({
   data: {
     goodsList: [],
-    sorts: '',
-    overall: 1,
-    show: false,
-    minVal: '',
-    maxVal: '',
-    minSalePriceFocus: false,
-    maxSalePriceFocus: false,
-    filter: initFilters,
     hasLoaded: false,
     keywords: '',
+    isRecommendMode: false,
     loadMoreStatus: 0,
     loading: true,
     cartNum: 0,
+    totalCount: 0,
   },
 
   total: 0,
@@ -37,6 +25,7 @@ Page({
     this.setData(
       {
         keywords: searchValue,
+        isRecommendMode: !`${searchValue}`.trim(),
       },
       () => {
         this.init(true);
@@ -49,97 +38,119 @@ Page({
   },
 
   generalQueryData(reset = false) {
-    const { filter, keywords, minVal, maxVal } = this.data;
-    const { pageNum, pageSize } = this;
-    const { sorts, overall } = filter;
-    const params = {
-      sort: 0, // 0 综合，1 价格
-      pageNum: 1,
-      pageSize: 30,
-      keyword: keywords,
-    };
-
-    if (sorts) {
-      params.sort = 1;
-      params.sortType = sorts === 'desc' ? 1 : 0;
-    }
-    if (overall) {
-      params.sort = 0;
-    } else {
-      params.sort = 1;
-    }
-    params.minPrice = minVal ? minVal * 100 : 0;
-    params.maxPrice = maxVal ? maxVal * 100 : undefined;
-    if (reset) return params;
+    const { keywords } = this.data;
+    const pageNum = reset ? 1 : this.pageNum + 1;
     return {
-      ...params,
-      pageNum: pageNum + 1,
-      pageSize,
+      sort: 0,
+      pageNum,
+      pageSize: this.pageSize,
+      keyword: keywords,
     };
   },
 
   async init(reset = true) {
     const { loadMoreStatus, goodsList = [] } = this.data;
+    if (loadMoreStatus === 1) return;
+
     const params = this.generalQueryData(reset);
-    if (loadMoreStatus !== 0) return;
     this.setData({
       loadMoreStatus: 1,
       loading: true,
     });
+
     try {
       const result = await getSearchResult(params);
-      const code = 'Success';
-      const data = result;
-      if (code.toUpperCase() === 'SUCCESS') {
-        const { spuList, totalCount = 0 } = data;
-        if (totalCount === 0 && reset) {
-          this.total = totalCount;
-          this.setData({
-            emptyInfo: {
-              tip: '抱歉，未找到相关商品',
-            },
-            hasLoaded: true,
-            loadMoreStatus: 0,
-            loading: false,
-            goodsList: [],
-          });
-          return;
-        }
+      const { spuList = [], totalCount = 0 } = result || {};
+      const nextGoodsList = reset ? spuList : goodsList.concat(spuList);
+      const isRecommendMode = !`${this.data.keywords || ''}`.trim();
 
-        const _goodsList = reset ? spuList : goodsList.concat(spuList);
-        _goodsList.forEach((v) => {
-          const tags = Array.isArray(v.tags)
-            ? v.tags
-            : Array.isArray(v.spuTagList)
-            ? v.spuTagList.map((u) => u.title)
-            : [];
-          v.tags = tags;
-          v.hideKey = { desc: true };
-        });
-        const _loadMoreStatus = _goodsList.length === totalCount ? 2 : 0;
-        this.pageNum = params.pageNum || 1;
-        this.total = totalCount;
-        this.setData({
-          goodsList: _goodsList,
-          loadMoreStatus: _loadMoreStatus,
-        });
-      } else {
-        this.setData({
-          loading: false,
-        });
-        wx.showToast({
-          title: '查询失败，请稍候重试',
-        });
-      }
+      nextGoodsList.forEach((item) => {
+        const baseTags = Array.isArray(item.tags) ? item.tags : [];
+        const recommendTags = isRecommendMode
+          ? [item.isHot ? '热门' : '', item.isNew ? '新品' : ''].filter(Boolean)
+          : [];
+        item.tags = [...recommendTags, ...baseTags].slice(0, 2);
+        item.hideKey = { desc: true };
+      });
+
+      this.pageNum = params.pageNum;
+      this.total = totalCount;
+      this.setData({
+        goodsList: nextGoodsList,
+        totalCount,
+        isRecommendMode,
+        hasLoaded: true,
+        loading: false,
+        loadMoreStatus: nextGoodsList.length >= totalCount ? 2 : 0,
+      });
     } catch (error) {
       this.setData({
+        hasLoaded: true,
         loading: false,
+        loadMoreStatus: 0,
+      });
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '搜索失败，请稍后重试',
       });
     }
+  },
+
+  onInputChange(e) {
     this.setData({
-      hasLoaded: true,
-      loading: false,
+      keywords: `${e.detail.value || ''}`,
     });
+  },
+
+  handleSubmit(e) {
+    const inputValue = e && e.detail ? e.detail.value : '';
+    const value = `${inputValue || this.data.keywords || ''}`.trim();
+    if (!value) return;
+
+    saveSearchHistory(value);
+    this.pageNum = 1;
+    this.setData(
+      {
+        keywords: value,
+        isRecommendMode: false,
+        goodsList: [],
+        totalCount: 0,
+        hasLoaded: false,
+        loadMoreStatus: 0,
+      },
+      () => {
+        this.init(true);
+      },
+    );
+  },
+
+  clearKeywords() {
+    this.pageNum = 1;
+    this.total = 0;
+    this.setData(
+      {
+        keywords: '',
+        isRecommendMode: true,
+        goodsList: [],
+        totalCount: 0,
+        hasLoaded: false,
+        loadMoreStatus: 0,
+        loading: true,
+      },
+      () => {
+        this.init(true);
+      },
+    );
+  },
+
+  onReachBottom() {
+    const { goodsList } = this.data;
+    if (goodsList.length >= this.total) {
+      this.setData({ loadMoreStatus: 2 });
+      return;
+    }
+    this.init(false);
   },
 
   handleCartTap() {
@@ -154,44 +165,10 @@ Page({
     });
   },
 
-  handleSubmit(e) {
-    const inputValue = e && e.detail ? e.detail.value : '';
-    const value = `${inputValue || this.data.keywords || ''}`.trim();
-    if (!value) {
-      return;
-    }
-
-    saveSearchHistory(value);
-    this.setData(
-      {
-        keywords: value,
-        goodsList: [],
-        loadMoreStatus: 0,
-      },
-      () => {
-        this.init(true);
-      },
-    );
-  },
-
-  onReachBottom() {
-    const { goodsList } = this.data;
-    const { total = 0 } = this;
-    if (goodsList.length === total) {
-      this.setData({
-        loadMoreStatus: 2,
-      });
-      return;
-    }
-    this.init(false);
-  },
-
   handleAddCart(event) {
     const { index } = event.detail;
     const goods = this.data.goodsList[index];
-    if (!goods) {
-      return;
-    }
+    if (!goods) return;
 
     addLocalCartItem(buildCartItemFromGoods(goods));
     this.refreshCartCount();
@@ -212,88 +189,5 @@ Page({
     wx.navigateTo({
       url: `/pages/goods/details/index?spuId=${spuId}`,
     });
-  },
-
-  handleFilterChange(e) {
-    const { overall, sorts } = e.detail;
-    const { total } = this;
-    const _filter = {
-      sorts,
-      overall,
-    };
-    this.setData({
-      filter: _filter,
-      sorts,
-      overall,
-    });
-
-    this.pageNum = 1;
-    this.setData(
-      {
-        goodsList: [],
-        loadMoreStatus: 0,
-      },
-      () => {
-        total && this.init(true);
-      },
-    );
-  },
-
-  showFilterPopup() {
-    this.setData({
-      show: true,
-    });
-  },
-
-  showFilterPopupClose() {
-    this.setData({
-      show: false,
-    });
-  },
-
-  onMinValAction(e) {
-    const { value } = e.detail;
-    this.setData({ minVal: value });
-  },
-
-  onMaxValAction(e) {
-    const { value } = e.detail;
-    this.setData({ maxVal: value });
-  },
-
-  reset() {
-    this.setData({ minVal: '', maxVal: '' });
-  },
-
-  confirm() {
-    const { minVal, maxVal } = this.data;
-    let message = '';
-    if (minVal && !maxVal) {
-      message = `价格最小是${minVal}`;
-    } else if (!minVal && maxVal) {
-      message = `价格范围是0-${maxVal}`;
-    } else if (minVal && maxVal && minVal <= maxVal) {
-      message = `价格范围${minVal}-${this.data.maxVal}`;
-    } else {
-      message = '请输入正确范围';
-    }
-    if (message) {
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message,
-      });
-    }
-    this.pageNum = 1;
-    this.setData(
-      {
-        show: false,
-        goodsList: [],
-        loadMoreStatus: 0,
-      },
-      () => {
-        this.init();
-      },
-    );
   },
 });

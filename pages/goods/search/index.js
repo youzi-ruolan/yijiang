@@ -27,6 +27,12 @@ Page({
     this.queryPopular();
   },
 
+  onInputChange(e) {
+    this.setData({
+      searchValue: `${e.detail.value || ''}`,
+    });
+  },
+
   async queryHistory() {
     try {
       const data = await getSearchHistory();
@@ -105,6 +111,7 @@ Page({
     const _searchValue = historyWords[dataset.index || 0] || '';
     if (_searchValue) {
       saveSearchHistory(_searchValue);
+      this.setData({ searchValue: _searchValue });
       wx.navigateTo({
         url: `/pages/goods/result/index?searchValue=${_searchValue}`,
       });
@@ -120,6 +127,7 @@ Page({
     }
 
     saveSearchHistory(searchValue);
+    this.setData({ searchValue });
     wx.navigateTo({
       url: `/pages/goods/result/index?searchValue=${searchValue}`,
     });

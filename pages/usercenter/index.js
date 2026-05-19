@@ -11,21 +11,6 @@ const menuData = [
       type: 'address',
     },
   ],
-  [
-    {
-      title: '帮助中心',
-      tit: '',
-      url: '',
-      type: 'help-center',
-    },
-    {
-      title: '客服热线',
-      tit: '',
-      url: '',
-      type: 'service',
-      icon: 'service',
-    },
-  ],
 ];
 
 const orderTagInfos = [
@@ -144,20 +129,6 @@ Page({
       case 'address': {
         if (!(await this.ensureLogin())) return;
         wx.navigateTo({ url: '/pages/user/address/list/index' });
-        break;
-      }
-      case 'service': {
-        this.openMakePhone();
-        break;
-      }
-      case 'help-center': {
-        Toast({
-          context: this,
-          selector: '#t-toast',
-          message: '你点击了帮助中心',
-          icon: '',
-          duration: 1000,
-        });
         break;
       }
       default: {

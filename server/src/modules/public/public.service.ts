@@ -96,13 +96,16 @@ export class PublicService {
       },
     ];
 
-    const [user, orders] = await Promise.all([
+    const [user, orders, addressCount] = await Promise.all([
       uid ? this.prisma.miniProgramUser.findUnique({ where: { id: uid } }) : Promise.resolve(null),
       this.prisma.order.findMany({
         where: uid ? { userId: uid } : undefined,
         orderBy: [{ createdAt: 'desc' }],
       }),
+      uid ? this.prisma.userAddress.count({ where: { userId: uid } }) : Promise.resolve(0),
     ]);
+
+    countsData[0].num = addressCount;
 
     const orderTagInfos = [
       { orderNum: orders.filter((item) => item.status === '待处理').length, tabType: 5 },
@@ -196,6 +199,132 @@ export class PublicService {
     };
   }
 
+  async getAddresses(uid?: string) {
+    const userId = await this.ensureUserId(uid);
+    const addresses = await this.prisma.userAddress.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+    });
+
+    return addresses.map((item) => this.formatUserAddress(item));
+  }
+
+  async getDefaultAddress(uid?: string) {
+    const userId = await this.ensureUserId(uid);
+    const address = await this.prisma.userAddress.findFirst({
+      where: { userId, isDefault: true },
+      orderBy: [{ updatedAt: 'desc' }],
+    });
+
+    return address ? this.formatUserAddress(address) : null;
+  }
+
+  async getAddressDetail(id: string, uid?: string) {
+    const userId = await this.ensureUserId(uid);
+    const address = await this.prisma.userAddress.findFirst({
+      where: { id, userId },
+    });
+
+    if (!address) {
+      throw new BadRequestException('收货地址不存在');
+    }
+
+    return this.formatUserAddress(address);
+  }
+
+  async createAddress(payload: Record<string, unknown>) {
+    const input = await this.buildAddressInput(payload);
+    const existedDefaultCount = await this.prisma.userAddress.count({
+      where: { userId: input.userId, isDefault: true },
+    });
+    const shouldDefault = input.isDefault || existedDefaultCount === 0;
+
+    const createdAddress = await this.prisma.$transaction(async (tx) => {
+      if (shouldDefault) {
+        await tx.userAddress.updateMany({
+          where: { userId: input.userId, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
+
+      return tx.userAddress.create({
+        data: {
+          ...input,
+          isDefault: shouldDefault,
+        },
+      });
+    });
+
+    return this.formatUserAddress(createdAddress);
+  }
+
+  async updateAddress(id: string, payload: Record<string, unknown>) {
+    const input = await this.buildAddressInput(payload);
+    const currentAddress = await this.prisma.userAddress.findFirst({
+      where: { id, userId: input.userId },
+    });
+
+    if (!currentAddress) {
+      throw new BadRequestException('收货地址不存在');
+    }
+
+    const nextDefault = input.isDefault || currentAddress.isDefault;
+
+    const updatedAddress = await this.prisma.$transaction(async (tx) => {
+      if (nextDefault) {
+        await tx.userAddress.updateMany({
+          where: { userId: input.userId, NOT: { id } },
+          data: { isDefault: false },
+        });
+      }
+
+      return tx.userAddress.update({
+        where: { id },
+        data: {
+          ...input,
+          isDefault: nextDefault,
+        },
+      });
+    });
+
+    return this.formatUserAddress(updatedAddress);
+  }
+
+  async deleteAddress(id: string, uid?: string) {
+    const userId = await this.ensureUserId(uid);
+    const currentAddress = await this.prisma.userAddress.findFirst({
+      where: { id, userId },
+    });
+
+    if (!currentAddress) {
+      throw new BadRequestException('收货地址不存在');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userAddress.delete({
+        where: { id },
+      });
+
+      if (currentAddress.isDefault) {
+        const fallbackAddress = await tx.userAddress.findFirst({
+          where: { userId },
+          orderBy: [{ updatedAt: 'desc' }],
+        });
+
+        if (fallbackAddress) {
+          await tx.userAddress.update({
+            where: { id: fallbackAddress.id },
+            data: { isDefault: true },
+          });
+        }
+      }
+    });
+
+    return {
+      success: true,
+    };
+  }
+
   async getCategories() {
     const categories = await this.prisma.category.findMany({
       where: { status: 'ACTIVE' },
@@ -262,18 +391,7 @@ export class PublicService {
     const storeInfoList = Array.isArray(payload.storeInfoList) ? payload.storeInfoList : [];
     const rawUserAddressReq =
       payload.userAddressReq && typeof payload.userAddressReq === 'object' ? payload.userAddressReq : null;
-    const userAddressReq =
-      rawUserAddressReq ??
-      ({
-        id: 'digital-delivery',
-        name: '数字订单',
-        phoneNumber: '',
-        provinceName: '',
-        cityName: '',
-        districtName: '',
-        detailAddress: '数字商品无需物流配送，下单后自动交付',
-        receiverAddress: '数字商品无需物流配送',
-      } as Record<string, unknown>);
+    const userAddressReq = rawUserAddressReq ?? null;
     const skuDetailVos = goodsRequestList.map((item) => {
       const quantity = Number(item.quantity || 1);
       const settlePrice = Number(item.price || 0);
@@ -674,6 +792,104 @@ export class PublicService {
       invoiceDesc: '数字商品默认不开票',
       invoiceVO: null,
       trajectoryVos: [],
+    };
+  }
+
+  private async ensureUserId(uid?: string) {
+    const userId = `${uid || ''}`.trim();
+    if (!userId) {
+      throw new BadRequestException('缺少用户标识');
+    }
+
+    const user = await this.prisma.miniProgramUser.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    return user.id;
+  }
+
+  private async buildAddressInput(payload: Record<string, unknown>) {
+    const userId = await this.ensureUserId(`${payload.uid || payload.userId || ''}`.trim());
+    const name = `${payload.name || ''}`.trim();
+    const phone = `${payload.phone || payload.phoneNumber || ''}`.trim();
+    const provinceName = `${payload.provinceName || ''}`.trim();
+    const provinceCode = `${payload.provinceCode || ''}`.trim();
+    const cityName = `${payload.cityName || ''}`.trim();
+    const cityCode = `${payload.cityCode || ''}`.trim();
+    const districtName = `${payload.districtName || payload.countyName || ''}`.trim();
+    const districtCode = `${payload.districtCode || ''}`.trim();
+    const detailAddress = `${payload.detailAddress || ''}`.trim();
+
+    if (!name || !phone || !provinceName || !provinceCode || !cityName || !cityCode || !districtName || !detailAddress) {
+      throw new BadRequestException('收货地址信息不完整');
+    }
+
+    return {
+      userId,
+      name,
+      phone,
+      countryName: `${payload.countryName || '中国'}`.trim() || '中国',
+      countryCode: `${payload.countryCode || 'chn'}`.trim() || 'chn',
+      provinceName,
+      provinceCode,
+      cityName,
+      cityCode,
+      districtName,
+      districtCode,
+      detailAddress,
+      addressTag: `${payload.addressTag || ''}`.trim() || null,
+      latitude: payload.latitude === null || payload.latitude === undefined ? null : Number(payload.latitude),
+      longitude: payload.longitude === null || payload.longitude === undefined ? null : Number(payload.longitude),
+      isDefault: Boolean(payload.isDefault),
+    };
+  }
+
+  private formatUserAddress(address: {
+    id: string;
+    userId: string;
+    name: string;
+    phone: string;
+    countryName: string;
+    countryCode: string;
+    provinceName: string;
+    provinceCode: string;
+    cityName: string;
+    cityCode: string;
+    districtName: string;
+    districtCode: string;
+    detailAddress: string;
+    addressTag: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    isDefault: boolean;
+  }) {
+    return {
+      id: address.id,
+      addressId: address.id,
+      uid: address.userId,
+      name: address.name,
+      phone: address.phone,
+      phoneNumber: address.phone,
+      countryName: address.countryName,
+      countryCode: address.countryCode,
+      provinceName: address.provinceName,
+      provinceCode: address.provinceCode,
+      cityName: address.cityName,
+      cityCode: address.cityCode,
+      districtName: address.districtName,
+      districtCode: address.districtCode,
+      detailAddress: address.detailAddress,
+      addressTag: address.addressTag || '',
+      tag: address.addressTag || '',
+      latitude: address.latitude,
+      longitude: address.longitude,
+      isDefault: address.isDefault ? 1 : 0,
+      address: `${address.provinceName}${address.cityName}${address.districtName}${address.detailAddress}`,
     };
   }
 

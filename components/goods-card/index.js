@@ -31,6 +31,10 @@ Component({
       type: String,
       value: '¥',
     },
+    compact: {
+      type: Boolean,
+      value: false,
+    },
 
     thresholds: {
       type: Array,

@@ -1,5 +1,5 @@
 page {
-  background-color: #fff;
+  background-color: #f7f5f2;
 }
 
 page view {
@@ -8,16 +8,18 @@ page view {
 
 .result-container {
   display: block;
+  min-height: 100vh;
 }
 
 .result-container .t-search {
-  padding: 0 30rpx;
-  background-color: #fff;
+  padding: 20rpx 24rpx 0;
+  background-color: #f7f5f2;
 }
 
 .result-container .t-class__input-container {
-  height: 64rpx !important;
-  border-radius: 32rpx !important;
+  height: 72rpx !important;
+  border-radius: 22rpx !important;
+  background: #ffffff !important;
 }
 
 .result-container .t-search__left-icon {
@@ -30,15 +32,42 @@ page view {
   color: #333 !important;
 }
 
+.result-container .result-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18rpx 28rpx 8rpx;
+}
+
+.result-container .result-meta--recommend {
+  padding-top: 12rpx;
+}
+
+.result-container .result-meta__title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2f2a24;
+}
+
+.result-container .result-meta__text {
+  font-size: 24rpx;
+  color: #8d8174;
+}
+
+.result-container .result-meta__clear {
+  font-size: 24rpx;
+  color: #fa6a3b;
+}
+
 .result-container .category-goods-list {
-  background-color: #f2f2f2;
+  background-color: #f7f5f2;
   overflow-y: scroll;
-  padding: 20rpx 24rpx;
+  padding: 12rpx 24rpx 24rpx;
   -webkit-overflow-scrolling: touch;
 }
 
 .result-container .wr-goods-list {
-  background: #f2f2f2 !important;
+  background: #f7f5f2 !important;
 }
 
 .result-container .t-image__mask {
@@ -46,7 +75,7 @@ page view {
 }
 
 .result-container .empty-wrap {
-  margin-top: 184rpx;
+  margin-top: 160rpx;
   margin-bottom: 120rpx;
   height: 300rpx;
 }
@@ -55,60 +84,6 @@ page view {
   margin-top: 40rpx;
 }
 
-.result-container .price-container {
-  padding: 32rpx;
-  height: 100vh;
-  max-width: 632rpx;
-  background-color: #fff;
-  border-radius: 30rpx 0 0 30rpx;
-}
-
-.result-container .price-between {
-  font-size: 26rpx;
-  font-weight: 500;
-  color: rgba(51, 51, 51, 1);
-}
-
-.result-container .price-ipts-wrap {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-around;
-  margin-top: 24rpx;
-}
-
-.result-container .price-ipts-wrap .price-divided {
-  position: relative;
-  width: 22rpx;
-  margin: 0 20rpx;
-  color: #222427;
-}
-
-.result-container .price-ipts-wrap .price-ipt {
-  box-sizing: border-box;
-  width: 246rpx;
-  font-size: 24rpx;
-  height: 56rpx;
-  padding: 0 24rpx;
-  text-align: center;
-  border-radius: 8rpx;
-  color: #333;
-  background: rgba(245, 245, 245, 1);
-}
-
-.t-class-input {
-  font-size: 24rpx !important;
-}
-
 .t-search__clear {
   font-size: 40rpx !important;
-}
-
-.result-container .price-ipts-wrap .price-ipt::after {
-  border: none !important;
-}
-
-.result-container .t-input__control {
-  font-size: 24rpx !important;
-  text-align: center;
 }

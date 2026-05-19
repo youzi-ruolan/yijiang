@@ -19,11 +19,21 @@
   flex-direction: column;
 }
 
+.goods-card__main--compact {
+  width: 336rpx;
+  margin-bottom: 12rpx;
+}
+
 .goods-card__thumb {
   flex-shrink: 0;
   position: relative;
   width: 340rpx;
   height: 340rpx;
+}
+
+.goods-card__thumb--compact {
+  width: 336rpx;
+  height: 336rpx;
 }
 
 .goods-card__thumb:empty {
@@ -39,6 +49,10 @@
   overflow: hidden;
 }
 
+.goods-card__img--compact {
+  border-radius: 18rpx 18rpx 0 0;
+}
+
 .goods-card__body {
   display: flex;
   flex: 1 1 auto;
@@ -46,6 +60,12 @@
   border-radius: 0 0 16rpx 16rpx;
   padding: 16rpx 24rpx 18rpx;
   flex-direction: column;
+}
+
+.goods-card__body--compact {
+  width: 100%;
+  padding: 14rpx 18rpx 16rpx;
+  border-radius: 0 0 18rpx 18rpx;
 }
 
 .goods-card__upper {
@@ -69,11 +89,21 @@
   line-height: 36rpx;
 }
 
+.goods-card__title--compact {
+  font-size: 26rpx;
+  line-height: 34rpx;
+  height: 68rpx;
+}
+
 .goods-card__tags {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   margin: 8rpx 0 0 0;
+}
+
+.goods-card__tags--compact {
+  margin-top: 6rpx;
 }
 
 .goods-card__tag {
@@ -92,6 +122,17 @@
   text-overflow: ellipsis;
 }
 
+.goods-card__tag--compact {
+  max-width: 132rpx;
+  font-size: 18rpx;
+  line-height: 26rpx;
+  padding: 0 8rpx;
+  margin: 0 6rpx 6rpx 0;
+  color: #9d5c2f;
+  border-color: rgba(157, 92, 47, 0.18);
+  background: #f7efe6;
+}
+
 .goods-card__down {
   display: flex;
   position: relative;
@@ -100,6 +141,12 @@
   align-items: baseline;
   line-height: 32rpx;
   margin: 8rpx 0 0 0;
+}
+
+.goods-card__down--compact {
+  margin-top: 6rpx;
+  min-height: 40rpx;
+  align-items: flex-end;
 }
 
 .goods-card__origin-price {
@@ -119,6 +166,13 @@
   right: 0;
 }
 
+.goods-card__add-cart--compact {
+  transform: scale(0.9);
+  transform-origin: right bottom;
+  right: -4rpx;
+  bottom: -4rpx;
+}
+
 .spec-for-price {
   font-size: 36rpx;
   white-space: nowrap;
@@ -128,6 +182,15 @@
   margin: 0;
 }
 
+.spec-for-price--compact {
+  font-size: 32rpx;
+  line-height: 1;
+}
+
 .spec-for-symbol {
   font-size: 24rpx;
+}
+
+.spec-for-symbol--compact {
+  font-size: 22rpx;
 }

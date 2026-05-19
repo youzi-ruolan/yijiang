@@ -1,15 +1,11 @@
 <view class="search-page">
-  <view class="search-hero">
-    <view class="search-hero__eyebrow">艺匠调色</view>
-    <view class="search-hero__title">搜索你需要的调色资产</view>
-    <view class="search-hero__desc">支持预设、LUT、模板、课程等关键词快速查找</view>
-  </view>
   <t-search
     t-class-input-container="t-class__input-container"
     t-class-input="t-search__input"
     value="{{searchValue}}"
     leftIcon=""
-    placeholder="搜索预设 / LUT / 模板 / 课程"
+    placeholder="搜索预设、LUT、模板"
+    bind:change="onInputChange"
     bind:submit="handleSubmit"
     focus
   >
@@ -19,7 +15,7 @@
     <view class="history-wrap">
       <view class="search-header">
         <text class="search-title">历史搜索</text>
-        <text class="search-clear" bind:tap="handleClearHistory">清除</text>
+        <text class="search-clear" wx:if="{{historyWords.length}}" bind:tap="handleClearHistory">清空</text>
       </view>
       <view class="search-content">
         <block wx:if="{{historyWords.length}}">
@@ -35,12 +31,12 @@
             {{item}}
           </view>
         </block>
-        <view class="search-empty" wx:else>还没有搜索记录，试试搜索「胶片 LUT」或「人像预设」</view>
+        <view class="search-empty" wx:else>暂无搜索记录</view>
       </view>
     </view>
     <view class="popular-wrap">
       <view class="search-header">
-        <text class="search-title">热门搜索</text>
+        <text class="search-title">热门标签</text>
       </view>
       <view class="search-content">
         <view

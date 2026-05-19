@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { PublicService } from './public.service';
 
 @Controller('api')
@@ -28,6 +28,36 @@ export class PublicController {
   @Post('person/profile')
   updatePersonProfile(@Body() payload: Record<string, unknown>) {
     return this.publicService.updatePersonProfile(payload);
+  }
+
+  @Get('addresses')
+  getAddresses(@Query('uid') uid?: string) {
+    return this.publicService.getAddresses(uid);
+  }
+
+  @Get('addresses/default')
+  getDefaultAddress(@Query('uid') uid?: string) {
+    return this.publicService.getDefaultAddress(uid);
+  }
+
+  @Get('addresses/:id')
+  getAddressDetail(@Param('id') id: string, @Query('uid') uid?: string) {
+    return this.publicService.getAddressDetail(id, uid);
+  }
+
+  @Post('addresses')
+  createAddress(@Body() payload: Record<string, unknown>) {
+    return this.publicService.createAddress(payload);
+  }
+
+  @Put('addresses/:id')
+  updateAddress(@Param('id') id: string, @Body() payload: Record<string, unknown>) {
+    return this.publicService.updateAddress(id, payload);
+  }
+
+  @Delete('addresses/:id')
+  deleteAddress(@Param('id') id: string, @Query('uid') uid?: string) {
+    return this.publicService.deleteAddress(id, uid);
   }
 
   @Get('categories')
