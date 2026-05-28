@@ -66,6 +66,7 @@ export class PublicService {
       this.prisma.article.findMany({ where: { status: 'ACTIVE' }, orderBy: { sort: 'asc' } }),
       this.prisma.product.findMany({ where: { status: 'ACTIVE' }, orderBy: { sort: 'asc' } }),
     ]);
+    const salesMap = await this.getRealProductSalesMap();
 
     return {
       app: settings,
@@ -79,7 +80,7 @@ export class PublicService {
       categories: categories.map((item) => this.formatCategory(item)),
       inspirations,
       articles,
-      products: products.map((item) => this.formatProductCard(item)),
+      products: products.map((item) => this.formatProductCard(item, salesMap.get(item.id) || 0)),
     };
   }
 
@@ -344,7 +345,8 @@ export class PublicService {
       orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }],
     });
 
-    return products.map((item) => this.formatProductCard(item));
+    const salesMap = await this.getRealProductSalesMap();
+    return products.map((item) => this.formatProductCard(item, salesMap.get(item.id) || 0));
   }
 
   async getProductDetail(id: string) {
@@ -352,7 +354,12 @@ export class PublicService {
       where: { id },
     });
 
-    return product ? this.formatProductDetail(product) : null;
+    if (!product) {
+      return null;
+    }
+
+    const salesMap = await this.getRealProductSalesMap([product.id]);
+    return this.formatProductDetail(product, salesMap.get(product.id) || 0);
   }
 
   async getOrders(status?: string, uid?: string) {
@@ -768,13 +775,13 @@ export class PublicService {
     isHot: boolean;
     sort: number;
     status: string;
-  }) {
+  }, realSales = 0) {
     return {
       id: product.id,
       title: product.title,
       description: product.description,
       price: product.price,
-      sales: product.sales,
+      sales: realSales,
       cover: product.cover,
       tags: this.toStringArray(product.tags),
       gallery: this.toStringArray(product.gallery),
@@ -789,8 +796,8 @@ export class PublicService {
     };
   }
 
-  private formatProductDetail(product: Parameters<PublicService['formatProductCard']>[0]) {
-    const productCard = this.formatProductCard(product);
+  private formatProductDetail(product: Parameters<PublicService['formatProductCard']>[0], realSales = 0) {
+    const productCard = this.formatProductCard(product, realSales);
     const tags = productCard.tags;
     const gallery = productCard.gallery;
     const standardPrice = Math.round(product.price * 100);
@@ -832,7 +839,7 @@ export class PublicService {
       minLinePrice: linePrice,
       maxSalePrice: standardPrice,
       maxLinePrice: linePrice,
-      soldNum: product.sales,
+      soldNum: realSales,
       isPutOnSale: 1,
       specList,
       skuList: [
@@ -1069,6 +1076,27 @@ export class PublicService {
 
   private toStringArray(value: unknown) {
     return Array.isArray(value) ? value.map((item) => `${item}`) : [];
+  }
+
+  private async getRealProductSalesMap(productIds?: string[]) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        status: { in: ['已付款', '待交付', '待收货', '已完成'] },
+      },
+      select: { itemsDetail: true },
+    });
+    const productIdSet = productIds?.length ? new Set(productIds.map((id) => `${id}`)) : null;
+    const salesMap = new Map<string, number>();
+
+    orders.forEach((order) => {
+      this.getOrderItems(order.itemsDetail).forEach((item) => {
+        const spuId = `${item.spuId || ''}`;
+        if (!spuId || (productIdSet && !productIdSet.has(spuId))) return;
+        salesMap.set(spuId, (salesMap.get(spuId) || 0) + Number(item.buyQuantity || 1));
+      });
+    });
+
+    return salesMap;
   }
 
   private toPrismaJson(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {

@@ -59,7 +59,7 @@
         <t-icon name="chevron-right" size="40rpx" color="#BBBBBB" />
       </view>
     </view>
-    <view wx:if="{{ commentsStatistics.commentCount > 0 }}" class="comments-wrap">
+    <view class="comments-wrap">
       <view class="comments-head" bindtap="navToCommentsListPage">
         <view class="comments-title-wrap">
           <view class="comments-title-label">商品评价</view>
@@ -86,6 +86,7 @@
         </view>
         <view class="comment-item-content"> {{commentItem.commentContent}} </view>
       </view>
+      <view wx:if="{{commentsStatistics.commentCount <= 0}}" class="comment-empty">暂无评价</view>
     </view>
   </view>
   <view class="desc-content">
