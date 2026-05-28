@@ -46,17 +46,8 @@
         </view>
       </view>
       <view class="goods-intro">{{intro}}</view>
-      <view class="goods-highlights" wx:if="{{servicePromises.length}}">
-        <view class="goods-highlight" wx:for="{{servicePromises}}" wx:key="*this">
-          <t-icon name="check-circle-filled" size="24rpx" color="#ff6f61" />
-          <text>{{item}}</text>
-        </view>
-      </view>
       <view class="goods-tags" wx:if="{{details.spuTagList && details.spuTagList.length}}">
         <view class="goods-meta-tag" wx:for="{{details.spuTagList}}" wx:key="id">{{item.title}}</view>
-      </view>
-      <view class="goods-facts" wx:if="{{quickFacts.length}}">
-        <view class="goods-fact" wx:for="{{quickFacts}}" wx:key="*this">{{item}}</view>
       </view>
     </view>
     <view class="spu-select" bindtap="showSkuSelectPopup">
@@ -146,7 +137,7 @@
     src="{{specImg ? specImg : primaryImage}}"
     specList="{{details.specList || []}}"
     skuList="{{skuArray}}"
-    limitBuyInfo="{{details.limitInfo[0].text || ''}}"
+    limitBuyInfo="{{limitBuyInfo}}"
     bind:closeSpecsPopup="handlePopupHide"
     bind:change="chooseSpecItem"
     bind:changeNum="changeNum"

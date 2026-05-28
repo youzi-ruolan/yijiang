@@ -1,5 +1,6 @@
 import { config } from '../../config/index';
 import { mergeCommentCount, mergeHomeComments } from '../../utils/local-comments';
+import { apiRequest } from '../_utils/request';
 
 /** 获取商品详情页评论数 */
 function mockFetchGoodDetailsCommentsCount(spuId = 0) {
@@ -10,6 +11,11 @@ function mockFetchGoodDetailsCommentsCount(spuId = 0) {
 
 /** 获取商品详情页评论数 */
 export function getGoodsDetailsCommentsCount(spuId = 0) {
+  if (config.enableBackendApi) {
+    return apiRequest({
+      url: `/api/products/${encodeURIComponent(spuId)}/comments/summary`,
+    });
+  }
   if (config.useMock) {
     return mockFetchGoodDetailsCommentsCount(spuId);
   }
@@ -27,6 +33,11 @@ function mockFetchGoodDetailsCommentList(spuId = 0) {
 
 /** 获取商品详情页评论 */
 export function getGoodsDetailsCommentList(spuId = 0) {
+  if (config.enableBackendApi) {
+    return apiRequest({
+      url: `/api/products/${encodeURIComponent(spuId)}/comments/home`,
+    });
+  }
   if (config.useMock) {
     return mockFetchGoodDetailsCommentList(spuId);
   }

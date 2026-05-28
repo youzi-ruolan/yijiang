@@ -120,6 +120,32 @@ model Order {
   @@index([status, createdAt])
 }
 
+model ProductComment {
+  id              String   @id @default(cuid())
+  orderNo         String
+  spuId           String
+  skuId           String
+  userId          String
+  userName        String
+  userHeadUrl     String?
+  isAnonymity     Boolean  @default(false)
+  commentContent  String   @db.Text
+  commentResources Json
+  commentScore    Int
+  commentLevel    Int
+  serviceScore    Int      @default(5)
+  conveyScore     Int      @default(5)
+  goodsDetailInfo String?
+  sellerReply     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([orderNo, skuId, userId])
+  @@index([spuId, createdAt])
+  @@index([userId, createdAt])
+  @@index([commentLevel, createdAt])
+}
+
 model MiniProgramUser {
   id          String   @id @default(cuid())
   openid      String   @unique

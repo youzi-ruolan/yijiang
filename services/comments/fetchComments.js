@@ -1,5 +1,7 @@
 import { config } from '../../config/index';
 import { mergeCommentPage } from '../../utils/local-comments';
+import { apiRequest } from '../_utils/request';
+import { getCurrentUser } from '../../utils/local-auth';
 
 /** 获取商品评论 */
 function mockFetchComments(params) {
@@ -10,6 +12,20 @@ function mockFetchComments(params) {
 
 /** 获取商品评论 */
 export function fetchComments(params) {
+  if (config.enableBackendApi) {
+    const currentUser = getCurrentUser();
+    return apiRequest({
+      url: '/api/comments/list',
+      method: 'POST',
+      data: {
+        ...params,
+        queryParameter: {
+          ...(params?.queryParameter || {}),
+          uid: currentUser?.uid || '',
+        },
+      },
+    });
+  }
   if (config.useMock) {
     return mockFetchComments(params);
   }

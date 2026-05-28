@@ -1,0 +1,26 @@
+CREATE TABLE `ProductComment` (
+  `id` VARCHAR(191) NOT NULL,
+  `orderNo` VARCHAR(191) NOT NULL,
+  `spuId` VARCHAR(191) NOT NULL,
+  `skuId` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `userName` VARCHAR(191) NOT NULL,
+  `userHeadUrl` VARCHAR(191) NULL,
+  `isAnonymity` BOOLEAN NOT NULL DEFAULT false,
+  `commentContent` TEXT NOT NULL,
+  `commentResources` JSON NOT NULL,
+  `commentScore` INTEGER NOT NULL,
+  `commentLevel` INTEGER NOT NULL,
+  `serviceScore` INTEGER NOT NULL DEFAULT 5,
+  `conveyScore` INTEGER NOT NULL DEFAULT 5,
+  `goodsDetailInfo` VARCHAR(191) NULL,
+  `sellerReply` VARCHAR(191) NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+
+  UNIQUE INDEX `ProductComment_orderNo_skuId_userId_key` (`orderNo`, `skuId`, `userId`),
+  INDEX `ProductComment_spuId_createdAt_idx` (`spuId`, `createdAt`),
+  INDEX `ProductComment_userId_createdAt_idx` (`userId`, `createdAt`),
+  INDEX `ProductComment_commentLevel_createdAt_idx` (`commentLevel`, `createdAt`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

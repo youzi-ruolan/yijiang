@@ -100,6 +100,31 @@ export class PublicController {
     return this.publicService.createOrder(payload);
   }
 
+  @Post('comments')
+  createComment(@Body() payload: Record<string, unknown>) {
+    return this.publicService.createComment(payload);
+  }
+
+  @Post('comments/list')
+  getComments(@Body() payload: Record<string, unknown>) {
+    return this.publicService.getComments(payload);
+  }
+
+  @Post('comments/count')
+  getCommentsCount(@Body() payload: Record<string, unknown>) {
+    return this.publicService.getCommentsCount(payload);
+  }
+
+  @Get('products/:id/comments/summary')
+  getProductCommentsSummary(@Param('id') id: string) {
+    return this.publicService.getProductCommentsSummary(id);
+  }
+
+  @Get('products/:id/comments/home')
+  getProductHomeComments(@Param('id') id: string) {
+    return this.publicService.getProductHomeComments(id);
+  }
+
   @Post('payments/wechat/notify')
   handleWechatPayNotify(
     @Body() payload: Record<string, unknown>,

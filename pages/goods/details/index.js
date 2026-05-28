@@ -1,12 +1,10 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchGood } from '../../../services/good/fetchGood';
-import { fetchActivityList } from '../../../services/activity/fetchActivityList';
 import {
   getGoodsDetailsCommentList,
   getGoodsDetailsCommentsCount,
 } from '../../../services/good/fetchGoodsDetailsComments';
 import { cdnBase } from '../../../config/index';
-import { getHomeGoodById } from '../../../utils/home-goods';
 import { addLocalCartItem, getLocalCartCount } from '../../../utils/local-cart';
 
 const imgPrefix = `${cdnBase}/`;
@@ -46,8 +44,6 @@ Page({
         value: 'goods-page',
       },
     ],
-    storeLogo: `${imgPrefix}common/store-logo.png`,
-    storeName: '艺匠调色数字资产商店',
     jumpArray: [
       {
         title: '全部商品',
@@ -91,8 +87,7 @@ Page({
     detailContent: [],
     deliverables: [],
     usageNotice: [],
-    servicePromises: [],
-    quickFacts: [],
+    limitBuyInfo: '',
   },
 
   handlePopupHide() {
@@ -272,9 +267,9 @@ Page({
 
     return {
       uid: `${details.spuId}_${currentSku.skuId || 'default'}`,
-      saasId: details.saasId || '88888888',
-      storeId: details.storeId || '1000',
-      storeName: '艺匠调色数字资产商店',
+      saasId: details.saasId || '',
+      storeId: details.storeId || '',
+      storeName: details.storeName || '',
       spuId: details.spuId,
       skuId: currentSku.skuId || `${details.spuId}_default`,
       title: details.title,
@@ -309,7 +304,7 @@ Page({
     this.handlePopupHide();
     const query = {
       quantity: buyNum,
-      storeId: '1',
+      storeId: this.data.details.storeId || '',
       spuId: this.data.spuId,
       goodsName: this.data.details.title,
       skuId: type === 1 ? this.data.skuList[0].skuId : this.data.selectItem.skuId,
@@ -369,7 +364,7 @@ Page({
     });
   },
 
-  setDetailData(details, activityList = []) {
+  setDetailData(details) {
     const skuArray = [];
     const {
       skuList = [],
@@ -383,7 +378,6 @@ Page({
       deliverables = [],
       usageNotice = [],
     } = details;
-    const tags = (details.spuTagList || []).map((item) => item.title).filter(Boolean);
 
     skuList.forEach((item) => {
       skuArray.push({
@@ -391,14 +385,6 @@ Page({
         quantity: 1,
         specInfo: item.specInfo,
         price: item.priceInfo?.[0]?.price || minSalePrice || 0,
-      });
-    });
-
-    const promotionArray = [];
-    activityList.forEach((item) => {
-      promotionArray.push({
-        tag: item.promotionSubCode === 'MYJ' ? '满减' : '满折',
-        label: '满100元减99.9元',
       });
     });
 
@@ -421,18 +407,16 @@ Page({
 
     const defaultAttrStr =
       defaultSpecInfo.length > 0 ? `件，${defaultSpecInfo.map((item) => item.specValue).join('，')}` : '';
-    const servicePromises = ['支付成功后自动交付', '支持多端使用', '购买后可在订单详情中查看'];
-    const quickFacts = [tags[0] ? `类型：${tags[0]}` : '类型：数字商品'].filter(Boolean);
 
     this.setData({
       details,
       intro: intro || details.intro || details.description || '',
-      activityList,
+      activityList: [],
       isStock: true,
       maxSalePrice: maxSalePrice ? parseInt(maxSalePrice) : 0,
       maxLinePrice: maxLinePrice ? parseInt(maxLinePrice) : 0,
       minSalePrice: minSalePrice ? parseInt(minSalePrice) : 0,
-      list: promotionArray,
+      list: [],
       skuArray,
       skuList,
       primaryImage,
@@ -446,28 +430,27 @@ Page({
       detailContent,
       deliverables,
       usageNotice,
-      servicePromises,
-      quickFacts,
+      limitBuyInfo: details.limitInfo?.[0]?.text || '',
     });
   },
 
   async getDetail(spuId) {
     try {
-      const [details, activityList] = await Promise.all([fetchGood(spuId), fetchActivityList()]);
+      const details = await fetchGood(spuId);
       if (details) {
-        this.setDetailData(details, activityList || []);
+        this.setDetailData(details);
         this.refreshCartNum();
         return;
       }
     } catch (error) {
       console.error('fetch detail error:', error);
     }
-
-    const localGood = getHomeGoodById(spuId);
-    if (localGood) {
-      this.setDetailData(localGood, []);
-      this.refreshCartNum();
-    }
+    Toast({
+      context: this,
+      selector: '#t-toast',
+      message: '商品详情加载失败',
+      icon: '',
+    });
   },
 
   async getCommentsList() {
@@ -482,7 +465,7 @@ Page({
               goodsSpu: item.spuId,
               userName: item.userName || '',
               commentScore: item.commentScore,
-              commentContent: item.commentContent || '用户未填写评价',
+              commentContent: item.commentContent || '',
               userHeadUrl: item.isAnonymity ? this.anonymityAvatar : item.userHeadUrl || this.anonymityAvatar,
             };
           }),

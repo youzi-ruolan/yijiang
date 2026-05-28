@@ -486,7 +486,154 @@ export class PublicService {
       throw new BadRequestException('订单不存在');
     }
 
-    return order ? this.formatOrderDetail(order) : null;
+    if (!order) {
+      return null;
+    }
+
+    const comments = await this.prisma.productComment.findMany({
+      where: {
+        orderNo: order.id,
+        ...(uid ? { userId: uid } : {}),
+      },
+      select: { skuId: true, userId: true },
+    });
+    const commentedSkuSet = new Set(comments.map((comment) => `${comment.skuId}`));
+    const itemsDetail = this.getOrderItems(order.itemsDetail).map((item) => ({
+      ...item,
+      commented: commentedSkuSet.has(`${item.skuId || ''}`),
+    }));
+
+    return this.formatOrderDetail({
+      ...order,
+      itemsDetail,
+    });
+  }
+
+  async createComment(payload: Record<string, unknown>) {
+    const userId = await this.ensureUserId(`${payload.uid || payload.userId || ''}`.trim());
+    const orderNo = `${payload.orderNo || ''}`.trim();
+    const spuId = `${payload.spuId || ''}`.trim();
+    const skuId = `${payload.skuId || ''}`.trim();
+    const commentContent = `${payload.commentContent || ''}`.trim();
+    const commentScore = this.clampScore(payload.commentScore);
+
+    if (!orderNo || !spuId || !skuId) {
+      throw new BadRequestException('评价缺少订单或商品信息');
+    }
+    if (commentContent.length < 5) {
+      throw new BadRequestException('评价内容至少 5 个字');
+    }
+
+    const [user, order] = await Promise.all([
+      this.prisma.miniProgramUser.findUnique({ where: { id: userId } }),
+      this.prisma.order.findUnique({ where: { id: orderNo } }),
+    ]);
+
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+    if (!order || order.userId !== userId) {
+      throw new BadRequestException('订单不存在');
+    }
+    if (order.status === '待处理') {
+      throw new BadRequestException('订单支付完成后才能评价');
+    }
+
+    const orderItems = this.getOrderItems(order.itemsDetail);
+    const matchedItem = orderItems.find((item) => `${item.skuId || ''}` === skuId && `${item.spuId || ''}` === spuId);
+    if (!matchedItem) {
+      throw new BadRequestException('订单中未找到该商品');
+    }
+
+    const isAnonymity = Boolean(payload.isAnonymity);
+    const comment = await this.prisma.productComment
+      .create({
+        data: {
+          orderNo,
+          spuId,
+          skuId,
+          userId,
+          userName: isAnonymity ? '匿名用户' : `${payload.userName || user.nickName || '微信用户'}`,
+          userHeadUrl: isAnonymity ? null : `${payload.userHeadUrl || user.avatarUrl || ''}` || null,
+          isAnonymity,
+          commentContent,
+          commentResources: this.toPrismaJson(this.normalizeCommentResources(payload.commentResources || payload.uploadFiles)),
+          commentScore,
+          commentLevel: this.getCommentLevel(commentScore),
+          serviceScore: this.clampScore(payload.serviceScore),
+          conveyScore: this.clampScore(payload.conveyScore),
+          goodsDetailInfo:
+            `${payload.goodsDetailInfo || payload.specInfo || this.formatItemSpecifications(matchedItem) || ''}`.trim() ||
+            null,
+        },
+      })
+      .catch((error: { code?: string }) => {
+        if (error.code === 'P2002') {
+          throw new BadRequestException('该商品已经评价过了');
+        }
+        throw error;
+      });
+
+    return {
+      data: this.formatComment(comment),
+      code: 'Success',
+      msg: null,
+      success: true,
+    };
+  }
+
+  async getComments(payload: Record<string, unknown>) {
+    const queryParameter =
+      payload.queryParameter && typeof payload.queryParameter === 'object'
+        ? (payload.queryParameter as Record<string, unknown>)
+        : {};
+    const pageNum = Math.max(1, Number(payload.pageNum || 1));
+    const pageSize = Math.max(1, Math.min(50, Number(payload.pageSize || 10)));
+    const spuId = `${queryParameter.spuId || ''}`.trim();
+    const where: Prisma.ProductCommentWhereInput = {
+      ...(spuId ? { spuId } : {}),
+      ...(queryParameter.commentLevel ? { commentLevel: Number(queryParameter.commentLevel) } : {}),
+      ...(queryParameter.hasImage ? { NOT: { commentResources: { equals: [] } } } : {}),
+      ...(queryParameter.onlyMine && queryParameter.uid ? { userId: `${queryParameter.uid}` } : {}),
+    };
+
+    const [totalCount, comments] = await Promise.all([
+      this.prisma.productComment.count({ where }),
+      this.prisma.productComment.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }],
+        skip: (pageNum - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      pageNum,
+      pageSize,
+      totalCount: `${totalCount}`,
+      pageList: comments.map((comment) => this.formatComment(comment)),
+    };
+  }
+
+  async getCommentsCount(payload: Record<string, unknown>) {
+    const spuId = `${payload.spuId || ''}`.trim();
+    return this.buildCommentsCount(spuId, `${payload.uid || ''}`.trim());
+  }
+
+  async getProductCommentsSummary(spuId: string) {
+    return this.buildCommentsCount(spuId);
+  }
+
+  async getProductHomeComments(spuId: string) {
+    const comments = await this.prisma.productComment.findMany({
+      where: { spuId },
+      orderBy: [{ createdAt: 'desc' }],
+      take: 2,
+    });
+
+    return {
+      homePageComments: comments.map((comment) => this.formatComment(comment)),
+    };
   }
 
   async createOrder(payload: Record<string, unknown>) {
@@ -647,12 +794,34 @@ export class PublicService {
     const tags = productCard.tags;
     const gallery = productCard.gallery;
     const standardPrice = Math.round(product.price * 100);
-    const proPrice = Math.round((product.price + 40) * 100);
     const linePrice = Math.round(product.price * 100);
+    const specList = tags.length
+      ? [
+          {
+            specId: 'category',
+            title: '类型',
+            specValueList: tags.map((tag, index) => ({
+              specValueId: `category-${index}`,
+              specValue: tag,
+              image: '',
+            })),
+          },
+        ]
+      : [];
+    const specInfo = specList.length
+      ? [
+          {
+            specId: specList[0].specId,
+            specValueId: specList[0].specValueList[0].specValueId,
+            specValue: specList[0].specValueList[0].specValue,
+          },
+        ]
+      : [];
 
     return {
-      saasId: '88888888',
-      storeId: '1000',
+      saasId: '',
+      storeId: '',
+      storeName: '',
       spuId: product.id,
       title: product.title,
       intro: product.description,
@@ -661,77 +830,18 @@ export class PublicService {
       available: 1,
       minSalePrice: standardPrice,
       minLinePrice: linePrice,
-      maxSalePrice: proPrice,
+      maxSalePrice: standardPrice,
       maxLinePrice: linePrice,
       soldNum: product.sales,
       isPutOnSale: 1,
-      specList: [
-        {
-          specId: 'format',
-          title: '格式',
-          specValueList: [
-            {
-              specValueId: 'format-default',
-              specValue: tags[0] || '数字商品',
-              image: '',
-            },
-          ],
-        },
-        {
-          specId: 'edition',
-          title: '版本',
-          specValueList: [
-            {
-              specValueId: 'edition-standard',
-              specValue: '标准版',
-              image: '',
-            },
-            {
-              specValueId: 'edition-pro',
-              specValue: '专业版',
-              image: '',
-            },
-          ],
-        },
-      ],
+      specList,
       skuList: [
         {
-          skuId: `${product.id}_standard`,
+          skuId: `${product.id}_default`,
           skuImage: product.cover,
-          specInfo: [
-            {
-              specId: 'format',
-              specValueId: 'format-default',
-              specValue: tags[0] || '数字商品',
-            },
-            {
-              specId: 'edition',
-              specValueId: 'edition-standard',
-              specValue: '标准版',
-            },
-          ],
+          specInfo,
           priceInfo: [
             { priceType: 1, price: `${standardPrice}` },
-            { priceType: 2, price: `${linePrice}` },
-          ],
-        },
-        {
-          skuId: `${product.id}_pro`,
-          skuImage: product.cover,
-          specInfo: [
-            {
-              specId: 'format',
-              specValueId: 'format-default',
-              specValue: tags[0] || '数字商品',
-            },
-            {
-              specId: 'edition',
-              specValueId: 'edition-pro',
-              specValue: '专业版',
-            },
-          ],
-          priceInfo: [
-            { priceType: 1, price: `${proPrice}` },
             { priceType: 2, price: `${linePrice}` },
           ],
         },
@@ -741,7 +851,7 @@ export class PublicService {
         title: item,
         image: null,
       })),
-      limitInfo: [{ text: '数字商品，购买后永久可用' }],
+      limitInfo: productCard.usageNotice[0] ? [{ text: productCard.usageNotice[0] }] : [],
       desc: [product.cover, ...gallery],
       etitle: '',
       detailContent: productCard.detailContent,
@@ -775,6 +885,7 @@ export class PublicService {
 
   private formatOrderDetail(order: {
     id: string;
+    userId?: string | null;
     customer: string;
     amount: number;
     status: string;
@@ -820,7 +931,7 @@ export class PublicService {
         actualPrice: Number(item.actualPrice || item.tagPrice || 0),
         buyQuantity: Number(item.buyQuantity || 1),
         tagText: `${item.tagText || ''}`,
-        buttonVOs: [],
+        buttonVOs: this.getOrderItemButtons(order, item),
       })),
       buttonVOs: [],
       groupInfoVo: null,
@@ -958,6 +1069,135 @@ export class PublicService {
 
   private toStringArray(value: unknown) {
     return Array.isArray(value) ? value.map((item) => `${item}`) : [];
+  }
+
+  private toPrismaJson(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+    return value == null ? Prisma.JsonNull : (value as Prisma.InputJsonValue);
+  }
+
+  private async buildCommentsCount(spuId: string, uid = '') {
+    const where = spuId ? { spuId } : {};
+    const [commentCount, goodCount, middleCount, badCount, hasImageCount, uidCount] = await Promise.all([
+      this.prisma.productComment.count({ where }),
+      this.prisma.productComment.count({ where: { ...where, commentLevel: 3 } }),
+      this.prisma.productComment.count({ where: { ...where, commentLevel: 2 } }),
+      this.prisma.productComment.count({ where: { ...where, commentLevel: 1 } }),
+      this.prisma.productComment.count({ where: { ...where, NOT: { commentResources: { equals: [] } } } }),
+      uid ? this.prisma.productComment.count({ where: { ...where, userId: uid } }) : Promise.resolve(0),
+    ]);
+    const goodRate = commentCount ? Math.round((goodCount / commentCount) * 1000) / 10 : 0;
+
+    return {
+      commentCount: `${commentCount}`,
+      badCount: `${badCount}`,
+      middleCount: `${middleCount}`,
+      goodCount: `${goodCount}`,
+      hasImageCount: `${hasImageCount}`,
+      goodRate,
+      uidCount: `${uidCount}`,
+    };
+  }
+
+  private formatComment(comment: {
+    id: string;
+    spuId: string;
+    skuId: string;
+    userId: string;
+    userName: string;
+    userHeadUrl: string | null;
+    isAnonymity: boolean;
+    commentContent: string;
+    commentResources: unknown;
+    commentScore: number;
+    commentLevel: number;
+    serviceScore: number;
+    conveyScore: number;
+    goodsDetailInfo: string | null;
+    sellerReply: string | null;
+    orderNo: string;
+    createdAt: Date;
+  }) {
+    const isAnonymity = Boolean(comment.isAnonymity);
+    return {
+      id: comment.id,
+      spuId: comment.spuId,
+      skuId: comment.skuId,
+      specInfo: comment.goodsDetailInfo || '',
+      goodsDetailInfo: comment.goodsDetailInfo || '',
+      commentContent: comment.commentContent,
+      commentResources: Array.isArray(comment.commentResources) ? comment.commentResources : [],
+      commentScore: comment.commentScore,
+      commentLevel: comment.commentLevel,
+      uid: comment.userId,
+      userName: isAnonymity ? '匿名用户' : comment.userName,
+      userHeadUrl: isAnonymity
+        ? 'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png'
+        : comment.userHeadUrl || 'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png',
+      isAnonymity,
+      commentTime: `${comment.createdAt.getTime()}`,
+      isAutoComment: false,
+      sellerReply: comment.sellerReply || '',
+      orderNo: comment.orderNo,
+      serviceScore: comment.serviceScore,
+      conveyScore: comment.conveyScore,
+    };
+  }
+
+  private normalizeCommentResources(value: unknown) {
+    const resources = Array.isArray(value) ? value : [];
+    return resources
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const resource = item as Record<string, unknown>;
+        const src = `${resource.src || resource.url || resource.path || resource.tempFilePath || resource.thumb || ''}`;
+        if (!src) return null;
+        const type = resource.type === 'video' || resource.mediaType === 'video' ? 'video' : 'image';
+        return {
+          src,
+          type,
+          coverSrc: `${resource.coverSrc || resource.thumb || src}`,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  private clampScore(value: unknown) {
+    const score = Math.round(Number(value || 5));
+    return Math.max(1, Math.min(5, Number.isFinite(score) ? score : 5));
+  }
+
+  private getCommentLevel(score: number) {
+    if (score >= 4) return 3;
+    if (score === 3) return 2;
+    return 1;
+  }
+
+  private getOrderItems(itemsDetail: unknown) {
+    return Array.isArray(itemsDetail) ? (itemsDetail as Array<Record<string, unknown>>) : [];
+  }
+
+  private formatItemSpecifications(item: Record<string, unknown>) {
+    const specifications = Array.isArray(item.specifications) ? item.specifications : [];
+    return specifications
+      .map((spec) => (spec && typeof spec === 'object' ? `${(spec as Record<string, unknown>).specValue || ''}` : ''))
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  private getOrderItemButtons(order: { status: string }, item: Record<string, unknown>) {
+    if (order.status === '待处理') {
+      return [];
+    }
+    if (item.commented) {
+      return [];
+    }
+    return [
+      {
+        name: '评价',
+        type: 6,
+        primary: true,
+      },
+    ];
   }
 
   private async createWechatJsapiPayInfo(params: {

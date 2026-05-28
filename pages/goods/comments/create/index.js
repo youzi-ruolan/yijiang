@@ -1,7 +1,7 @@
 // import { getCommentDetail } from '../../../../services/good/comments/fetchCommentDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { addLocalComment } from '../../../../utils/local-comments';
 import { ensureWechatLoginWithGuide, getCurrentUser } from '../../../../utils/local-auth';
+import { submitComment } from '../../../../services/comments/submitComment';
 Page({
   data: {
     serviceRateValue: 5,
@@ -116,7 +116,7 @@ Page({
       if (loginResult.guided) return;
     }
     try {
-      addLocalComment({
+      await submitComment({
         spuId,
         skuId,
         orderNo,
@@ -145,6 +145,11 @@ Page({
       icon: 'check-circle',
     });
     setTimeout(() => {
+      const pages = getCurrentPages();
+      const prevPage = pages[pages.length - 2];
+      if (prevPage) {
+        prevPage.data.backRefresh = true;
+      }
       wx.navigateBack();
     }, 700);
   },
