@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req } from '@nestjs/common';
 import { PublicService } from './public.service';
 
 @Controller('api')
@@ -98,5 +98,14 @@ export class PublicController {
   @Post('orders')
   createOrder(@Body() payload: Record<string, unknown>) {
     return this.publicService.createOrder(payload);
+  }
+
+  @Post('payments/wechat/notify')
+  handleWechatPayNotify(
+    @Body() payload: Record<string, unknown>,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Req() request: { rawBody?: Buffer },
+  ) {
+    return this.publicService.handleWechatPayNotify(payload, headers, request.rawBody);
   }
 }

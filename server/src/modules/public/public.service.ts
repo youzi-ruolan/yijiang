@@ -1,6 +1,7 @@
 import { BadGatewayException, BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { createDecipheriv, createSign, createVerify, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -495,6 +496,7 @@ export class PublicService {
     const userId = `${payload.uid || ''}`.trim() || null;
     const orderNo = this.generateOrderNo();
     const items = goodsRequestList.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    await this.ensureWechatPayReady(userId);
 
     const itemsDetail = goodsRequestList.map((item) => ({
       spuId: `${item.spuId || ''}`,
@@ -521,20 +523,26 @@ export class PublicService {
         userId,
         customer: userName,
         amount: totalAmount,
-        status: '待交付',
+        status: '待处理',
         items,
         itemsDetail: itemsDetail as Prisma.InputJsonValue,
         orderCreatedAt: this.formatDateTime(new Date()),
       },
+    });
+    const payInfo = await this.createWechatJsapiPayInfo({
+      orderNo: order.id,
+      amount: order.amount,
+      userId,
+      description: `${itemsDetail[0]?.goodsName || '艺匠调色商品'}`.slice(0, 127),
     });
 
     return {
       data: {
         isSuccess: true,
         tradeNo: order.id,
-        payInfo: '{}',
+        payInfo: JSON.stringify(payInfo),
         code: null,
-        transactionId: `YJ-${Date.now()}`,
+        transactionId: '',
         msg: null,
         interactId: `${Date.now()}`,
         channel: 'wechat',
@@ -543,6 +551,38 @@ export class PublicService {
       code: 'Success',
       msg: null,
       success: true,
+    };
+  }
+
+  async handleWechatPayNotify(
+    payload: Record<string, unknown>,
+    headers: Record<string, string | string[] | undefined>,
+    rawBody?: Buffer,
+  ) {
+    const rawBodyText = rawBody?.toString('utf8') || JSON.stringify(payload);
+    this.verifyWechatNotifySignature(headers, rawBodyText);
+
+    const resource = payload.resource && typeof payload.resource === 'object' ? payload.resource : null;
+    if (!resource) {
+      throw new BadRequestException('微信支付通知缺少 resource');
+    }
+
+    const notifyData = this.decryptWechatNotifyResource(resource as Record<string, unknown>) as Record<string, unknown>;
+    const orderNo = `${notifyData.out_trade_no || ''}`.trim();
+    if (!orderNo) {
+      throw new BadRequestException('微信支付通知缺少订单号');
+    }
+
+    if (notifyData.trade_state === 'SUCCESS') {
+      await this.prisma.order.update({
+        where: { id: orderNo },
+        data: { status: '待交付' },
+      });
+    }
+
+    return {
+      code: 'SUCCESS',
+      message: '成功',
     };
   }
 
@@ -918,6 +958,208 @@ export class PublicService {
 
   private toStringArray(value: unknown) {
     return Array.isArray(value) ? value.map((item) => `${item}`) : [];
+  }
+
+  private async createWechatJsapiPayInfo(params: {
+    orderNo: string;
+    amount: number;
+    userId: string | null;
+    description: string;
+  }) {
+    const appid = this.requireConfig('WECHAT_APP_ID');
+    const mchid = this.requireConfig('WECHAT_PAY_MCH_ID');
+    const notifyUrl = this.requireConfig('WECHAT_PAY_NOTIFY_URL');
+    const merchantSerialNo = this.requireConfig('WECHAT_PAY_MERCHANT_SERIAL_NO');
+    const privateKey = this.formatPrivateKey(this.requireConfig('WECHAT_PAY_PRIVATE_KEY'));
+
+    if (!params.userId) {
+      throw new BadRequestException('缺少用户标识，无法发起微信支付');
+    }
+
+    const user = await this.prisma.miniProgramUser.findUnique({
+      where: { id: params.userId },
+      select: { openid: true },
+    });
+
+    if (!user?.openid) {
+      throw new BadRequestException('当前用户未绑定微信 openid，无法发起微信支付');
+    }
+
+    const body = {
+      appid,
+      mchid,
+      description: params.description,
+      out_trade_no: params.orderNo,
+      notify_url: notifyUrl,
+      amount: {
+        total: Math.round(params.amount),
+        currency: 'CNY',
+      },
+      payer: {
+        openid: user.openid,
+      },
+    };
+
+    const nonceStr = this.randomString();
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const path = '/v3/pay/transactions/jsapi';
+    const bodyText = JSON.stringify(body);
+    const authorization = this.buildWechatPayAuthorization({
+      method: 'POST',
+      path,
+      timestamp,
+      nonceStr,
+      body: bodyText,
+      mchid,
+      merchantSerialNo,
+      privateKey,
+    });
+
+    const response = await fetch(`https://api.mch.weixin.qq.com${path}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: authorization,
+        'Content-Type': 'application/json',
+      },
+      body: bodyText,
+    });
+    const result = (await response.json()) as { prepay_id?: string; message?: string; code?: string };
+
+    if (!response.ok || !result.prepay_id) {
+      throw new BadGatewayException(result.message || result.code || '微信支付下单失败');
+    }
+
+    const packageValue = `prepay_id=${result.prepay_id}`;
+    const payNonceStr = this.randomString();
+    const payTimeStamp = Math.floor(Date.now() / 1000).toString();
+    const paySign = this.signWechatMessage(`${appid}\n${payTimeStamp}\n${payNonceStr}\n${packageValue}\n`, privateKey);
+
+    return {
+      timeStamp: payTimeStamp,
+      nonceStr: payNonceStr,
+      package: packageValue,
+      signType: 'RSA',
+      paySign,
+    };
+  }
+
+  private async ensureWechatPayReady(userId: string | null) {
+    this.requireConfig('WECHAT_APP_ID');
+    this.requireConfig('WECHAT_PAY_MCH_ID');
+    this.requireConfig('WECHAT_PAY_NOTIFY_URL');
+    this.requireConfig('WECHAT_PAY_MERCHANT_SERIAL_NO');
+    this.requireConfig('WECHAT_PAY_PRIVATE_KEY');
+    this.requireConfig('WECHAT_PAY_API_V3_KEY');
+
+    if (!userId) {
+      throw new BadRequestException('缺少用户标识，无法发起微信支付');
+    }
+
+    const user = await this.prisma.miniProgramUser.findUnique({
+      where: { id: userId },
+      select: { openid: true },
+    });
+
+    if (!user?.openid) {
+      throw new BadRequestException('当前用户未绑定微信 openid，无法发起微信支付');
+    }
+  }
+
+  private buildWechatPayAuthorization(params: {
+    method: string;
+    path: string;
+    timestamp: string;
+    nonceStr: string;
+    body: string;
+    mchid: string;
+    merchantSerialNo: string;
+    privateKey: string;
+  }) {
+    const message = `${params.method}\n${params.path}\n${params.timestamp}\n${params.nonceStr}\n${params.body}\n`;
+    const signature = this.signWechatMessage(message, params.privateKey);
+
+    return [
+      'WECHATPAY2-SHA256-RSA2048',
+      `mchid="${params.mchid}"`,
+      `nonce_str="${params.nonceStr}"`,
+      `signature="${signature}"`,
+      `timestamp="${params.timestamp}"`,
+      `serial_no="${params.merchantSerialNo}"`,
+    ].join(',');
+  }
+
+  private verifyWechatNotifySignature(headers: Record<string, string | string[] | undefined>, rawBodyText: string) {
+    const publicKey = this.requireConfig('WECHAT_PAY_PLATFORM_PUBLIC_KEY');
+
+    const timestamp = this.getHeader(headers, 'wechatpay-timestamp');
+    const nonce = this.getHeader(headers, 'wechatpay-nonce');
+    const signature = this.getHeader(headers, 'wechatpay-signature');
+    if (!timestamp || !nonce || !signature) {
+      throw new BadRequestException('微信支付通知签名头不完整');
+    }
+
+    const verifier = createVerify('RSA-SHA256');
+    verifier.update(`${timestamp}\n${nonce}\n${rawBodyText}\n`);
+    verifier.end();
+    const isValid = verifier.verify(this.formatPublicKey(publicKey), signature, 'base64');
+    if (!isValid) {
+      throw new BadRequestException('微信支付通知签名验证失败');
+    }
+  }
+
+  private decryptWechatNotifyResource(resource: Record<string, unknown>) {
+    const apiV3Key = this.requireConfig('WECHAT_PAY_API_V3_KEY');
+    const ciphertext = `${resource.ciphertext || ''}`;
+    const nonce = `${resource.nonce || ''}`;
+    const associatedData = `${resource.associated_data || ''}`;
+    if (!ciphertext || !nonce) {
+      throw new BadRequestException('微信支付通知密文参数不完整');
+    }
+
+    const cipherBuffer = Buffer.from(ciphertext, 'base64');
+    const authTag = cipherBuffer.subarray(cipherBuffer.length - 16);
+    const encrypted = cipherBuffer.subarray(0, cipherBuffer.length - 16);
+    const decipher = createDecipheriv('aes-256-gcm', Buffer.from(apiV3Key), Buffer.from(nonce));
+    decipher.setAAD(Buffer.from(associatedData));
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+
+    return JSON.parse(decrypted) as unknown;
+  }
+
+  private signWechatMessage(message: string, privateKey: string) {
+    const signer = createSign('RSA-SHA256');
+    signer.update(message);
+    signer.end();
+    return signer.sign(privateKey, 'base64');
+  }
+
+  private randomString() {
+    return randomBytes(16).toString('hex');
+  }
+
+  private getHeader(headers: Record<string, string | string[] | undefined>, name: string) {
+    const value = headers[name] || headers[name.toLowerCase()];
+    return Array.isArray(value) ? value[0] : value;
+  }
+
+  private requireConfig(name: string) {
+    const value = this.configService.get<string>(name);
+    if (!value) {
+      throw new BadRequestException(`服务端未配置 ${name}`);
+    }
+    return value;
+  }
+
+  private formatPrivateKey(value: string) {
+    const normalized = value.includes('BEGIN') ? value : Buffer.from(value, 'base64').toString('utf8');
+    return normalized.replace(/\\n/g, '\n');
+  }
+
+  private formatPublicKey(value: string) {
+    const normalized = value.includes('BEGIN') ? value : Buffer.from(value, 'base64').toString('utf8');
+    return normalized.replace(/\\n/g, '\n');
   }
 
   private async fetchWechatSession(appId: string, appSecret: string, code: string) {

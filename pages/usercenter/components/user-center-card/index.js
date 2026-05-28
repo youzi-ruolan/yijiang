@@ -27,6 +27,9 @@ Component({
     AuthStepType,
   },
   methods: {
+    loginByAvatar() {
+      this.triggerEvent('loginByAvatar');
+    },
     gotoUserEditPage() {
       this.triggerEvent('gotoUserEditPage');
     },

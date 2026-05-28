@@ -136,8 +136,17 @@ Page({
     Dialog.confirm({
       title: '切换账号',
       content: '退出当前账号后，可重新登录或注册新账号。',
-      confirmBtn: '退出登录',
-      cancelBtn: '取消',
+      buttonLayout: 'vertical',
+      confirmBtn: {
+        content: '退出登录',
+        theme: 'danger',
+        variant: 'base',
+      },
+      cancelBtn: {
+        content: '取消',
+        theme: 'light',
+        variant: 'base',
+      },
     }).then(() => {
       logoutLocalUser();
       wx.switchTab({ url: '/pages/usercenter/index' });

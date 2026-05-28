@@ -10,12 +10,16 @@ page view {
 
 .person-info__btn {
   width: 100%;
-  border: 2rpx solid #ddd;
+  border: 2rpx solid rgba(250, 85, 15, 0.24);
   border-radius: 48rpx;
-  padding: 18rpx 0;
+  padding: 20rpx 0;
   display: flex;
   align-self: center;
   justify-content: center;
+  color: #d5490c;
+  font-size: 28rpx;
+  font-weight: 500;
+  background: rgba(250, 85, 15, 0.06);
 }
 .person-info__wrapper {
   width: 100%;
@@ -43,10 +47,6 @@ page view {
 
 .avatar-choose-btn::after {
   border: 0;
-}
-
-.t-class-confirm {
-  color: #fa550f !important;
 }
 
 .person-info .order-group__left {

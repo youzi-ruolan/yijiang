@@ -69,6 +69,18 @@ function applyLocalAvatar(userInfo) {
   };
 }
 
+function resolveWechatProfile(sessionUserInfo = {}, wxUserInfo = {}) {
+  const wxNickName = `${wxUserInfo.nickName || ''}`.trim();
+  const wxAvatarUrl = `${wxUserInfo.avatarUrl || ''}`.trim();
+  const sessionNickName = `${sessionUserInfo.nickName || ''}`.trim();
+  const sessionAvatarUrl = `${sessionUserInfo.avatarUrl || ''}`.trim();
+
+  return {
+    nickName: wxNickName || sessionNickName || '微信用户',
+    avatarUrl: wxAvatarUrl || sessionAvatarUrl || DEFAULT_AVATAR,
+  };
+}
+
 function readProfileGuideState() {
   try {
     return wx.getStorageSync(PROFILE_GUIDE_KEY) || {};
@@ -155,13 +167,14 @@ export function authorizeWechatUser() {
                 },
               });
               console.log('[auth] /api/auth/login:success', session);
+              const wechatProfile = resolveWechatProfile(session?.userInfo, res.userInfo);
               const nextSession = {
                 token: session?.token || '',
                 userInfo: {
                   uid: session?.userInfo?.uid || `wechat-${Date.now()}`,
                   openId: session?.userInfo?.openId || '',
-                  nickName: session?.userInfo?.nickName || res.userInfo.nickName || '微信用户',
-                  avatarUrl: session?.userInfo?.avatarUrl || res.userInfo.avatarUrl || DEFAULT_AVATAR,
+                  nickName: wechatProfile.nickName,
+                  avatarUrl: wechatProfile.avatarUrl,
                   gender: Number(session?.userInfo?.gender ?? res.userInfo.gender ?? 0),
                   phoneNumber: session?.userInfo?.phoneNumber || '',
                   createdAt: Number(session?.userInfo?.createdAt || Date.now()),

@@ -1,6 +1,6 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { ensureWechatLoginWithGuide, getCurrentUser } from '../../utils/local-auth';
+import { authorizeWechatUser, ensureWechatLoginWithGuide, getCurrentUser } from '../../utils/local-auth';
 
 const menuData = [
   [
@@ -183,10 +183,32 @@ Page({
     if (getCurrentUser()) {
       wx.navigateTo({ url: '/pages/user/person-info/index' });
     } else {
-      const loginResult = await this.ensureLogin();
-      if (loginResult.authed && !loginResult.guided) {
-        wx.navigateTo({ url: '/pages/user/person-info/index' });
-      }
+      await this.loginByAvatar();
+    }
+  },
+
+  async loginByAvatar() {
+    if (getCurrentUser()) {
+      wx.navigateTo({ url: '/pages/user/person-info/index' });
+      return;
+    }
+
+    try {
+      await authorizeWechatUser();
+      this.init();
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '登录成功',
+        theme: 'success',
+      });
+    } catch (error) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: error?.message || error?.errMsg || '授权登录未完成',
+        icon: '',
+      });
     }
   },
 

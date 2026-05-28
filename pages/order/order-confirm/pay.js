@@ -92,17 +92,26 @@ export const payFail = (payOrderInfo, resultMsg) => {
 
 // 微信支付方式
 export const wechatPayOrder = (payOrderInfo) => {
-  // const payInfo = JSON.parse(payOrderInfo.payInfo);
-  // const { timeStamp, nonceStr, signType, paySign } = payInfo;
-  return new Promise((resolve) => {
-    // demo 中直接走支付成功
-    paySuccess(payOrderInfo);
-    resolve();
-    /* wx.requestPayment({
+  let payInfo = {};
+  try {
+    payInfo = typeof payOrderInfo.payInfo === 'string' ? JSON.parse(payOrderInfo.payInfo) : payOrderInfo.payInfo || {};
+  } catch (error) {
+    payFail(payOrderInfo, '支付参数解析失败');
+    return Promise.reject(error);
+  }
+  const { timeStamp, nonceStr, signType, paySign } = payInfo;
+  if (!timeStamp || !nonceStr || !payInfo.package || !paySign) {
+    const error = new Error('支付参数不完整');
+    payFail(payOrderInfo, error.message);
+    return Promise.reject(error);
+  }
+
+  return new Promise((resolve, reject) => {
+    wx.requestPayment({
       timeStamp,
       nonceStr,
       package: payInfo.package,
-      signType,
+      signType: signType || 'RSA',
       paySign,
       success: function () {
         paySuccess(payOrderInfo);
@@ -110,7 +119,8 @@ export const wechatPayOrder = (payOrderInfo) => {
       },
       fail: function (err) {
         payFail(payOrderInfo, err.errMsg);
+        reject(err);
       },
-    }); */
+    });
   });
 };
