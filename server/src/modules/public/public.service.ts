@@ -1347,14 +1347,15 @@ export class PublicService {
     const message = `${params.method}\n${params.path}\n${params.timestamp}\n${params.nonceStr}\n${params.body}\n`;
     const signature = this.signWechatMessage(message, params.privateKey);
 
-    return [
-      'WECHATPAY2-SHA256-RSA2048',
+    const token = [
       `mchid="${params.mchid}"`,
       `nonce_str="${params.nonceStr}"`,
       `signature="${signature}"`,
       `timestamp="${params.timestamp}"`,
       `serial_no="${params.merchantSerialNo}"`,
     ].join(',');
+
+    return `WECHATPAY2-SHA256-RSA2048 ${token}`;
   }
 
   private verifyWechatNotifySignature(headers: Record<string, string | string[] | undefined>, rawBodyText: string) {
