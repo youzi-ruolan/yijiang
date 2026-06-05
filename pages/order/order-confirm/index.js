@@ -21,15 +21,6 @@ Page({
       limitGoodsList: [], //限购商品
     }, // 获取结算页详情 data
     orderCardList: [], // 仅用于商品卡片展示
-    invoiceData: {
-      email: '', // 发票发送邮箱
-      buyerTaxNo: '', // 税号
-      invoiceType: null, // 开票类型  1：增值税专用发票； 2：增值税普通发票； 3：增值税电子发票；4：增值税卷式发票；5：区块链电子发票。
-      buyerPhone: '', //手机号
-      buyerName: '', //个人或公司名称
-      titleType: '', // 发票抬头 1-公司 2-个人
-      contentType: '', //发票内容 1-明细 2-类别
-    },
     goodsRequestList: [],
     userAddressReq: null,
     popupShow: false, // 不在配送范围 失效 库存不足 商品展示弹框
@@ -49,17 +40,7 @@ Page({
     });
     this.handleOptionsParams(options);
   },
-  onShow() {
-    const invoiceData = wx.getStorageSync('invoiceData');
-    if (invoiceData) {
-      //处理发票
-      this.invoiceData = invoiceData;
-      this.setData({
-        invoiceData,
-      });
-      wx.removeStorageSync('invoiceData');
-    }
-  },
+  onShow() {},
 
   init() {
     this.setData({
@@ -338,7 +319,7 @@ Page({
   },
   // 提交订单
   submitOrder() {
-    const { settleDetailData, userAddressReq, invoiceData, storeInfoList } = this.data;
+    const { settleDetailData, userAddressReq, storeInfoList } = this.data;
     const { goodsRequestList } = this;
 
     if (!userAddressReq && !settleDetailData.userAddress) {
@@ -366,13 +347,9 @@ Page({
         getCurrentUser()?.nickName ||
         '艺匠调色用户',
       totalAmount: settleDetailData.totalPayAmount, //取优惠后的结算金额
-      invoiceRequest: null,
       storeInfoList,
       couponList: [],
     };
-    if (invoiceData && invoiceData.email) {
-      params.invoiceRequest = invoiceData;
-    }
     commitPay(params).then(
       (res) => {
         this.payLock = false;
@@ -477,14 +454,6 @@ Page({
       'settleDetailData.abnormalDeliveryGoodsList': [],
     });
   },
-  onReceipt() {
-    // 跳转 开发票
-    const invoiceData = this.invoiceData || {};
-    wx.navigateTo({
-      url: `/pages/order/receipt/index?invoiceData=${JSON.stringify(invoiceData)}`,
-    });
-  },
-
   onGoodsNumChange(e) {
     const {
       detail: { value },

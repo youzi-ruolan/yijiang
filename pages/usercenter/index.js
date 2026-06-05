@@ -1,6 +1,11 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { authorizeWechatUser, ensureWechatLoginWithGuide, getCurrentUser } from '../../utils/local-auth';
+import {
+  authorizeWechatUserByPhone,
+  ensureWechatLoginWithGuide,
+  getCurrentUser,
+  saveLocalAvatarToSession,
+} from '../../utils/local-auth';
 
 const menuData = [
   [
@@ -36,13 +41,6 @@ const orderTagInfos = [
     status: 1,
   },
   {
-    title: '待评价',
-    iconName: 'comment',
-    orderNum: 0,
-    tabType: 60,
-    status: 1,
-  },
-  {
     title: '退款/售后',
     iconName: 'exchang',
     orderNum: 0,
@@ -64,6 +62,12 @@ const getDefaultData = () => ({
   currAuthStep: 1,
   showKefu: true,
   versionNo: '',
+  showLoginAuth: false,
+  loginAuthLoading: false,
+  loginAuthForm: {
+    avatarUrl: '',
+    nickName: '',
+  },
 });
 
 Page({
@@ -193,8 +197,69 @@ Page({
       return;
     }
 
+    this.openLoginAuth();
+  },
+
+  openLoginAuth() {
+    this.setData({
+      showLoginAuth: true,
+      loginAuthLoading: false,
+      loginAuthForm: {
+        avatarUrl: '',
+        nickName: '',
+      },
+    });
+  },
+
+  closeLoginAuth() {
+    if (this.data.loginAuthLoading) return;
+    this.setData({ showLoginAuth: false });
+  },
+
+  onLoginChooseAvatar(e) {
+    const { avatarUrl } = e.detail;
+    if (!avatarUrl) return;
+    this.setData({
+      'loginAuthForm.avatarUrl': avatarUrl,
+    });
+  },
+
+  onLoginNicknameInput(e) {
+    this.setData({
+      'loginAuthForm.nickName': e.detail.value,
+    });
+  },
+
+  async onLoginGetPhoneNumber(e) {
+    if (this.data.loginAuthLoading) return;
+    const { code, errMsg } = e.detail || {};
+    if (!code) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: errMsg && errMsg.includes('deny') ? '已取消手机号授权' : '未获取到手机号授权',
+        icon: '',
+      });
+      return;
+    }
+
     try {
-      await authorizeWechatUser();
+      this.setData({ loginAuthLoading: true });
+      const { avatarUrl, nickName } = this.data.loginAuthForm;
+      await authorizeWechatUserByPhone({
+        phoneCode: code,
+        nickName: nickName.trim(),
+        avatarUrl: '',
+      });
+      if (avatarUrl) {
+        await saveLocalAvatarToSession(avatarUrl).catch((error) => {
+          console.warn('保存微信头像失败', error);
+        });
+      }
+      this.setData({
+        showLoginAuth: false,
+        loginAuthLoading: false,
+      });
       this.init();
       Toast({
         context: this,
@@ -203,6 +268,7 @@ Page({
         theme: 'success',
       });
     } catch (error) {
+      this.setData({ loginAuthLoading: false });
       Toast({
         context: this,
         selector: '#t-toast',

@@ -144,3 +144,124 @@ page {
 .cell-box .t-cell-padding {
   padding: 24rpx 18rpx 24rpx 32rpx;
 }
+
+.login-auth {
+  background: #f7f7f7;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 48rpx 48rpx calc(56rpx + env(safe-area-inset-bottom));
+}
+
+.login-auth__brand {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 52rpx;
+}
+
+.login-auth__logo {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #c9a227;
+  color: #1f1f1f;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 56rpx;
+  text-align: center;
+}
+
+.login-auth__brand-name {
+  flex: 1;
+  color: #111;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.login-auth__title {
+  color: #111;
+  font-size: 42rpx;
+  font-weight: 700;
+  line-height: 58rpx;
+}
+
+.login-auth__desc {
+  margin-top: 12rpx;
+  color: #888;
+  font-size: 28rpx;
+  line-height: 42rpx;
+}
+
+.login-auth__profile {
+  display: flex;
+  align-items: center;
+  margin-top: 42rpx;
+  background: #fff;
+  border-radius: 8rpx;
+  padding: 24rpx;
+}
+
+.login-auth__avatar-btn {
+  width: 104rpx;
+  height: 104rpx;
+  padding: 0;
+  margin: 0 24rpx 0 0;
+  border: 0;
+  border-radius: 52rpx;
+  background: transparent;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.login-auth__avatar-btn::after {
+  border: 0;
+}
+
+.login-auth__avatar {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 52rpx;
+  background: #eee;
+}
+
+.login-auth__nickname {
+  flex: 1;
+  height: 80rpx;
+  color: #111;
+  font-size: 32rpx;
+}
+
+.login-auth__phone-btn,
+.login-auth__deny-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 104rpx;
+  margin-top: 32rpx;
+  border: 0;
+  border-radius: 8rpx;
+  font-size: 34rpx;
+  line-height: 104rpx;
+}
+
+.login-auth__phone-btn {
+  background: #c9a227;
+  color: #111;
+}
+
+.login-auth__phone-btn::after,
+.login-auth__deny-btn::after {
+  border: 0;
+}
+
+.login-auth__deny-btn {
+  background: #fff;
+  color: #111;
+}
+
+.login-auth__manage {
+  margin-top: 56rpx;
+  color: #65758f;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  text-align: center;
+}

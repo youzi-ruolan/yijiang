@@ -1,6 +1,7 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from 'tdesign-miniprogram/dialog/index';
 import { OrderButtonTypes } from '../../config';
+import { cancelOrder } from '../../../../services/order/orderList';
 
 Component({
   options: {
@@ -115,13 +116,34 @@ Component({
       }
     },
 
-    onCancel() {
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message: '你点击了取消订单',
-        icon: 'check-circle',
-      });
+    onCancel(order) {
+      Dialog.confirm({
+        title: '确认取消订单？',
+        content: '取消后订单将关闭，无法继续处理。',
+        confirmBtn: '确认取消',
+        cancelBtn: '再想想',
+      })
+        .then(() => {
+          return cancelOrder(order.orderNo);
+        })
+        .then(() => {
+          Toast({
+            context: this,
+            selector: '#t-toast',
+            message: '订单已取消',
+            icon: 'check-circle',
+          });
+          this.triggerEvent('refresh');
+        })
+        .catch((error) => {
+          if (!error || error.cancel || error.type === 'cancel') return;
+          Toast({
+            context: this,
+            selector: '#t-toast',
+            message: error.message || '取消订单失败',
+            icon: 'close-circle',
+          });
+        });
     },
 
     onConfirm() {

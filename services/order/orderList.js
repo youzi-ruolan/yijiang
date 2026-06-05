@@ -2,6 +2,10 @@ import { config } from '../../config/index';
 import { apiRequest } from '../_utils/request';
 import { getCurrentUser } from '../../utils/local-auth';
 
+const OrderButtonTypes = {
+  CANCEL: 2,
+};
+
 /** 获取订单列表mock数据 */
 function mockFetchOrders(params) {
   const { delay } = require('../_utils/delay');
@@ -54,7 +58,7 @@ export function fetchOrders(params) {
             buyQuantity: Number(item.buyQuantity || 1),
             tagText: item.tagText || '',
           })),
-          buttonVOs: [],
+          buttonVOs: getOrderButtons(order.status),
           groupInfoVo: null,
           freightFee: 0,
         })),
@@ -68,6 +72,24 @@ export function fetchOrders(params) {
   return new Promise((resolve) => {
     resolve('real api');
   });
+}
+
+/** 取消订单 */
+export function cancelOrder(orderNo) {
+  if (config.enableBackendApi) {
+    const currentUser = getCurrentUser();
+    const query = currentUser?.uid ? `?uid=${encodeURIComponent(currentUser.uid)}` : '';
+    return apiRequest({
+      url: `/api/orders/${orderNo}/cancel${query}`,
+      method: 'POST',
+    });
+  }
+  if (config.useMock) {
+    const { delay } = require('../_utils/delay');
+    return delay(200);
+  }
+
+  return Promise.resolve();
 }
 
 /** 获取订单列表mock数据 */
@@ -112,4 +134,9 @@ function mapStatusToCode(statusText) {
   if (statusText === '待收货') return 40;
   if (statusText === '已完成') return 50;
   return 80;
+}
+
+function getOrderButtons(statusText) {
+  if (statusText !== '待处理') return [];
+  return [{ primary: false, type: OrderButtonTypes.CANCEL, name: '取消订单' }];
 }

@@ -1,4 +1,4 @@
-import { OrderStatus } from '../config';
+import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchOrders, fetchOrdersCount } from '../../../services/order/orderList';
 import { cosThumb } from '../../../utils/util';
 
@@ -14,7 +14,6 @@ Page({
       { key: OrderStatus.PENDING_PAYMENT, text: '待处理', info: '' },
       { key: OrderStatus.PENDING_DELIVERY, text: '待交付', info: '' },
       { key: OrderStatus.PENDING_RECEIPT, text: '已交付', info: '' },
-      { key: OrderStatus.COMPLETE, text: '已完成', info: '' },
     ],
     curTab: -1,
     orderList: [],
@@ -61,11 +60,11 @@ Page({
   },
 
   init(status) {
-    status = status !== undefined ? status : this.data.curTab;
+    const nextStatus = status !== undefined ? status : this.data.curTab;
     this.setData({
-      status,
+      status: nextStatus,
     });
-    this.refreshList(status);
+    this.refreshList(nextStatus);
   },
 
   getOrderList(statusCode = -1, reset = false) {
@@ -106,7 +105,7 @@ Page({
                 num: goods.buyQuantity,
                 titlePrefixTags: goods.tagText ? [{ text: goods.tagText }] : [],
               })),
-              buttons: order.buttonVOs || [],
+              buttons: this.getOrderButtons(order),
               groupInfoVo: order.groupInfoVo,
               freightFee: order.freightFee,
             };
@@ -144,12 +143,13 @@ Page({
   getOrdersCount() {
     return fetchOrdersCount().then((res) => {
       const tabsCount = res.data || [];
-      const { tabs } = this.data;
-      tabs.forEach((tab) => {
+      const tabs = this.data.tabs.map((tab) => {
         const tabCount = tabsCount.find((c) => c.tabType === tab.key);
-        if (tabCount) {
-          tab.info = tabCount.orderNum;
-        }
+        if (!tabCount) return tab;
+        return {
+          ...tab,
+          info: tabCount.orderNum,
+        };
       });
       this.setData({ tabs });
     });
@@ -182,5 +182,11 @@ Page({
     if (status === OrderStatus.PENDING_RECEIPT) return '已交付';
     if (status === OrderStatus.COMPLETE) return '已完成';
     return statusDesc || '已关闭';
+  },
+
+  getOrderButtons(order) {
+    const buttons = order.buttonVOs || [];
+    if (buttons.length || order.orderStatus !== OrderStatus.PENDING_PAYMENT) return buttons;
+    return [{ primary: false, type: OrderButtonTypes.CANCEL, name: '取消订单' }];
   },
 });

@@ -1,6 +1,7 @@
 import { config } from '../../config/index';
 import { mockIp, mockReqId } from '../../utils/mock';
 import { apiRequest } from '../_utils/request';
+import { getCurrentUser } from '../../utils/local-auth';
 
 /** 获取结算mock数据 */
 function mockFetchSettleDetail(params) {
@@ -71,14 +72,20 @@ export function dispatchCommitPay(params) {
   });
 }
 
-/** 开发票 */
-export function dispatchSupplementInvoice() {
+/** 确认订单支付成功 */
+export function confirmOrderPaid(orderNo) {
+  if (config.enableBackendApi) {
+    const currentUser = getCurrentUser();
+    const query = currentUser?.uid ? `?uid=${encodeURIComponent(currentUser.uid)}` : '';
+    return apiRequest({
+      url: `/api/orders/${orderNo}/pay-success${query}`,
+      method: 'POST',
+    });
+  }
   if (config.useMock) {
     const { delay } = require('../_utils/delay');
-    return delay();
+    return delay(200);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return Promise.resolve();
 }

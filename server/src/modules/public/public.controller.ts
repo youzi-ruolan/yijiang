@@ -15,6 +15,11 @@ export class PublicController {
     return this.publicService.login(payload);
   }
 
+  @Post('auth/phone-login')
+  phoneLogin(@Body() payload: Record<string, unknown>) {
+    return this.publicService.phoneLogin(payload);
+  }
+
   @Get('usercenter')
   getUserCenter(@Query('uid') uid?: string) {
     return this.publicService.getUserCenter(uid);
@@ -83,6 +88,16 @@ export class PublicController {
   @Get('orders/count')
   getOrdersCount(@Query('uid') uid?: string) {
     return this.publicService.getOrdersCount(uid);
+  }
+
+  @Post('orders/:id/cancel')
+  cancelOrder(@Param('id') id: string, @Query('uid') uid?: string) {
+    return this.publicService.cancelOrder(id, uid);
+  }
+
+  @Post('orders/:id/pay-success')
+  confirmOrderPaid(@Param('id') id: string, @Query('uid') uid?: string) {
+    return this.publicService.confirmOrderPaid(id, uid);
   }
 
   @Post('orders/settle')

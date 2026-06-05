@@ -1,5 +1,5 @@
 import { formatTime } from '../../../utils/util';
-import { OrderStatus, LogisticsIconMap } from '../config';
+import { OrderButtonTypes, OrderStatus, LogisticsIconMap } from '../config';
 import { fetchBusinessTime, fetchOrderDetail } from '../../../services/order/orderDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { getAddressPromise } from '../../../services/address/list';
@@ -116,7 +116,7 @@ Page({
             buttons: goods.buttonVOs || [],
           }),
         ),
-        buttons: order.buttonVOs || [],
+        buttons: this.getOrderButtons(order),
         createTime: order.createTime,
         receiverAddress: this.composeAddress(order),
         groupInfoVo: order.groupInfoVo,
@@ -132,9 +132,6 @@ Page({
           [OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_DELIVERY].includes(order.orderStatus) &&
           order.orderSubStatus !== -1, // 订单正在取消审核时不允许修改地址（但是返回的状态码与待发货一致）
         isPaid: !!order.paymentVO.paySuccessTime,
-        invoiceStatus: this.datermineInvoiceStatus(order),
-        invoiceDesc: order.invoiceDesc,
-        invoiceType: order.invoiceVO?.invoiceType === 5 ? '电子普通发票' : '不开发票', //是否开票 0-不开 5-电子发票
         logisticsNodes: this.flattenNodes(order.trajectoryVos || []),
       });
     });
@@ -165,14 +162,6 @@ Page({
         return res1;
       }, res);
     }, []);
-  },
-
-  datermineInvoiceStatus(order) {
-    // 1-已开票
-    // 2-未开票（可补开）
-    // 3-未开票
-    // 4-门店不支持开票
-    return order.invoiceStatus;
   },
 
   // 拼接省市区
@@ -247,18 +236,6 @@ Page({
     });
   },
 
-  onToInvoice() {
-    wx.navigateTo({
-      url: `/pages/order/invoice/index?orderNo=${this.data._order.orderNo}`,
-    });
-  },
-
-  onSuppleMentInvoice() {
-    wx.navigateTo({
-      url: `/pages/order/receipt/index?orderNo=${this.data._order.orderNo}`,
-    });
-  },
-
   onDeliveryClick() {
     const logisticsData = {
       nodes: this.data.logisticsNodes,
@@ -291,9 +268,9 @@ Page({
     });
   },
 
-  onOrderInvoiceView() {
-    wx.navigateTo({
-      url: `/pages/order/invoice/index?orderNo=${this.orderNo}`,
-    });
+  getOrderButtons(order) {
+    const buttons = order.buttonVOs || [];
+    if (buttons.length || order.orderStatus !== OrderStatus.PENDING_PAYMENT) return buttons;
+    return [{ primary: false, type: OrderButtonTypes.CANCEL, name: '取消订单' }];
   },
 });

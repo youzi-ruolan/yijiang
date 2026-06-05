@@ -1,3 +1,5 @@
+import { confirmOrderPaid } from '../../../services/order/orderConfirm';
+
 Page({
   data: {
     totalPaid: 0,
@@ -15,6 +17,11 @@ Page({
       orderNo,
       groupId,
     });
+    if (orderNo) {
+      confirmOrderPaid(orderNo).catch((error) => {
+        console.warn('确认订单支付状态失败', error);
+      });
+    }
   },
 
   onTapReturn(e) {

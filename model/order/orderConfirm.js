@@ -53,7 +53,6 @@ export function genSettleDetail(params) {
       totalSalePrice: '289997',
       totalGoodsAmount: '289997',
       totalDeliveryFee: '0',
-      invoiceRequest: null,
       skuImages: null,
       deliveryFeeList: null,
       storeGoodsList: [
@@ -81,7 +80,7 @@ export function genSettleDetail(params) {
       outOfStockGoodsList: null,
       limitGoodsList: null,
       abnormalDeliveryGoodsList: null,
-      invoiceSupport: 1,
+      invoiceSupport: 0,
     },
     code: 'Success',
     msg: null,

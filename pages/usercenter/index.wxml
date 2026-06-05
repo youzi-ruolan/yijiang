@@ -35,6 +35,43 @@
   </view>
 </view>
 <view class="footer__version" wx:if="{{versionNo !== ''}}">当前版本 {{versionNo}}</view>
+<t-popup visible="{{showLoginAuth}}" placement="bottom" bind:visible-change="closeLoginAuth">
+  <view class="login-auth">
+    <view class="login-auth__brand">
+      <view class="login-auth__logo">艺</view>
+      <view class="login-auth__brand-name">艺匠调色</view>
+      <t-icon name="info-circle" size="40rpx" color="#b4b4b4" />
+    </view>
+    <view class="login-auth__title">申请获取并验证你的手机号</view>
+    <view class="login-auth__desc">用于登录账号、同步订单信息和提供售后服务</view>
+    <view class="login-auth__profile">
+      <button class="login-auth__avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onLoginChooseAvatar">
+        <image
+          class="login-auth__avatar"
+          src="{{loginAuthForm.avatarUrl || userInfo.avatarUrl || 'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png'}}"
+          mode="aspectFill"
+        />
+      </button>
+      <input
+        class="login-auth__nickname"
+        type="nickname"
+        placeholder="点击填写微信昵称"
+        value="{{loginAuthForm.nickName}}"
+        bindinput="onLoginNicknameInput"
+      />
+    </view>
+    <button
+      class="login-auth__phone-btn"
+      open-type="getPhoneNumber"
+      bindgetphonenumber="onLoginGetPhoneNumber"
+      loading="{{loginAuthLoading}}"
+    >
+      授权手机号快捷登录
+    </button>
+    <button class="login-auth__deny-btn" bindtap="closeLoginAuth">不允许</button>
+    <view class="login-auth__manage">授权后可在个人资料中修改名称和头像</view>
+  </view>
+</t-popup>
 <t-popup visible="{{showMakePhone}}" placement="bottom" bind:visible-change="closeMakePhone" data-index="2">
   <view class="popup-content">
     <view class="popup-title border-bottom-1px" wx:if="{{customerServiceInfo.serviceTimeDuration}}">

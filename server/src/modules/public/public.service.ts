@@ -6,6 +6,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class PublicService {
+  private wechatAccessTokenCache: { value: string; expiresAt: number } | null = null;
+
   constructor(private readonly prisma: PrismaService, private readonly configService: ConfigService) {}
 
   async login(payload: Record<string, unknown>) {
@@ -39,6 +41,64 @@ export class PublicService {
         nickName: `${userInfo.nickName || '微信用户'}`.trim() || '微信用户',
         avatarUrl: userInfo.avatarUrl ? `${userInfo.avatarUrl}` : null,
         gender: Number(userInfo.gender || 0),
+      },
+    });
+
+    return {
+      token: `wechat-${user.id}-${Date.now()}`,
+      userInfo: {
+        uid: user.id,
+        openId: user.openid,
+        nickName: user.nickName,
+        avatarUrl: user.avatarUrl || '',
+        gender: user.gender,
+        phoneNumber: user.phoneNumber || '',
+        createdAt: user.createdAt.getTime(),
+        updatedAt: user.updatedAt.getTime(),
+      },
+    };
+  }
+
+  async phoneLogin(payload: Record<string, unknown>) {
+    const code = `${payload.code || ''}`.trim();
+    const phoneCode = `${payload.phoneCode || ''}`.trim();
+    if (!code) {
+      throw new BadRequestException('缺少微信登录 code');
+    }
+    if (!phoneCode) {
+      throw new BadRequestException('缺少手机号授权 code');
+    }
+
+    const appId = this.configService.get<string>('WECHAT_APP_ID');
+    const appSecret = this.configService.get<string>('WECHAT_APP_SECRET');
+    if (!appId || !appSecret) {
+      throw new BadRequestException('服务端未配置微信小程序登录参数');
+    }
+
+    const [session, phoneNumber] = await Promise.all([
+      this.fetchWechatSession(appId, appSecret, code),
+      this.fetchWechatPhoneNumber(appId, appSecret, phoneCode),
+    ]);
+    const rawUserInfo = payload.userInfo && typeof payload.userInfo === 'object' ? payload.userInfo : {};
+    const userInfo = rawUserInfo as Record<string, unknown>;
+    const nickName = `${userInfo.nickName || '微信用户'}`.trim() || '微信用户';
+    const avatarUrl = `${userInfo.avatarUrl || ''}`.trim();
+
+    const user = await this.prisma.miniProgramUser.upsert({
+      where: { openid: session.openid },
+      update: {
+        unionId: session.unionid || null,
+        nickName,
+        ...(avatarUrl ? { avatarUrl } : {}),
+        phoneNumber,
+      },
+      create: {
+        openid: session.openid,
+        unionId: session.unionid || null,
+        nickName,
+        avatarUrl: avatarUrl || null,
+        phoneNumber,
+        gender: 0,
       },
     });
 
@@ -113,7 +173,6 @@ export class PublicService {
       { orderNum: orders.filter((item) => item.status === '待处理').length, tabType: 5 },
       { orderNum: orders.filter((item) => ['已付款', '待交付'].includes(item.status)).length, tabType: 10 },
       { orderNum: orders.filter((item) => item.status === '待收货').length, tabType: 40 },
-      { orderNum: 0, tabType: 60 },
       { orderNum: 0, tabType: 0 },
     ];
 
@@ -385,13 +444,49 @@ export class PublicService {
       { tabType: 5, matcher: (status: string) => status === '待处理' },
       { tabType: 10, matcher: (status: string) => ['已付款', '待交付'].includes(status) },
       { tabType: 40, matcher: (status: string) => status === '待收货' },
-      { tabType: 50, matcher: (status: string) => status === '已完成' },
     ];
 
     return statusMap.map((item) => ({
       tabType: item.tabType,
       orderNum: item.tabType === -1 ? orders.length : orders.filter((order) => item.matcher(order.status)).length,
     }));
+  }
+
+  async cancelOrder(id: string, uid?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+
+    if (!order || (uid && order.userId !== uid)) {
+      throw new BadRequestException('订单不存在');
+    }
+    if (order.status !== '待处理') {
+      throw new BadRequestException('当前订单不可取消');
+    }
+
+    return this.formatPublicOrder(
+      await this.prisma.order.update({
+        where: { id },
+        data: { status: '已取消' },
+      }),
+    );
+  }
+
+  async confirmOrderPaid(id: string, uid?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+
+    if (!order || (uid && order.userId !== uid)) {
+      throw new BadRequestException('订单不存在');
+    }
+
+    if (order.status === '待处理') {
+      return this.formatPublicOrder(
+        await this.prisma.order.update({
+          where: { id },
+          data: { status: '待交付' },
+        }),
+      );
+    }
+
+    return this.formatPublicOrder(order);
   }
 
   async getOrderSettle(payload: Record<string, unknown>) {
@@ -453,7 +548,6 @@ export class PublicService {
         totalSalePrice: `${totalSalePrice}`,
         totalGoodsAmount: `${totalSalePrice}`,
         totalDeliveryFee: '0',
-        invoiceRequest: null,
         skuImages: null,
         deliveryFeeList: null,
         storeGoodsList: [
@@ -476,7 +570,7 @@ export class PublicService {
         outOfStockGoodsList: null,
         limitGoodsList: null,
         abnormalDeliveryGoodsList: null,
-        invoiceSupport: 1,
+        invoiceSupport: 0,
       },
       code: 'Success',
       msg: null,
@@ -940,15 +1034,12 @@ export class PublicService {
         tagText: `${item.tagText || ''}`,
         buttonVOs: this.getOrderItemButtons(order, item),
       })),
-      buttonVOs: [],
+      buttonVOs: this.getOrderButtons(order),
       groupInfoVo: null,
       freightFee: 0,
       paymentVO: {
         paySuccessTime: statusCode >= 10 ? Date.now() : null,
       },
-      invoiceStatus: 3,
-      invoiceDesc: '数字商品默认不开票',
-      invoiceVO: null,
       trajectoryVos: [],
     };
   }
@@ -1228,6 +1319,17 @@ export class PublicService {
     ];
   }
 
+  private getOrderButtons(order: { status: string }) {
+    if (order.status !== '待处理') return [];
+    return [
+      {
+        name: '取消订单',
+        type: 2,
+        primary: false,
+      },
+    ];
+  }
+
   private async createWechatJsapiPayInfo(params: {
     orderNo: string;
     amount: number;
@@ -1458,5 +1560,68 @@ export class PublicService {
       openid: payload.openid,
       unionid: payload.unionid,
     };
+  }
+
+  private async fetchWechatPhoneNumber(appId: string, appSecret: string, phoneCode: string) {
+    const accessToken = await this.fetchWechatAccessToken(appId, appSecret);
+    const response = await fetch(
+      `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${encodeURIComponent(accessToken)}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: phoneCode }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new BadGatewayException('微信手机号服务请求失败');
+    }
+
+    const payload = (await response.json()) as {
+      errcode?: number;
+      errmsg?: string;
+      phone_info?: {
+        phoneNumber?: string;
+        purePhoneNumber?: string;
+      };
+    };
+
+    if (payload.errcode || !payload.phone_info?.phoneNumber) {
+      throw new UnauthorizedException(payload.errmsg || '手机号授权失败');
+    }
+
+    return `${payload.phone_info.phoneNumber || payload.phone_info.purePhoneNumber || ''}`.trim();
+  }
+
+  private async fetchWechatAccessToken(appId: string, appSecret: string) {
+    if (this.wechatAccessTokenCache && this.wechatAccessTokenCache.expiresAt > Date.now() + 60000) {
+      return this.wechatAccessTokenCache.value;
+    }
+
+    const url =
+      `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${encodeURIComponent(appId)}` +
+      `&secret=${encodeURIComponent(appSecret)}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new BadGatewayException('微信 access_token 服务请求失败');
+    }
+
+    const payload = (await response.json()) as {
+      access_token?: string;
+      expires_in?: number;
+      errcode?: number;
+      errmsg?: string;
+    };
+
+    if (payload.errcode || !payload.access_token) {
+      throw new UnauthorizedException(payload.errmsg || '获取微信 access_token 失败');
+    }
+
+    this.wechatAccessTokenCache = {
+      value: payload.access_token,
+      expiresAt: Date.now() + Math.max(60, Number(payload.expires_in || 7200) - 300) * 1000,
+    };
+
+    return payload.access_token;
   }
 }

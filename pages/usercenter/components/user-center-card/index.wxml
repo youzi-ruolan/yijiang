@@ -11,12 +11,8 @@
   <!-- 已登录但未授权用户信息情况 -->
   <block wx:if="{{currAuthStep === AuthStepType.TWO}}">
     <view class="user-center-card__header">
-      <view class="user-center-card__header__avatar user-center-card__open-avatar">
-        <open-data type="userAvatarUrl" default-avatar="{{userInfo.avatarUrl || defaultAvatarUrl}}" />
-      </view>
-      <view class="user-center-card__header__name">
-        <open-data type="userNickName" default-text="{{userInfo.nickName || '微信用户'}}" />
-      </view>
+      <t-avatar image="{{userInfo.avatarUrl || defaultAvatarUrl}}" class="user-center-card__header__avatar" />
+      <view class="user-center-card__header__name">{{userInfo.nickName || '微信用户'}}</view>
       <!-- 需要授权用户信息，通过slot添加弹窗 -->
       <view class="user-center-card__header__transparent" wx:if="{{isNeedGetUserInfo}}">
         <slot name="getUserInfo" />
@@ -28,12 +24,8 @@
   <!-- 已登录且已经授权用户信息的情况 -->
   <block wx:if="{{currAuthStep === AuthStepType.THREE}}">
     <view class="user-center-card__header" bind:tap="gotoUserEditPage">
-      <view class="user-center-card__header__avatar user-center-card__open-avatar">
-        <open-data type="userAvatarUrl" default-avatar="{{userInfo.avatarUrl || defaultAvatarUrl}}" />
-      </view>
-      <view class="user-center-card__header__name">
-        <open-data type="userNickName" default-text="{{userInfo.nickName || '微信用户'}}" />
-      </view>
+      <t-avatar image="{{userInfo.avatarUrl || defaultAvatarUrl}}" class="user-center-card__header__avatar" />
+      <view class="user-center-card__header__name">{{userInfo.nickName || '微信用户'}}</view>
     </view>
   </block>
 </view>

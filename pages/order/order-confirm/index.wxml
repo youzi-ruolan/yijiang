@@ -1,6 +1,5 @@
 <wxs module="order" src="./order.wxs" />
 
-<wxs module="handleInvoice" src="./handleInvoice.wxs" />
 <wxs module="getNotes" src="./getNotes.wxs" />
 <view class="order-sure" wx:if="{{!loading}}">
   <address-card
@@ -63,13 +62,6 @@
       <view class="pay-item__right primary font-bold">
         -
         <price fill price="{{settleDetailData.totalPromotionAmount || 0}}" />
-      </view>
-    </view>
-    <view class="pay-item" wx:if="{{settleDetailData.invoiceSupport}}">
-      <text>发票</text>
-      <view class="pay-item__right" catchtap="onReceipt">
-        <text>{{handleInvoice(invoiceData)}}</text>
-        <t-icon name="chevron-right" size="32rpx" color="#BBBBBB" />
       </view>
     </view>
     <view class="pay-item">

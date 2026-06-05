@@ -205,6 +205,66 @@ export function authorizeWechatUser() {
   });
 }
 
+export function authorizeWechatUserByPhone({ phoneCode = '', nickName = '', avatarUrl = '' } = {}) {
+  if (!phoneCode) {
+    return Promise.reject(new Error('未获取到手机号授权凭证'));
+  }
+
+  return new Promise((resolve, reject) => {
+    wx.login({
+      async success(loginRes) {
+        const { code } = loginRes;
+        if (!code) {
+          reject(new Error('未获取到微信登录凭证'));
+          return;
+        }
+
+        try {
+          const session = await apiRequest({
+            url: '/api/auth/phone-login',
+            method: 'POST',
+            data: {
+              code,
+              phoneCode,
+              userInfo: {
+                nickName,
+                avatarUrl,
+              },
+            },
+          });
+          const wechatProfile = resolveWechatProfile(session?.userInfo, {
+            nickName,
+            avatarUrl,
+          });
+          const nextSession = {
+            token: session?.token || '',
+            userInfo: {
+              uid: session?.userInfo?.uid || `wechat-${Date.now()}`,
+              openId: session?.userInfo?.openId || '',
+              nickName: wechatProfile.nickName,
+              avatarUrl: wechatProfile.avatarUrl,
+              gender: Number(session?.userInfo?.gender || 0),
+              phoneNumber: session?.userInfo?.phoneNumber || '',
+              createdAt: Number(session?.userInfo?.createdAt || Date.now()),
+              updatedAt: Number(session?.userInfo?.updatedAt || Date.now()),
+            },
+          };
+          writeSession(nextSession);
+          if (!isWechatProfileComplete(nextSession.userInfo)) {
+            markPendingProfileGuide(nextSession.userInfo.uid);
+          }
+          resolve(nextSession.userInfo);
+        } catch (error) {
+          reject(error);
+        }
+      },
+      fail(error) {
+        reject(error);
+      },
+    });
+  });
+}
+
 export function ensureWechatLogin(options = {}) {
   if (getCurrentUser()) {
     return Promise.resolve(true);
@@ -332,7 +392,7 @@ export function saveLocalAvatarToSession(tempAvatarUrl) {
     return Promise.reject(new Error('未获取到头像文件'));
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     wx.saveFile({
       tempFilePath: tempAvatarUrl,
       success: ({ savedFilePath }) => {

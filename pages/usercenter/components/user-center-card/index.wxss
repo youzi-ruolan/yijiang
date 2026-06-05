@@ -27,16 +27,6 @@
   overflow: hidden;
 }
 
-.user-center-card__open-avatar {
-  background: #f5f5f5;
-}
-
-.user-center-card__open-avatar open-data {
-  width: 96rpx;
-  height: 96rpx;
-  display: block;
-}
-
 .user-center-card__avatar-btn {
   width: 96rpx;
   height: 96rpx;

@@ -1,13 +1,12 @@
 import Dialog from 'tdesign-miniprogram/dialog/index';
 import Toast from 'tdesign-miniprogram/toast/index';
 
-import { dispatchCommitPay } from '../../../services/order/orderConfirm';
+import { confirmOrderPaid, dispatchCommitPay } from '../../../services/order/orderConfirm';
 
 // 真实的提交支付
 export const commitPay = (params) => {
   return dispatchCommitPay({
     goodsRequestList: params.goodsRequestList, // 待结算的商品集合
-    invoiceRequest: params.invoiceRequest, // 发票信息
     // isIgnore: params.isIgnore || false, // 删掉 是否忽视库存不足和商品失效,继续结算,true=继续结算 购物车请赋值false
     userAddressReq: params.userAddressReq, // 地址信息(用户在购物选择更换地址)
     currency: params.currency || 'CNY', // 支付货币: 人民币=CNY，美元=USD
@@ -50,8 +49,16 @@ export const paySuccess = (payOrderInfo) => {
   const paramsStr = Object.keys(params)
     .map((k) => `${k}=${params[k]}`)
     .join('&');
-  // 跳转支付结果页面
-  wx.redirectTo({ url: `/pages/order/pay-result/index?${paramsStr}` });
+  const redirectToPayResult = () => {
+    wx.redirectTo({ url: `/pages/order/pay-result/index?${paramsStr}` });
+  };
+
+  confirmOrderPaid(tradeNo)
+    .then(redirectToPayResult)
+    .catch((error) => {
+      console.warn('确认订单支付状态失败', error);
+      redirectToPayResult();
+    });
 };
 
 export const payFail = (payOrderInfo, resultMsg) => {
