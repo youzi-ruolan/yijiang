@@ -38,8 +38,8 @@ export function fetchOrders(params) {
           parentOrderNo: order.parentOrderNo,
           storeId: '1000',
           storeName: '艺匠调色数字资产商店',
-          orderStatus: mapStatusToCode(order.status),
-          orderStatusName: order.status,
+          orderStatus: order.statusCode || mapStatusToCode(order.status),
+          orderStatusName: order.statusName || mapStatusToName(order.status),
           paymentAmount: order.amount,
           totalAmount: order.amount,
           createTime: order.createTime,
@@ -58,7 +58,7 @@ export function fetchOrders(params) {
             buyQuantity: Number(item.buyQuantity || 1),
             tagText: item.tagText || '',
           })),
-          buttonVOs: getOrderButtons(order.status),
+          buttonVOs: order.buttonVOs || getOrderButtons(order.status),
           groupInfoVo: null,
           freightFee: 0,
         })),
@@ -129,14 +129,22 @@ function mapStatusToText(statusCode) {
 }
 
 function mapStatusToCode(statusText) {
-  if (statusText === '待处理') return 5;
-  if (statusText === '已付款' || statusText === '待交付') return 10;
-  if (statusText === '待收货') return 40;
+  if (statusText === '待付款' || statusText === '待支付' || statusText === '待处理') return 5;
+  if (statusText === '已付款' || statusText === '待发货' || statusText === '待交付') return 10;
+  if (statusText === '待收货' || statusText === '已交付') return 40;
   if (statusText === '已完成') return 50;
   return 80;
 }
 
+function mapStatusToName(statusText) {
+  if (statusText === '待付款' || statusText === '待支付' || statusText === '待处理') return '待付款';
+  if (statusText === '已付款' || statusText === '待发货' || statusText === '待交付') return '待交付';
+  if (statusText === '待收货' || statusText === '已交付') return '已交付';
+  if (statusText === '已完成') return '已完成';
+  return '已取消';
+}
+
 function getOrderButtons(statusText) {
-  if (statusText !== '待处理') return [];
+  if (mapStatusToCode(statusText) !== 5) return [];
   return [{ primary: false, type: OrderButtonTypes.CANCEL, name: '取消订单' }];
 }

@@ -1,6 +1,7 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { ServiceType, ServiceTypeDesc, ServiceStatus } from '../config';
 import { formatTime, getRightsDetail } from './api';
+import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 const TitleConfig = {
   [ServiceType.ORDER_CANCEL]: '退款详情',
@@ -24,7 +25,13 @@ Page({
     backRefresh: false,
   },
 
-  onLoad(query) {
+  async onLoad(query) {
+    if (!getCurrentUser()) {
+      this.setData({ pageLoading: false });
+      await promptLoginRequired({ content: '请先登录后再查看售后详情' });
+      return;
+    }
+
     this.rightsNo = query.rightsNo;
     this.inputDialog = this.selectComponent('#input-dialog');
     this.init();

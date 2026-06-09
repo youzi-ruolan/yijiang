@@ -3,6 +3,7 @@ import { OrderButtonTypes, OrderStatus, LogisticsIconMap } from '../config';
 import { fetchBusinessTime, fetchOrderDetail } from '../../../services/order/orderDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { getAddressPromise } from '../../../services/address/list';
+import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 Page({
   data: {
@@ -22,7 +23,13 @@ Page({
     digitalStatusText: '',
   },
 
-  onLoad(query) {
+  async onLoad(query) {
+    if (!getCurrentUser()) {
+      this.setData({ pageLoading: false });
+      await promptLoginRequired({ content: '请先登录后再查看订单详情' });
+      return;
+    }
+
     this.orderNo = query.orderNo;
     this.init();
     this.navbar = this.selectComponent('#navbar');
@@ -142,7 +149,7 @@ Page({
   },
 
   normalizeOrderStatus(status, statusDesc) {
-    if (status === OrderStatus.PENDING_PAYMENT) return '待处理';
+    if (status === OrderStatus.PENDING_PAYMENT) return '待付款';
     if (status === OrderStatus.PENDING_DELIVERY) return '待交付';
     if (status === OrderStatus.PENDING_RECEIPT) return '已交付';
     if (status === OrderStatus.COMPLETE) return '已完成';

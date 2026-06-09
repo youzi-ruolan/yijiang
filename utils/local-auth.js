@@ -128,6 +128,38 @@ export function isLoggedIn() {
   return Boolean(getCurrentUser());
 }
 
+export function promptLoginRequired(options = {}) {
+  const { content = '请先登录后再继续操作', confirmText = '去登录', cancelText = '取消' } = options;
+
+  if (getCurrentUser()) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    wx.showModal({
+      title: '请先登录',
+      content,
+      confirmText,
+      cancelText,
+      success(res) {
+        if (res.confirm) {
+          wx.switchTab({
+            url: '/pages/usercenter/index',
+          });
+        }
+        resolve(false);
+      },
+      fail() {
+        wx.showToast({
+          title: content,
+          icon: 'none',
+        });
+        resolve(false);
+      },
+    });
+  });
+}
+
 export function isWechatProfileComplete(user = getCurrentUser()) {
   if (!user) return false;
   const nickName = `${user.nickName || ''}`.trim();

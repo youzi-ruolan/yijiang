@@ -6,6 +6,7 @@ import {
 } from '../../../services/good/fetchGoodsDetailsComments';
 import { cdnBase } from '../../../config/index';
 import { addLocalCartItem, getLocalCartCount } from '../../../utils/local-cart';
+import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 const imgPrefix = `${cdnBase}/`;
 
@@ -88,6 +89,7 @@ Page({
     deliverables: [],
     usageNotice: [],
     limitBuyInfo: '',
+    cartFlyVisible: false,
   },
 
   handlePopupHide() {
@@ -104,11 +106,22 @@ Page({
     });
   },
 
-  buyItNow() {
+  async ensureActionLogin(content = '请先登录后再购买') {
+    if (getCurrentUser()) return true;
+    return promptLoginRequired({ content });
+  },
+
+  async buyItNow() {
+    if (!(await this.ensureActionLogin('请先登录后再购买'))) return;
     this.showSkuSelectPopup(1);
   },
 
   toAddCart() {
+    if (this.data.isAllSelectedSku) {
+      this.addCart();
+      return;
+    }
+
     this.showSkuSelectPopup(2);
   },
 
@@ -235,6 +248,7 @@ Page({
       addLocalCartItem(cartItem, this.data.buyNum);
       this.refreshCartNum();
       this.handlePopupHide();
+      this.playAddCartAnimation();
       const tabBar = this.getTabBar && this.getTabBar();
       if (tabBar && tabBar.updateCartCount) {
         tabBar.updateCartCount();
@@ -246,6 +260,16 @@ Page({
       message: isAllSelectedSku ? '已加入购物车' : '请选择规格',
       icon: '',
       duration: 1000,
+    });
+  },
+
+  playAddCartAnimation() {
+    this.setData({ cartFlyVisible: false }, () => {
+      this.setData({ cartFlyVisible: true });
+      clearTimeout(this.cartFlyTimer);
+      this.cartFlyTimer = setTimeout(() => {
+        this.setData({ cartFlyVisible: false });
+      }, 760);
     });
   },
 
@@ -289,8 +313,9 @@ Page({
     });
   },
 
-  gotoBuy(type) {
-    const { isAllSelectedSku, buyNum } = this.data;
+  async gotoBuy() {
+    if (!(await this.ensureActionLogin('请先登录后再购买'))) return;
+    const { details, isAllSelectedSku, buyNum, selectItem, skuArray, selectedAttrStr } = this.data;
     if (!isAllSelectedSku) {
       Toast({
         context: this,
@@ -301,27 +326,47 @@ Page({
       });
       return;
     }
+    const selectedSku = Array.isArray(selectItem) ? selectItem[0] : selectItem || skuArray[0] || {};
+    const selectedSpecInfo =
+      (selectedSku.specInfo || []).map((skuSpec) => {
+        const spec = details.specList?.find((item) => item.specId === skuSpec.specId) || {};
+        const specValue =
+          skuSpec.specValue ||
+          spec.specValueList?.find((item) => item.specValueId === skuSpec.specValueId)?.specValue ||
+          '';
+
+        return {
+          specTitle: skuSpec.specTitle || spec.title || '',
+          specValue,
+        };
+      }) ||
+      (details.specList || []).map((item) => ({
+        specTitle: item.title,
+        specValue: item.specValueList?.[0]?.specValue || '',
+      }));
+    const selectedPrice = this.data.selectSkuSellsPrice || selectedSku.price || details.minSalePrice || 0;
     this.handlePopupHide();
     const query = {
       quantity: buyNum,
-      storeId: this.data.details.storeId || '',
-      spuId: this.data.spuId,
-      goodsName: this.data.details.title,
-      skuId: type === 1 ? this.data.skuList[0].skuId : this.data.selectItem.skuId,
-      available: this.data.details.available,
-      price: this.data.details.minSalePrice,
-      specInfo: this.data.details.specList?.map((item) => ({
-        specTitle: item.title,
-        specValue: item.specValueList[0].specValue,
-      })),
-      primaryImage: this.data.details.primaryImage,
-      spuId: this.data.details.spuId,
-      thumb: this.data.details.primaryImage,
-      title: this.data.details.title,
+      storeId: details.storeId || '',
+      storeName: details.storeName || '',
+      spuId: details.spuId || this.data.spuId,
+      goodsName: details.title,
+      skuId: selectedSku.skuId || `${details.spuId || this.data.spuId}_default`,
+      available: details.available,
+      price: selectedPrice,
+      specInfo: selectedSpecInfo,
+      primaryImage: selectedSku.skuImage || details.primaryImage,
+      thumb: selectedSku.skuImage || details.primaryImage,
+      title: details.title,
+      selectedAttrStr,
     };
-    let urlQueryStr = obj2Params({
-      goodsRequestList: JSON.stringify([query]),
-    });
+    let urlQueryStr = obj2Params(
+      {
+        goodsRequestList: JSON.stringify([query]),
+      },
+      true,
+    );
     urlQueryStr = urlQueryStr ? `?${urlQueryStr}` : '';
     const path = `/pages/order/order-confirm/index${urlQueryStr}`;
     wx.navigateTo({
@@ -329,10 +374,10 @@ Page({
     });
   },
 
-  specsConfirm() {
+  async specsConfirm() {
     const { buyType } = this.data;
     if (buyType === 1) {
-      this.gotoBuy();
+      await this.gotoBuy();
     } else {
       this.addCart();
     }
@@ -364,6 +409,24 @@ Page({
     });
   },
 
+  buildDefaultSelectedSku(specList = [], sku = {}) {
+    const selectedSku = {};
+    (sku.specInfo || []).forEach((item) => {
+      selectedSku[item.specId] = item.specValueId;
+    });
+
+    return {
+      selectedSku,
+      specList: specList.map((spec) => ({
+        ...spec,
+        specValueList: (spec.specValueList || []).map((value) => ({
+          ...value,
+          isSelected: selectedSku[spec.specId] === value.specValueId,
+        })),
+      })),
+    };
+  },
+
   setDetailData(details) {
     const skuArray = [];
     const {
@@ -384,9 +447,16 @@ Page({
         skuId: item.skuId,
         quantity: 1,
         specInfo: item.specInfo,
+        skuImage: item.skuImage,
         price: item.priceInfo?.[0]?.price || minSalePrice || 0,
       });
     });
+    const defaultSku = skuArray[0] || {};
+    const { specList: defaultSpecList } = this.buildDefaultSelectedSku(details.specList || [], defaultSku);
+    const nextDetails = {
+      ...details,
+      specList: defaultSpecList,
+    };
 
     const defaultSpecInfo =
       skuList?.[0]?.specInfo?.reduce((result, item) => {
@@ -409,8 +479,8 @@ Page({
       defaultSpecInfo.length > 0 ? `件，${defaultSpecInfo.map((item) => item.specValue).join('，')}` : '';
 
     this.setData({
-      details,
-      intro: intro || details.intro || details.description || '',
+      details: nextDetails,
+      intro: intro || nextDetails.intro || nextDetails.description || '',
       activityList: [],
       isStock: true,
       maxSalePrice: maxSalePrice ? parseInt(maxSalePrice) : 0,
@@ -423,10 +493,10 @@ Page({
       specImg: primaryImage,
       soldout: false,
       soldNum,
-      isAllSelectedSku: true,
+      isAllSelectedSku: skuArray.length > 0,
       selectedAttrStr: defaultAttrStr,
-      selectItem: skuArray[0] || null,
-      selectSkuSellsPrice: skuArray[0]?.price || minSalePrice || 0,
+      selectItem: defaultSku.skuId ? defaultSku : null,
+      selectSkuSellsPrice: defaultSku.price || minSalePrice || 0,
       detailContent,
       deliverables,
       usageNotice,
@@ -534,5 +604,9 @@ Page({
     this.getDetail(spuId);
     this.getCommentsList(spuId);
     this.getCommentsStatistics(spuId);
+  },
+
+  onUnload() {
+    clearTimeout(this.cartFlyTimer);
   },
 });

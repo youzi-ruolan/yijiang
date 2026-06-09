@@ -9,6 +9,7 @@ import {
   fetchApplyReasonList,
   dispatchApplyService,
 } from '../../../services/order/applyService';
+import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 Page({
   query: {},
@@ -91,7 +92,12 @@ Page({
     this.setData({ validateRes: { valid, msg } });
   },
 
-  onLoad(query) {
+  async onLoad(query) {
+    if (!getCurrentUser()) {
+      await promptLoginRequired({ content: '请先登录后再申请售后' });
+      return;
+    }
+
     this.query = query;
     if (!this.checkQuery()) return;
     this.setData({

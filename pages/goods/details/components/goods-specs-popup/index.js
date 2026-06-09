@@ -94,13 +94,16 @@ Component({
       });
       const selectedSku = {};
       specList.forEach((item) => {
-        selectedSku[item.specId] = '';
+        const selectedValue = (item.specValueList || []).find((value) => value.isSelected);
+        selectedSku[item.specId] = selectedValue?.specValueId || '';
       });
+      const isAllSelectedSku = this.isAllSelected(specList, selectedSku);
       this.setData({
         specList,
+        isAllSelectedSku,
       });
       this.selectSpecObj = {};
-      this.selectedSku = {};
+      this.selectedSku = selectedSku;
       this.initStatus = true;
     },
 

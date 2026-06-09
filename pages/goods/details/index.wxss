@@ -417,6 +417,39 @@ page {
   width: 100%;
   background-color: #fff;
   padding-bottom: env(safe-area-inset-bottom);
+  z-index: 10;
+}
+
+.cart-fly-dot {
+  position: absolute;
+  left: 374rpx;
+  bottom: calc(70rpx + env(safe-area-inset-bottom));
+  width: 30rpx;
+  height: 30rpx;
+  border-radius: 50%;
+  background: #fa4126;
+  box-shadow: 0 8rpx 18rpx rgba(250, 65, 38, 0.36);
+  animation: cart-fly 720ms cubic-bezier(0.22, 0.76, 0.28, 1) forwards;
+  pointer-events: none;
+  z-index: 12;
+}
+
+@keyframes cart-fly {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.7);
+  }
+  12% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+    transform: translate(-96rpx, -144rpx) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-188rpx, -6rpx) scale(0.42);
+  }
 }
 
 .popup-sku-header .popup-sku-header__goods-info .popup-sku__price {

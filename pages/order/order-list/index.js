@@ -1,6 +1,7 @@
 import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchOrders, fetchOrdersCount } from '../../../services/order/orderList';
 import { cosThumb } from '../../../utils/util';
+import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 Page({
   page: {
@@ -11,7 +12,7 @@ Page({
   data: {
     tabs: [
       { key: -1, text: '全部' },
-      { key: OrderStatus.PENDING_PAYMENT, text: '待处理', info: '' },
+      { key: OrderStatus.PENDING_PAYMENT, text: '待付款', info: '' },
       { key: OrderStatus.PENDING_DELIVERY, text: '待交付', info: '' },
       { key: OrderStatus.PENDING_RECEIPT, text: '已交付', info: '' },
     ],
@@ -24,7 +25,12 @@ Page({
     status: -1,
   },
 
-  onLoad(query) {
+  async onLoad(query) {
+    if (!getCurrentUser()) {
+      await promptLoginRequired({ content: '请先登录后再查看订单' });
+      return;
+    }
+
     let status = parseInt(query.status);
     status = this.data.tabs.map((t) => t.key).includes(status) ? status : -1;
     this.init(status);
@@ -177,7 +183,7 @@ Page({
   },
 
   normalizeOrderStatus(status, statusDesc) {
-    if (status === OrderStatus.PENDING_PAYMENT) return '待处理';
+    if (status === OrderStatus.PENDING_PAYMENT) return '待付款';
     if (status === OrderStatus.PENDING_DELIVERY) return '待交付';
     if (status === OrderStatus.PENDING_RECEIPT) return '已交付';
     if (status === OrderStatus.COMPLETE) return '已完成';

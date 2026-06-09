@@ -119,6 +119,7 @@
     </view>
   </view>
   <view class="goods-bottom-operation">
+    <view wx:if="{{cartFlyVisible}}" class="cart-fly-dot"></view>
     <buy-bar
       jumpArray="{{jumpArray}}"
       soldout="{{soldout}}"

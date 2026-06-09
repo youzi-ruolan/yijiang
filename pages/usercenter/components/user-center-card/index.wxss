@@ -25,6 +25,7 @@
   height: 96rpx;
   border-radius: 48rpx;
   overflow: hidden;
+  background: #f0f0f0;
 }
 
 .user-center-card__avatar-btn {

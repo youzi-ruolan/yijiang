@@ -4,9 +4,19 @@ import { commitPay, wechatPayOrder } from './pay';
 import { getAddressPromise } from '../../../services/address/list';
 import { fetchDefaultDeliveryAddress } from '../../../services/address/fetchAddress';
 import { removeLocalCartItem } from '../../../utils/local-cart';
-import { getCurrentUser } from '../../../utils/local-auth';
+import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 const stripeImg = `https://tdesign.gtimg.com/miniprogram/template/retail/order/stripe.png`;
+
+function parseGoodsRequestList(goodsRequestList = '[]') {
+  if (Array.isArray(goodsRequestList)) return goodsRequestList;
+
+  try {
+    return JSON.parse(goodsRequestList);
+  } catch (error) {
+    return JSON.parse(decodeURIComponent(goodsRequestList));
+  }
+}
 
 Page({
   data: {
@@ -34,7 +44,15 @@ Page({
   payLock: false,
   noteInfo: [],
   tempNoteInfo: [],
-  onLoad(options) {
+  async onLoad(options) {
+    if (!getCurrentUser()) {
+      this.setData({
+        loading: false,
+      });
+      await promptLoginRequired({ content: '请先登录后再确认订单' });
+      return;
+    }
+
     this.setData({
       loading: true,
     });
@@ -62,9 +80,9 @@ Page({
     if (options.type === 'cart') {
       // 从购物车跳转过来时，获取传入的商品列表数据
       const goodsRequestListJson = wx.getStorageSync('order.goodsRequestList');
-      goodsRequestList = JSON.parse(goodsRequestListJson);
+      goodsRequestList = parseGoodsRequestList(goodsRequestListJson);
     } else if (typeof options.goodsRequestList === 'string') {
-      goodsRequestList = JSON.parse(options.goodsRequestList);
+      goodsRequestList = parseGoodsRequestList(options.goodsRequestList);
     }
     if (!userAddressReq && getCurrentUser()) {
       try {
@@ -114,7 +132,7 @@ Page({
     this.setData({
       settleDetailData: data,
       isDigitalOrder: false,
-      userAddress: resData.userAddress || null,
+      userAddress: resData.userAddress || this.userAddressReq || null,
     });
     this.isInvalidOrder(data);
   },
@@ -321,6 +339,11 @@ Page({
   submitOrder() {
     const { settleDetailData, userAddressReq, storeInfoList } = this.data;
     const { goodsRequestList } = this;
+
+    if (!getCurrentUser()) {
+      promptLoginRequired({ content: '请先登录后再提交订单' });
+      return;
+    }
 
     if (!userAddressReq && !settleDetailData.userAddress) {
       Toast({

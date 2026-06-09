@@ -26,11 +26,12 @@
 
 .operate-icon-stage {
   position: relative;
-  width: 48rpx;
+  width: 58rpx;
   height: 44rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
 }
 
 .bottom-operate-left {
@@ -42,27 +43,28 @@
 }
 
 .tag-cart-num {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   position: absolute;
-  left: 28rpx;
-  top: -10rpx;
+  left: 33rpx;
+  top: -17rpx;
   color: #fff;
   text-align: center;
   z-index: 2;
   white-space: nowrap;
-  min-width: 30rpx;
-  height: 30rpx;
+  min-width: 34rpx;
+  height: 34rpx;
   border-radius: 999rpx;
   background: linear-gradient(135deg, #ff6a3d 0%, #fa2f1b 100%);
   border: 3rpx solid #fff;
-  font-size: 17rpx;
+  font-size: 20rpx;
   font-weight: 700;
-  line-height: 1;
-  padding: 0 7rpx;
-  box-sizing: border-box;
+  line-height: 34rpx;
+  padding: 0 6rpx;
+  box-sizing: content-box;
   box-shadow: 0 6rpx 14rpx rgba(250, 65, 38, 0.28);
+  font-family: DIN Alternate, Arial, sans-serif;
 }
 
 .operate-text {

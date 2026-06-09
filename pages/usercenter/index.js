@@ -1,11 +1,6 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
-import {
-  authorizeWechatUserByPhone,
-  ensureWechatLoginWithGuide,
-  getCurrentUser,
-  saveLocalAvatarToSession,
-} from '../../utils/local-auth';
+import { authorizeWechatUserByPhone, ensureWechatLoginWithGuide, getCurrentUser } from '../../utils/local-auth';
 
 const menuData = [
   [
@@ -64,10 +59,6 @@ const getDefaultData = () => ({
   versionNo: '',
   showLoginAuth: false,
   loginAuthLoading: false,
-  loginAuthForm: {
-    avatarUrl: '',
-    nickName: '',
-  },
 });
 
 Page({
@@ -204,30 +195,12 @@ Page({
     this.setData({
       showLoginAuth: true,
       loginAuthLoading: false,
-      loginAuthForm: {
-        avatarUrl: '',
-        nickName: '',
-      },
     });
   },
 
   closeLoginAuth() {
     if (this.data.loginAuthLoading) return;
     this.setData({ showLoginAuth: false });
-  },
-
-  onLoginChooseAvatar(e) {
-    const { avatarUrl } = e.detail;
-    if (!avatarUrl) return;
-    this.setData({
-      'loginAuthForm.avatarUrl': avatarUrl,
-    });
-  },
-
-  onLoginNicknameInput(e) {
-    this.setData({
-      'loginAuthForm.nickName': e.detail.value,
-    });
   },
 
   async onLoginGetPhoneNumber(e) {
@@ -245,17 +218,9 @@ Page({
 
     try {
       this.setData({ loginAuthLoading: true });
-      const { avatarUrl, nickName } = this.data.loginAuthForm;
       await authorizeWechatUserByPhone({
         phoneCode: code,
-        nickName: nickName.trim(),
-        avatarUrl: '',
       });
-      if (avatarUrl) {
-        await saveLocalAvatarToSession(avatarUrl).catch((error) => {
-          console.warn('保存微信头像失败', error);
-        });
-      }
       this.setData({
         showLoginAuth: false,
         loginAuthLoading: false,

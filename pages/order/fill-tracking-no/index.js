@@ -2,6 +2,7 @@ import Dialog from 'tdesign-miniprogram/dialog/index';
 import Toast from 'tdesign-miniprogram/toast/index';
 import reasonSheet from '../components/reason-sheet/reasonSheet';
 import { getDeliverCompanyList, create, update } from './api';
+import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 Page({
   deliveryCompanyList: [],
@@ -13,7 +14,12 @@ Page({
     submitActived: false,
     submitting: false,
   },
-  onLoad(query) {
+  async onLoad(query) {
+    if (!getCurrentUser()) {
+      await promptLoginRequired({ content: '请先登录后再填写物流信息' });
+      return;
+    }
+
     const {
       rightsNo = '',
       logisticsNo = '',
@@ -100,9 +106,7 @@ Page({
         title: '选择物流公司',
         options: deliveryCompanyList.map((company) => ({
           title: company.name,
-          checked: this.data.deliveryCompany
-            ? company.code === this.data.deliveryCompany.code
-            : false,
+          checked: this.data.deliveryCompany ? company.code === this.data.deliveryCompany.code : false,
         })),
         showConfirmButton: true,
         showCancelButton: true,

@@ -4,6 +4,38 @@ import { Prisma } from '@prisma/client';
 import { createDecipheriv, createSign, createVerify, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 
+const ORDER_STATUS = {
+  PENDING_PAYMENT: '待处理',
+  PENDING_DELIVERY: '待交付',
+  PENDING_RECEIPT: '待收货',
+  COMPLETE: '已完成',
+  CANCELED: '已取消',
+} as const;
+
+const ORDER_STATUS_CODE = {
+  [ORDER_STATUS.PENDING_PAYMENT]: 5,
+  [ORDER_STATUS.PENDING_DELIVERY]: 10,
+  [ORDER_STATUS.PENDING_RECEIPT]: 40,
+  [ORDER_STATUS.COMPLETE]: 50,
+  [ORDER_STATUS.CANCELED]: 80,
+} as const;
+
+const ORDER_STATUS_NAME = {
+  [ORDER_STATUS.PENDING_PAYMENT]: '待付款',
+  [ORDER_STATUS.PENDING_DELIVERY]: '待交付',
+  [ORDER_STATUS.PENDING_RECEIPT]: '已交付',
+  [ORDER_STATUS.COMPLETE]: '已完成',
+  [ORDER_STATUS.CANCELED]: '已取消',
+} as const;
+
+type OrderStatusValue = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
+
+const PAID_ORDER_STATUSES: OrderStatusValue[] = [
+  ORDER_STATUS.PENDING_DELIVERY,
+  ORDER_STATUS.PENDING_RECEIPT,
+  ORDER_STATUS.COMPLETE,
+];
+
 @Injectable()
 export class PublicService {
   private wechatAccessTokenCache: { value: string; expiresAt: number } | null = null;
@@ -169,12 +201,9 @@ export class PublicService {
 
     countsData[0].num = addressCount;
 
-    const orderTagInfos = [
-      { orderNum: orders.filter((item) => item.status === '待处理').length, tabType: 5 },
-      { orderNum: orders.filter((item) => ['已付款', '待交付'].includes(item.status)).length, tabType: 10 },
-      { orderNum: orders.filter((item) => item.status === '待收货').length, tabType: 40 },
-      { orderNum: 0, tabType: 0 },
-    ];
+    const orderTagInfos = this.buildOrderCountList(orders.map((item) => item.status)).filter((item) =>
+      [5, 10, 40, 0].includes(item.tabType),
+    );
 
     return {
       userInfo: user
@@ -422,9 +451,10 @@ export class PublicService {
   }
 
   async getOrders(status?: string, uid?: string) {
+    const normalizedStatus = this.normalizeOrderStatus(status);
     const orders = await this.prisma.order.findMany({
       where: {
-        ...(status ? { status } : {}),
+        ...(normalizedStatus ? { status: normalizedStatus } : {}),
         ...(uid ? { userId: uid } : {}),
       },
       orderBy: [{ createdAt: 'desc' }],
@@ -439,17 +469,7 @@ export class PublicService {
       select: { status: true },
     });
 
-    const statusMap = [
-      { tabType: -1, matcher: () => true },
-      { tabType: 5, matcher: (status: string) => status === '待处理' },
-      { tabType: 10, matcher: (status: string) => ['已付款', '待交付'].includes(status) },
-      { tabType: 40, matcher: (status: string) => status === '待收货' },
-    ];
-
-    return statusMap.map((item) => ({
-      tabType: item.tabType,
-      orderNum: item.tabType === -1 ? orders.length : orders.filter((order) => item.matcher(order.status)).length,
-    }));
+    return this.buildOrderCountList(orders.map((item) => item.status));
   }
 
   async cancelOrder(id: string, uid?: string) {
@@ -458,14 +478,14 @@ export class PublicService {
     if (!order || (uid && order.userId !== uid)) {
       throw new BadRequestException('订单不存在');
     }
-    if (order.status !== '待处理') {
+    if (this.normalizeOrderStatus(order.status) !== ORDER_STATUS.PENDING_PAYMENT) {
       throw new BadRequestException('当前订单不可取消');
     }
 
     return this.formatPublicOrder(
       await this.prisma.order.update({
         where: { id },
-        data: { status: '已取消' },
+        data: { status: ORDER_STATUS.CANCELED },
       }),
     );
   }
@@ -477,11 +497,11 @@ export class PublicService {
       throw new BadRequestException('订单不存在');
     }
 
-    if (order.status === '待处理') {
+    if (this.normalizeOrderStatus(order.status) === ORDER_STATUS.PENDING_PAYMENT) {
       return this.formatPublicOrder(
         await this.prisma.order.update({
           where: { id },
-          data: { status: '待交付' },
+          data: { status: ORDER_STATUS.PENDING_DELIVERY },
         }),
       );
     }
@@ -636,7 +656,7 @@ export class PublicService {
     if (!order || order.userId !== userId) {
       throw new BadRequestException('订单不存在');
     }
-    if (order.status === '待处理') {
+    if (this.normalizeOrderStatus(order.status) === ORDER_STATUS.PENDING_PAYMENT) {
       throw new BadRequestException('订单支付完成后才能评价');
     }
 
@@ -771,7 +791,7 @@ export class PublicService {
         userId,
         customer: userName,
         amount: totalAmount,
-        status: '待处理',
+        status: ORDER_STATUS.PENDING_PAYMENT,
         items,
         itemsDetail: itemsDetail as Prisma.InputJsonValue,
         orderCreatedAt: this.formatDateTime(new Date()),
@@ -824,7 +844,7 @@ export class PublicService {
     if (notifyData.trade_state === 'SUCCESS') {
       await this.prisma.order.update({
         where: { id: orderNo },
-        data: { status: '待交付' },
+        data: { status: ORDER_STATUS.PENDING_DELIVERY },
       });
     }
 
@@ -970,17 +990,23 @@ export class PublicService {
     itemsDetail: unknown;
     orderCreatedAt: string;
   }) {
+    const status = this.normalizeOrderStatus(order.status);
+    const itemsDetail = this.getOrderItems(order.itemsDetail);
+
     return {
       id: order.id,
       orderNo: order.id,
       parentOrderNo: order.id,
       customer: order.customer,
-      status: order.status,
+      status,
+      statusCode: this.mapOrderStatusCode(status),
+      statusName: this.getOrderStatusName(status),
       amount: order.amount,
       items: order.items,
       createTime: new Date(order.orderCreatedAt.replace(/-/g, '/')).getTime() || Date.now(),
       orderCreatedAt: order.orderCreatedAt,
-      itemsDetail: Array.isArray(order.itemsDetail) ? order.itemsDetail : [],
+      itemsDetail,
+      buttonVOs: this.getOrderButtons({ status }),
     };
   }
 
@@ -994,7 +1020,8 @@ export class PublicService {
     itemsDetail: unknown;
     orderCreatedAt: string;
   }) {
-    const statusCode = this.mapOrderStatusCode(order.status);
+    const status = this.normalizeOrderStatus(order.status);
+    const statusCode = this.mapOrderStatusCode(status);
     const itemsDetail = Array.isArray(order.itemsDetail) ? order.itemsDetail : [];
 
     return {
@@ -1004,7 +1031,7 @@ export class PublicService {
       storeId: '1000',
       storeName: '艺匠调色数字资产商店',
       orderStatus: statusCode,
-      orderStatusName: order.status,
+      orderStatusName: this.getOrderStatusName(status),
       orderSubStatus: 0,
       paymentAmount: order.amount,
       goodsAmountApp: order.amount,
@@ -1032,13 +1059,13 @@ export class PublicService {
         actualPrice: Number(item.actualPrice || item.tagPrice || 0),
         buyQuantity: Number(item.buyQuantity || 1),
         tagText: `${item.tagText || ''}`,
-        buttonVOs: this.getOrderItemButtons(order, item),
+        buttonVOs: this.getOrderItemButtons({ status }, item),
       })),
-      buttonVOs: this.getOrderButtons(order),
+      buttonVOs: this.getOrderButtons({ status }),
       groupInfoVo: null,
       freightFee: 0,
       paymentVO: {
-        paySuccessTime: statusCode >= 10 ? Date.now() : null,
+        paySuccessTime: status && PAID_ORDER_STATUSES.includes(status) ? Date.now() : null,
       },
       trajectoryVos: [],
     };
@@ -1143,11 +1170,33 @@ export class PublicService {
   }
 
   private mapOrderStatusCode(status: string) {
-    if (status === '待处理') return 5;
-    if (status === '已付款' || status === '待交付') return 10;
-    if (status === '待收货') return 40;
-    if (status === '已完成') return 50;
-    return 80;
+    const normalizedStatus = this.normalizeOrderStatus(status);
+    return normalizedStatus ? ORDER_STATUS_CODE[normalizedStatus] : ORDER_STATUS_CODE[ORDER_STATUS.CANCELED];
+  }
+
+  private normalizeOrderStatus(status?: string): OrderStatusValue | '' {
+    if (!status) return '';
+    if (status === '待付款' || status === '待支付' || status === '待处理') return ORDER_STATUS.PENDING_PAYMENT;
+    if (status === '已付款' || status === '待发货' || status === '待交付') return ORDER_STATUS.PENDING_DELIVERY;
+    if (status === '待收货' || status === '已交付') return ORDER_STATUS.PENDING_RECEIPT;
+    if (status === '已完成') return ORDER_STATUS.COMPLETE;
+    return ORDER_STATUS.CANCELED;
+  }
+
+  private getOrderStatusName(status: string) {
+    const normalizedStatus = this.normalizeOrderStatus(status);
+    return normalizedStatus ? ORDER_STATUS_NAME[normalizedStatus] : ORDER_STATUS_NAME[ORDER_STATUS.CANCELED];
+  }
+
+  private buildOrderCountList(statuses: string[]) {
+    const normalizedStatuses = statuses.map((status) => this.normalizeOrderStatus(status));
+    return [
+      { tabType: -1, orderNum: normalizedStatuses.length },
+      { tabType: 5, orderNum: normalizedStatuses.filter((status) => status === ORDER_STATUS.PENDING_PAYMENT).length },
+      { tabType: 10, orderNum: normalizedStatuses.filter((status) => status === ORDER_STATUS.PENDING_DELIVERY).length },
+      { tabType: 40, orderNum: normalizedStatuses.filter((status) => status === ORDER_STATUS.PENDING_RECEIPT).length },
+      { tabType: 0, orderNum: 0 },
+    ];
   }
 
   private generateOrderNo() {
@@ -1172,7 +1221,7 @@ export class PublicService {
   private async getRealProductSalesMap(productIds?: string[]) {
     const orders = await this.prisma.order.findMany({
       where: {
-        status: { in: ['已付款', '待交付', '待收货', '已完成'] },
+        status: { in: [...PAID_ORDER_STATUSES, '已付款'] },
       },
       select: { itemsDetail: true },
     });
@@ -1304,7 +1353,8 @@ export class PublicService {
   }
 
   private getOrderItemButtons(order: { status: string }, item: Record<string, unknown>) {
-    if (order.status === '待处理') {
+    const status = this.normalizeOrderStatus(order.status);
+    if (status === ORDER_STATUS.PENDING_PAYMENT || status === ORDER_STATUS.CANCELED) {
       return [];
     }
     if (item.commented) {
@@ -1320,14 +1370,17 @@ export class PublicService {
   }
 
   private getOrderButtons(order: { status: string }) {
-    if (order.status !== '待处理') return [];
-    return [
-      {
-        name: '取消订单',
-        type: 2,
-        primary: false,
-      },
-    ];
+    const status = this.normalizeOrderStatus(order.status);
+    if (status === ORDER_STATUS.PENDING_PAYMENT) {
+      return [
+        {
+          name: '取消订单',
+          type: 2,
+          primary: false,
+        },
+      ];
+    }
+    return [];
   }
 
   private async createWechatJsapiPayInfo(params: {

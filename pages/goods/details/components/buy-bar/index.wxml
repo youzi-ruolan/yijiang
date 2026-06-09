@@ -15,9 +15,9 @@
 			<view class="operate-inner">
 				<view class="operate-icon-stage">
 					<t-icon prefix="wr" name="{{item.iconName}}" size="40rpx" />
-					<text wx:if="{{shopCartNum > 0 && item.showCartNum}}" class="tag-cart-num">
+					<view wx:if="{{shopCartNum > 0 && item.showCartNum}}" class="tag-cart-num">
 						{{shopCartNum > 99 ? '99+' : shopCartNum}}
-					</text>
+					</view>
 				</view>
 				<view class="operate-text">{{item.title}}</view>
 			</view>
@@ -37,4 +37,3 @@
 		<slot name="buyButton" />
 	</block>
 </view>
-

@@ -7,6 +7,7 @@ import {
   setLocalCartList,
   updateLocalCartItem,
 } from '../../utils/local-cart';
+import { getCurrentUser, promptLoginRequired } from '../../utils/local-auth';
 
 Page({
   data: {
@@ -250,7 +251,12 @@ Page({
     this.refreshData();
   },
 
-  onToSettle() {
+  async onToSettle() {
+    if (!getCurrentUser()) {
+      await promptLoginRequired({ content: '请先登录后再结算购物车' });
+      return;
+    }
+
     const goodsRequestList = [];
     this.data.cartGroupData.storeGoods.forEach((store) => {
       store.promotionGoodsList.forEach((promotion) => {

@@ -1,5 +1,6 @@
 import { getRightsList } from './api';
 import { AfterServiceStatus, ServiceType, ServiceTypeDesc } from '../config';
+import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 Page({
   page: {
@@ -38,7 +39,12 @@ Page({
     backRefresh: false,
   },
 
-  onLoad(query) {
+  async onLoad(query) {
+    if (!getCurrentUser()) {
+      await promptLoginRequired({ content: '请先登录后再查看售后' });
+      return;
+    }
+
     let status = parseInt(query.status);
     status = this.data.tabs.map((t) => t.key).includes(status) ? status : -1;
     this.init(status);
