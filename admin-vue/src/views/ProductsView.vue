@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import ProductMediaFields from '@/components/ProductMediaFields.vue';
 import { useAdminStore } from '@/stores/admin';
-import type { AssetItem, ProductItem } from '@/types';
+import { galleryTextToLines } from '@/utils/asset';
+import type { ProductItem } from '@/types';
 
 const adminStore = useAdminStore();
 
@@ -31,9 +33,6 @@ const categoryOptions = computed(() =>
   })),
 );
 
-const imageAssets = computed(() => adminStore.dataset.assets.filter((item) => item.type === 'image'));
-const detailAssets = computed(() => adminStore.dataset.assets);
-
 const products = computed(() =>
   categoryFilter.value === 'all'
     ? adminStore.dataset.products
@@ -56,46 +55,6 @@ function resetForm() {
   form.detailContent = '';
   form.deliverables = '';
   form.usageNotice = '';
-}
-
-function appendLine(value: string, line: string) {
-  const lines = value
-    .split('\n')
-    .map((item) => item.trim())
-    .filter(Boolean);
-  lines.push(line);
-  return lines.join('\n');
-}
-
-function assetToDetailLine(asset: AssetItem) {
-  if (asset.type === 'image') {
-    return asset.url;
-  }
-
-  return JSON.stringify({
-    type: 'video',
-    url: asset.url,
-    cover: asset.cover || '',
-    title: asset.name,
-  });
-}
-
-function applyCoverAsset(assetId: string) {
-  const asset = imageAssets.value.find((item) => item.id === assetId);
-  if (!asset) return;
-  form.cover = asset.url;
-}
-
-function appendGalleryAsset(assetId: string) {
-  const asset = imageAssets.value.find((item) => item.id === assetId);
-  if (!asset) return;
-  form.gallery = appendLine(form.gallery, asset.url);
-}
-
-function appendDetailAsset(assetId: string) {
-  const asset = detailAssets.value.find((item) => item.id === assetId);
-  if (!asset) return;
-  form.gallery = appendLine(form.gallery, assetToDetailLine(asset));
 }
 
 function openCreate() {
@@ -126,6 +85,11 @@ async function saveProduct() {
     return;
   }
 
+  if (!form.cover.trim()) {
+    ElMessage.warning('请选择商品封面图');
+    return;
+  }
+
   const product: ProductItem = {
     id: editingId.value || `product_${Date.now()}`,
     title: form.title.trim(),
@@ -138,10 +102,7 @@ async function saveProduct() {
       .map((item) => item.trim())
       .filter(Boolean),
     category: form.category,
-    gallery: form.gallery
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean),
+    gallery: galleryTextToLines(form.gallery),
     detailContent: form.detailContent
       .split('\n')
       .map((item) => item.trim())
@@ -189,6 +150,9 @@ async function removeProduct(product: ProductItem) {
     <div class="page-toolbar">
       <div class="toolbar-pills">
         <span class="toolbar-chip">共 {{ products.length }} 个商品</span>
+        <span v-if="adminStore.dataset.assets.length" class="toolbar-chip">
+          资源库 {{ adminStore.dataset.assets.length }} 个文件可用
+        </span>
       </div>
       <el-select v-model="categoryFilter" class="toolbar-select" placeholder="全部分类">
         <el-option label="全部分类" value="all" />
@@ -215,12 +179,17 @@ async function removeProduct(product: ProductItem) {
             <span class="admin-chip">{{ categoryNameMap[row.category] || row.category }}</span>
           </template>
         </el-table-column>
+        <el-table-column label="详情图" width="90">
+          <template #default="{ row }">
+            <span class="gallery-count">{{ (row.gallery || []).length }} 张</span>
+          </template>
+        </el-table-column>
         <el-table-column label="价格" width="100">
           <template #default="{ row }">
             <span class="price-current">¥{{ row.price }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="标签" min-width="160">
+        <el-table-column label="标签" min-width="140">
           <template #default="{ row }">
             <div class="admin-tag-list">
               <span v-for="tag in row.tags" :key="tag" class="admin-chip">{{ tag }}</span>
@@ -239,7 +208,7 @@ async function removeProduct(product: ProductItem) {
     <el-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑商品' : '新增商品'"
-      width="720px"
+      width="760px"
       destroy-on-close
     >
       <div class="form-grid">
@@ -266,54 +235,12 @@ async function removeProduct(product: ProductItem) {
           <el-input-number v-model="form.sales" :min="0" controls-position="right" style="width: 100%" />
         </div>
         <div class="field field-full">
-          <span>封面图 URL</span>
-          <el-input v-model="form.cover" placeholder="请输入封面图链接" />
-          <el-select
-            v-if="imageAssets.length"
-            clearable
-            placeholder="从文件管理选择封面图"
-            style="width: 100%; margin-top: 8px"
-            @change="(value: string) => value && applyCoverAsset(value)"
-          >
-            <el-option v-for="item in imageAssets" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
-        </div>
-        <div class="field field-full">
           <span>标签</span>
           <el-input v-model="form.tags" placeholder="多个标签用逗号分隔" />
         </div>
-        <div class="field field-full">
-          <span>详情图集</span>
-          <el-input
-            v-model="form.gallery"
-            type="textarea"
-            :rows="3"
-            placeholder="每行一个图片链接；视频会以 JSON 行保存并在小程序详情展示"
-          />
-          <div class="asset-picker-row">
-            <el-select
-              v-if="imageAssets.length"
-              clearable
-              placeholder="追加图片到图集"
-              @change="(value: string) => value && appendGalleryAsset(value)"
-            >
-              <el-option v-for="item in imageAssets" :key="item.id" :label="item.name" :value="item.id" />
-            </el-select>
-            <el-select
-              v-if="detailAssets.length"
-              clearable
-              placeholder="追加图片/视频到详情媒体"
-              @change="(value: string) => value && appendDetailAsset(value)"
-            >
-              <el-option
-                v-for="item in detailAssets"
-                :key="item.id"
-                :label="`${item.type === 'image' ? '图片' : '视频'} · ${item.name}`"
-                :value="item.id"
-              />
-            </el-select>
-          </div>
-        </div>
+
+        <ProductMediaFields v-model:cover="form.cover" v-model:gallery="form.gallery" />
+
         <div class="field field-full">
           <span>详情正文</span>
           <el-input v-model="form.detailContent" type="textarea" :rows="4" placeholder="每行一段详情说明" />
@@ -357,16 +284,8 @@ async function removeProduct(product: ProductItem) {
   color: var(--admin-primary);
 }
 
-.asset-picker-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 8px;
-}
-
-@media (max-width: 640px) {
-  .asset-picker-row {
-    grid-template-columns: 1fr;
-  }
+.gallery-count {
+  font-size: 13px;
+  color: var(--admin-text-soft);
 }
 </style>

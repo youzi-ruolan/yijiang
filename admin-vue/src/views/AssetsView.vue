@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { createAssetUploadSignatureApi } from '@/api/admin';
+import { Upload } from '@element-plus/icons-vue';
+import { useAssetUpload } from '@/composables/useAssetUpload';
 import { useAdminStore } from '@/stores/admin';
 import type { AssetItem, AssetType } from '@/types';
 
 const adminStore = useAdminStore();
+const { uploading, uploadProgress, uploadFiles } = useAssetUpload();
 
 const typeFilter = ref<'all' | AssetType>('all');
 const keyword = ref('');
 const dialogVisible = ref(false);
 const editingId = ref('');
+const dragOver = ref(false);
 const uploadInputRef = ref<HTMLInputElement | null>(null);
-const uploading = ref(false);
 
 const form = reactive({
   name: '',
@@ -35,8 +37,40 @@ const statusOptions = [
   { label: '停用', value: 'INACTIVE' },
 ];
 
-const maxImageSize = 20 * 1024 * 1024;
-const maxVideoSize = 500 * 1024 * 1024;
+const assetUsageMap = computed(() => {
+  const map = new Map<string, string[]>();
+
+  const addUsage = (url: string, label: string) => {
+    if (!url) return;
+    const current = map.get(url) || [];
+    if (!current.includes(label)) {
+      current.push(label);
+      map.set(url, current);
+    }
+  };
+
+  for (const product of adminStore.dataset.products) {
+    addUsage(product.cover, `商品封面：${product.title}`);
+    for (const line of product.gallery || []) {
+      if (line.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(line) as { url?: string };
+          addUsage(parsed.url || '', `商品详情：${product.title}`);
+        } catch {
+          // ignore invalid json line
+        }
+      } else {
+        addUsage(line, `商品详情：${product.title}`);
+      }
+    }
+  }
+
+  for (const banner of adminStore.dataset.banners) {
+    addUsage(banner.image, `Banner：${banner.title}`);
+  }
+
+  return map;
+});
 
 const filteredAssets = computed(() => {
   const keywordText = keyword.value.trim().toLowerCase();
@@ -81,6 +115,10 @@ function openEdit(asset: AssetItem) {
   dialogVisible.value = true;
 }
 
+function getUsageLabels(asset: AssetItem) {
+  return assetUsageMap.value.get(asset.url) || [];
+}
+
 async function copyUrl(url: string) {
   try {
     await navigator.clipboard.writeText(url);
@@ -94,89 +132,31 @@ function openUploadPicker() {
   uploadInputRef.value?.click();
 }
 
-function resolveFileType(file: File): AssetType | null {
-  if (file.type.startsWith('image/')) return 'image';
-  if (file.type.startsWith('video/')) return 'video';
-
-  const extension = file.name.split('.').pop()?.toLowerCase() || '';
-  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) return 'image';
-  if (['mp4', 'mov', 'm4v', 'webm'].includes(extension)) return 'video';
-
-  return null;
-}
-
-function validateUploadFile(file: File, type: AssetType) {
-  if (type === 'image' && file.size > maxImageSize) {
-    ElMessage.warning('图片不能超过 20MB');
-    return false;
-  }
-
-  if (type === 'video' && file.size > maxVideoSize) {
-    ElMessage.warning('视频不能超过 500MB');
-    return false;
-  }
-
-  return true;
-}
-
-function getFileNameWithoutExtension(fileName: string) {
-  return fileName.replace(/\.[^.]+$/, '');
+async function handleSelectedFiles(fileList: FileList | File[]) {
+  const files = Array.from(fileList);
+  if (!files.length) return;
+  await uploadFiles(files);
 }
 
 async function handleUploadFile(event: Event) {
   const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
+  await handleSelectedFiles(target.files || []);
   target.value = '';
+}
 
-  if (!file) return;
+function onDragOver(event: DragEvent) {
+  event.preventDefault();
+  dragOver.value = true;
+}
 
-  const type = resolveFileType(file);
-  if (!type) {
-    ElMessage.warning('仅支持图片 jpg/jpeg/png/webp/gif 或视频 mp4/mov/m4v/webm');
-    return;
-  }
+function onDragLeave() {
+  dragOver.value = false;
+}
 
-  if (!validateUploadFile(file, type)) return;
-
-  uploading.value = true;
-  try {
-    const signature = await createAssetUploadSignatureApi({
-      fileName: file.name,
-      type,
-      mimeType: file.type || undefined,
-    });
-    const response = await fetch(signature.uploadUrl, {
-      method: 'PUT',
-      headers: {
-        Authorization: signature.authorization,
-        'Content-Type': signature.contentType,
-      },
-      body: file,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `COS 上传失败：${response.status}`);
-    }
-
-    await adminStore.upsertAsset({
-      id: `asset_${Date.now()}`,
-      name: getFileNameWithoutExtension(file.name),
-      type,
-      url: signature.publicUrl,
-      cover: '',
-      description: `上传文件：${file.name}`,
-      tags: [],
-      sort: 0,
-      status: 'ACTIVE',
-    });
-
-    ElMessage.success('文件已上传并保存到资源库');
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '文件上传失败');
-  } finally {
-    uploading.value = false;
-  }
+async function onDrop(event: DragEvent) {
+  event.preventDefault();
+  dragOver.value = false;
+  await handleSelectedFiles(event.dataTransfer?.files || []);
 }
 
 async function saveAsset() {
@@ -212,12 +192,15 @@ async function saveAsset() {
 }
 
 async function removeAsset(asset: AssetItem) {
+  const usage = getUsageLabels(asset);
+  const usageTip = usage.length ? `该文件已被引用：${usage.slice(0, 2).join('、')}${usage.length > 2 ? ' 等' : ''}。` : '';
+
   try {
-    await ElMessageBox.confirm(
-      `确认删除「${asset.name}」吗？已被商品手动引用的链接不会自动清除。`,
-      '确认删除文件？',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
-    );
+    await ElMessageBox.confirm(`${usageTip}确认删除「${asset.name}」吗？`, '确认删除文件？', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
     await adminStore.removeAsset(asset.id);
     ElMessage.success('文件已删除');
   } catch (error) {
@@ -233,7 +216,7 @@ async function removeAsset(asset: AssetItem) {
     <div class="page-toolbar">
       <div class="toolbar-pills">
         <span class="toolbar-chip">共 {{ filteredAssets.length }} 个文件</span>
-        <span class="toolbar-chip">COS 外链资源库</span>
+        <span class="toolbar-chip">上传后可在商品管理中直接选用</span>
       </div>
       <el-input v-model="keyword" clearable placeholder="搜索名称、描述、标签" class="toolbar-search" />
       <el-select v-model="typeFilter" class="toolbar-select" placeholder="全部文件">
@@ -245,15 +228,31 @@ async function removeAsset(asset: AssetItem) {
         ref="uploadInputRef"
         class="upload-input"
         type="file"
+        multiple
         accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
         @change="handleUploadFile"
       />
-      <el-button :loading="uploading" @click="openUploadPicker">上传文件</el-button>
-      <el-button type="primary" @click="openCreate">新增文件</el-button>
+      <el-button type="primary" :icon="Upload" :loading="uploading" @click="openUploadPicker">上传文件</el-button>
+      <el-button @click="openCreate">录入外链</el-button>
+    </div>
+
+    <div
+      class="upload-dropzone"
+      :class="{ 'upload-dropzone--active': dragOver, 'upload-dropzone--loading': uploading }"
+      @dragover="onDragOver"
+      @dragleave="onDragLeave"
+      @drop="onDrop"
+      @click="openUploadPicker"
+    >
+      <el-icon class="upload-dropzone__icon"><Upload /></el-icon>
+      <div class="upload-dropzone__title">
+        {{ uploading ? uploadProgress || '正在上传...' : '拖拽文件到此处上传，或点击选择文件' }}
+      </div>
+      <div class="upload-dropzone__desc">支持 jpg / png / webp / gif 图片和 mp4 / mov 视频，上传后自动保存到资源库</div>
     </div>
 
     <el-card class="admin-card" shadow="never">
-      <div class="asset-grid">
+      <div v-if="filteredAssets.length" class="asset-grid">
         <div v-for="asset in filteredAssets" :key="asset.id" class="asset-card">
           <div class="asset-preview">
             <img v-if="asset.type === 'image'" :src="asset.url" :alt="asset.name" class="asset-preview__media" />
@@ -265,24 +264,29 @@ async function removeAsset(asset: AssetItem) {
               <span class="admin-chip">{{ asset.type === 'image' ? '图片' : '视频' }}</span>
             </div>
             <div class="asset-desc">{{ asset.description || '暂无描述' }}</div>
+            <div v-if="getUsageLabels(asset).length" class="asset-usage">
+              已用于 {{ getUsageLabels(asset).length }} 处：{{ getUsageLabels(asset)[0] }}
+            </div>
             <div class="asset-url" :title="asset.url">{{ asset.url }}</div>
             <div v-if="asset.tags.length" class="admin-tag-list">
               <span v-for="tag in asset.tags" :key="tag" class="admin-chip">{{ tag }}</span>
             </div>
             <div class="asset-actions">
-              <el-button link type="primary" @click="copyUrl(asset.url)">复制链接</el-button>
-              <el-button link type="primary" @click="openEdit(asset)">编辑</el-button>
-              <el-button link type="danger" @click="removeAsset(asset)">删除</el-button>
+              <el-button link type="primary" @click.stop="copyUrl(asset.url)">复制链接</el-button>
+              <el-button link type="primary" @click.stop="openEdit(asset)">编辑</el-button>
+              <el-button link type="danger" @click.stop="removeAsset(asset)">删除</el-button>
             </div>
           </div>
         </div>
-        <div v-if="!filteredAssets.length" class="admin-empty">暂无文件，先把 COS 中的图片或视频链接录入这里。</div>
+      </div>
+      <div v-else class="admin-empty">
+        暂无文件，拖拽上传或点击上方上传区域添加图片、视频。
       </div>
     </el-card>
 
     <el-dialog
       v-model="dialogVisible"
-      :title="editingId ? '编辑文件' : '新增文件'"
+      :title="editingId ? '编辑文件' : '录入外链文件'"
       width="720px"
       destroy-on-close
     >
@@ -317,7 +321,7 @@ async function removeAsset(asset: AssetItem) {
         </div>
         <div class="field field-full">
           <span>标签</span>
-          <el-input v-model="form.tags" placeholder="多个标签用逗号分隔" />
+          <el-input v-model="form.tags" placeholder="多个标签用逗号分隔，如：封面,详情" />
         </div>
         <div class="field field-full">
           <span>描述</span>
@@ -335,6 +339,45 @@ async function removeAsset(asset: AssetItem) {
 <style scoped>
 .upload-input {
   display: none;
+}
+
+.upload-dropzone {
+  border: 1px dashed var(--admin-primary-line);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-primary-soft);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.upload-dropzone:hover,
+.upload-dropzone--active {
+  border-color: var(--admin-primary);
+  background: #f0f8ff;
+}
+
+.upload-dropzone--loading {
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.upload-dropzone__icon {
+  font-size: 32px;
+  color: var(--admin-primary);
+  margin-bottom: 8px;
+}
+
+.upload-dropzone__title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--admin-text);
+}
+
+.upload-dropzone__desc {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--admin-text-soft);
 }
 
 .asset-grid {
@@ -384,10 +427,15 @@ async function removeAsset(asset: AssetItem) {
 }
 
 .asset-desc,
-.asset-url {
+.asset-url,
+.asset-usage {
   margin-top: 6px;
   color: var(--admin-text-soft);
   font-size: 12px;
+}
+
+.asset-usage {
+  color: var(--admin-primary);
 }
 
 .asset-url {
