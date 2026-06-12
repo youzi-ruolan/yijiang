@@ -1,6 +1,7 @@
 import type {
   AdminUser,
   ArticleItem,
+  AssetItem,
   BannerItem,
   CategoryItem,
   InspirationItem,
@@ -37,6 +38,27 @@ interface ProductResponse {
   category: string;
   isNew?: boolean;
   isHot?: boolean;
+}
+
+interface AssetResponse {
+  id: string;
+  name: string;
+  type: 'image' | 'video';
+  url: string;
+  cover?: string;
+  description?: string;
+  tags: string[];
+  sort?: number;
+  status?: string;
+}
+
+interface AssetUploadSignatureResponse {
+  key: string;
+  uploadUrl: string;
+  publicUrl: string;
+  authorization: string;
+  contentType: string;
+  expiresAt: number;
 }
 
 interface OrderResponse {
@@ -119,6 +141,42 @@ export function updateProductApi(id: string, payload: ProductItem) {
 export function deleteProductApi(id: string) {
   return request(`/admin/products/${id}`, {
     method: 'DELETE',
+  });
+}
+
+export function getAssetsApi(type?: string) {
+  const query = type && type !== 'all' ? `?type=${encodeURIComponent(type)}` : '';
+  return request<AssetResponse[]>(`/admin/assets${query}`);
+}
+
+export function createAssetApi(payload: AssetItem) {
+  return request<AssetResponse>('/admin/assets', {
+    method: 'POST',
+    body: toAssetPayload(payload),
+  });
+}
+
+export function updateAssetApi(id: string, payload: AssetItem) {
+  return request<AssetResponse>(`/admin/assets/${id}`, {
+    method: 'PUT',
+    body: toAssetPayload(payload),
+  });
+}
+
+export function deleteAssetApi(id: string) {
+  return request(`/admin/assets/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function createAssetUploadSignatureApi(payload: {
+  fileName: string;
+  type: 'image' | 'video';
+  mimeType?: string;
+}) {
+  return request<AssetUploadSignatureResponse>('/admin/assets/upload-signature', {
+    method: 'POST',
+    body: payload,
   });
 }
 
@@ -246,6 +304,20 @@ export function mapProductFromApi(product: ProductResponse): ProductItem {
   };
 }
 
+export function mapAssetFromApi(asset: AssetResponse): AssetItem {
+  return {
+    id: asset.id,
+    name: asset.name,
+    type: asset.type,
+    url: asset.url,
+    cover: asset.cover || '',
+    description: asset.description || '',
+    tags: asset.tags || [],
+    sort: asset.sort,
+    status: asset.status,
+  };
+}
+
 export function mapOrderFromApi(order: OrderResponse): OrderItem {
   return {
     id: order.id,
@@ -275,6 +347,20 @@ function toProductPayload(product: ProductItem) {
     isHot: product.isHot,
     sort: product.sort,
     status: product.status,
+  };
+}
+
+function toAssetPayload(asset: AssetItem) {
+  return {
+    id: asset.id,
+    name: asset.name,
+    type: asset.type,
+    url: asset.url,
+    cover: asset.cover,
+    description: asset.description,
+    tags: asset.tags || [],
+    sort: asset.sort,
+    status: asset.status,
   };
 }
 

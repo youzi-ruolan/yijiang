@@ -23,45 +23,43 @@ const resources = computed(() => [
 <template>
   <div class="admin-page">
     <div class="admin-grid-4">
-      <t-card v-for="metric in metrics" :key="metric.label" class="admin-card metric-card">
+      <el-card v-for="metric in metrics" :key="metric.label" class="admin-card metric-card" shadow="never">
         <div class="metric-label">{{ metric.label }}</div>
         <div class="metric-value">{{ metric.value }}</div>
-      </t-card>
+      </el-card>
     </div>
 
     <div class="admin-grid-2">
-      <t-card class="admin-card">
-        <div class="panel-title">功能模块</div>
+      <el-card class="admin-card" shadow="never">
+        <template #header>
+          <span class="panel-title">功能模块</span>
+        </template>
         <div class="module-list">
           <div v-for="module in MODULE_SUMMARIES" :key="module.name" class="module-item">
-            <div class="module-row">
-              <div class="module-title">{{ module.name }}</div>
-              <div class="module-desc">{{ module.desc }}</div>
-            </div>
+            <div class="module-title">{{ module.name }}</div>
+            <div class="module-desc">{{ module.desc }}</div>
           </div>
         </div>
-      </t-card>
+      </el-card>
 
-      <t-card class="admin-card">
-        <div class="panel-title">运营资源</div>
+      <el-card class="admin-card" shadow="never">
+        <template #header>
+          <span class="panel-title">运营资源</span>
+        </template>
         <div class="resource-list">
           <div v-for="resource in resources" :key="resource.label" class="resource-item">
-            <div class="module-title">{{ resource.label }}</div>
-            <div class="resource-value">{{ resource.value }}</div>
+            <span class="module-title">{{ resource.label }}</span>
+            <span class="resource-value">{{ resource.value }}</span>
           </div>
         </div>
-      </t-card>
+      </el-card>
     </div>
   </div>
 </template>
 
 <style scoped>
-.metric-card :deep(.t-card__body) {
-  padding: 22px;
-}
-
-.metric-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 248, 243, 0.92) 100%);
+.metric-card :deep(.el-card__body) {
+  padding: 20px;
 }
 
 .metric-label {
@@ -70,68 +68,60 @@ const resources = computed(() => [
 }
 
 .metric-value {
-  margin-top: 14px;
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--admin-primary);
 }
 
 .module-list,
 .resource-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0;
 }
 
 .panel-title {
-  margin-bottom: 16px;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.module-item,
-.resource-item {
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(239, 228, 218, 0.72);
+.module-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--admin-line);
 }
 
-.module-row {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 16px;
-  align-items: start;
+.module-item:last-child {
+  border-bottom: none;
 }
 
 .module-title {
-  font-weight: 700;
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .module-desc {
-  margin-top: 8px;
+  margin-top: 4px;
   color: var(--admin-text-soft);
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
 .resource-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--admin-line);
+}
+
+.resource-item:last-child {
+  border-bottom: none;
 }
 
 .resource-value {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--admin-primary);
-}
-
-@media (max-width: 640px) {
-  .module-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
 }
 </style>

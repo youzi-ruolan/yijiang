@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useAdminStore } from '@/stores/admin';
 import type { OrderItem } from '@/types';
 
@@ -24,9 +24,9 @@ const statusOptions = [
   { label: '已取消', value: '已取消' },
 ];
 
-const statusThemeMap: Record<string, string> = {
+const statusTypeMap: Record<string, '' | 'success' | 'warning' | 'info' | 'danger'> = {
   待处理: 'warning',
-  已付款: 'primary',
+  已付款: '',
   待交付: 'warning',
   已完成: 'success',
   已取消: 'danger',
@@ -79,7 +79,7 @@ function openEdit(order: OrderItem) {
 
 async function saveOrder() {
   if (!form.customer.trim() || !form.createdAt.trim()) {
-    MessagePlugin.warning('请先填写客户名称和下单时间');
+    ElMessage.warning('请先填写客户名称和下单时间');
     return;
   }
 
@@ -94,139 +94,115 @@ async function saveOrder() {
     });
 
     dialogVisible.value = false;
-    MessagePlugin.success(editingId.value ? '订单已更新' : '订单已新增');
+    ElMessage.success(editingId.value ? '订单已更新' : '订单已新增');
   } catch (error) {
-    MessagePlugin.error(error instanceof Error ? error.message : '订单保存失败');
+    ElMessage.error(error instanceof Error ? error.message : '订单保存失败');
   }
 }
 
-function removeOrder(order: OrderItem) {
-  const dialog = DialogPlugin({
-    header: '确认删除订单？',
-    body: `确认删除订单「${order.id}」吗？`,
-    confirmBtn: '删除',
-    cancelBtn: '取消',
-    onConfirm: async () => {
-      try {
-        await adminStore.removeOrder(order.id);
-        MessagePlugin.success('订单已删除');
-      } catch (error) {
-        MessagePlugin.error(error instanceof Error ? error.message : '订单删除失败');
-      }
-      dialog.hide();
-    },
-    onClose: () => dialog.hide(),
-  });
+async function removeOrder(order: OrderItem) {
+  try {
+    await ElMessageBox.confirm(`确认删除订单「${order.id}」吗？`, '确认删除订单？', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+    await adminStore.removeOrder(order.id);
+    ElMessage.success('订单已删除');
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error instanceof Error ? error.message : '订单删除失败');
+    }
+  }
 }
 </script>
 
 <template>
   <div class="admin-page">
     <div class="admin-grid-3">
-      <t-card v-for="item in stats" :key="item.label" class="admin-card order-stat-card">
+      <el-card v-for="item in stats" :key="item.label" class="admin-card order-stat-card" shadow="never">
         <div class="stat-label">{{ item.label }}</div>
         <div class="stat-value">{{ item.value }}</div>
-      </t-card>
+      </el-card>
     </div>
 
     <div class="page-toolbar">
       <div class="toolbar-pills">
         <span class="toolbar-chip">最近订单 {{ adminStore.dataset.orders.length }} 条</span>
       </div>
-      <t-button theme="primary" @click="openCreate">新增订单</t-button>
+      <el-button type="primary" @click="openCreate">新增订单</el-button>
     </div>
 
-    <t-card class="admin-card order-table-card">
-      <div class="order-table__head">
+    <el-card class="admin-card" shadow="never">
+      <div class="order-table__head data-table-head">
         <span>订单信息</span>
         <span>金额 / 件数</span>
         <span>状态</span>
         <span>操作</span>
       </div>
       <div class="order-list">
-        <div v-for="order in adminStore.dataset.orders" :key="order.id" class="order-item">
+        <div v-for="order in adminStore.dataset.orders" :key="order.id" class="order-item data-table-row">
           <div>
             <div class="order-title">{{ order.id }}</div>
             <div class="order-meta">{{ order.customer }} · {{ order.createdAt }}</div>
           </div>
-          <div class="order-right order-right--summary">
+          <div class="order-right">
             <div class="order-amount">¥{{ (order.amount / 100).toFixed(2) }}</div>
             <div class="order-count">{{ order.items }} 件商品</div>
           </div>
           <div>
-            <span class="admin-chip" :class="`status-chip status-chip--${statusThemeMap[order.status] || 'default'}`">
-              {{ order.status }}
-            </span>
+            <el-tag :type="statusTypeMap[order.status] || 'info'" size="small">{{ order.status }}</el-tag>
           </div>
           <div class="order-actions">
-            <t-link theme="primary" hover="color" @click="openEdit(order)">编辑</t-link>
-            <t-link theme="danger" hover="color" @click="removeOrder(order)">删除</t-link>
+            <el-button link type="primary" @click="openEdit(order)">编辑</el-button>
+            <el-button link type="danger" @click="removeOrder(order)">删除</el-button>
           </div>
         </div>
+        <div v-if="!adminStore.dataset.orders.length" class="admin-empty">暂无订单数据。</div>
       </div>
-    </t-card>
+    </el-card>
 
-    <t-dialog
-      v-model:visible="dialogVisible"
-      :header="editingId ? '编辑订单' : '新增订单'"
-      width="700px"
-      confirm-btn="保存"
-      cancel-btn="取消"
-      @confirm="saveOrder"
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑订单' : '新增订单'"
+      width="640px"
+      destroy-on-close
     >
       <div class="form-grid">
         <div class="field">
           <span>客户名称</span>
-          <t-input v-model="form.customer" placeholder="请输入客户名称" />
+          <el-input v-model="form.customer" placeholder="请输入客户名称" />
         </div>
         <div class="field">
           <span>订单状态</span>
-          <t-select v-model="form.status" :options="statusOptions" />
+          <el-select v-model="form.status" style="width: 100%">
+            <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </div>
         <div class="field">
           <span>订单金额（元）</span>
-          <t-input-number v-model="form.amount" theme="normal" :min="0" />
+          <el-input-number v-model="form.amount" :min="0" controls-position="right" style="width: 100%" />
         </div>
         <div class="field">
           <span>商品件数</span>
-          <t-input-number v-model="form.items" theme="normal" :min="1" />
+          <el-input-number v-model="form.items" :min="1" controls-position="right" style="width: 100%" />
         </div>
         <div class="field field-full">
           <span>下单时间</span>
-          <t-input v-model="form.createdAt" placeholder="如：2026-05-13 18:20" />
+          <el-input v-model="form.createdAt" placeholder="如：2026-05-13 18:20" />
         </div>
       </div>
-    </t-dialog>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveOrder">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.page-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.toolbar-pills {
-  margin-right: auto;
-  display: flex;
-}
-
-.toolbar-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid rgba(239, 228, 218, 0.82);
-  color: var(--admin-text-soft);
-  font-size: 12px;
-}
-
-.order-stat-card :deep(.t-card__body) {
-  padding: 20px;
+.order-stat-card :deep(.el-card__body) {
+  padding: 16px 20px;
 }
 
 .stat-label {
@@ -235,122 +211,48 @@ function removeOrder(order: OrderItem) {
 }
 
 .stat-value {
-  margin-top: 12px;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.order-table-card :deep(.t-card__body) {
-  padding: 10px 12px 12px;
-}
-
-.order-table__head {
-  display: grid;
-  grid-template-columns: minmax(260px, 2fr) minmax(140px, 0.9fr) 120px 120px;
-  gap: 16px;
-  align-items: center;
-  padding: 0 16px 12px;
-  color: var(--admin-text-soft);
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: 24px;
   font-weight: 600;
+  color: var(--admin-primary);
+}
+
+.order-table__head,
+.order-item {
+  grid-template-columns: minmax(220px, 2fr) minmax(120px, 0.9fr) 100px 120px;
 }
 
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 
-.order-item {
-  display: grid;
-  grid-template-columns: minmax(260px, 2fr) minmax(140px, 0.9fr) 120px 120px;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(239, 228, 218, 0.72);
-}
-
-.order-title,
-.order-amount {
-  font-weight: 700;
+.order-title {
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .order-meta {
-  margin-top: 8px;
+  margin-top: 4px;
   color: var(--admin-text-soft);
   font-size: 13px;
 }
 
+.order-amount {
+  font-weight: 600;
+  color: var(--admin-primary);
+}
+
 .order-count {
-  margin-top: 6px;
+  margin-top: 2px;
   color: var(--admin-text-soft);
   font-size: 12px;
-}
-
-.order-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-}
-
-.order-right--summary {
-  align-items: flex-start;
-  gap: 2px;
 }
 
 .order-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.status-chip--warning {
-  color: #d97706;
-  background: rgba(255, 247, 237, 0.96);
-  border-color: rgba(245, 158, 11, 0.18);
-}
-
-.status-chip--success {
-  color: #16a34a;
-  background: rgba(240, 253, 244, 0.96);
-  border-color: rgba(34, 197, 94, 0.16);
-}
-
-.status-chip--primary {
-  color: #2563eb;
-  background: rgba(239, 246, 255, 0.96);
-  border-color: rgba(96, 165, 250, 0.2);
-}
-
-.status-chip--danger {
-  color: #dc2626;
-  background: rgba(254, 242, 242, 0.96);
-  border-color: rgba(239, 68, 68, 0.16);
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.field span {
-  color: var(--admin-text-soft);
-  font-size: 13px;
-}
-
-.field-full {
-  grid-column: 1 / -1;
+  gap: 4px;
 }
 
 @media (max-width: 920px) {
@@ -360,12 +262,7 @@ function removeOrder(order: OrderItem) {
 
   .order-item {
     grid-template-columns: 1fr;
-  }
-
-  .order-right,
-  .order-right--summary,
-  .order-actions {
-    align-items: flex-start;
+    gap: 8px;
   }
 }
 </style>

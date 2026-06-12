@@ -17,6 +17,20 @@ export interface ProductItem {
   status?: string;
 }
 
+export type AssetType = 'image' | 'video';
+
+export interface AssetItem {
+  id: string;
+  name: string;
+  type: AssetType;
+  url: string;
+  cover?: string;
+  description?: string;
+  tags: string[];
+  sort?: number;
+  status?: string;
+}
+
 export interface CategoryItem {
   id: string;
   name: string;
@@ -81,6 +95,7 @@ export interface AdminDataset {
     subtitle: string;
   };
   banners: BannerItem[];
+  assets: AssetItem[];
   categories: CategoryItem[];
   inspirations: InspirationItem[];
   articles: ArticleItem[];

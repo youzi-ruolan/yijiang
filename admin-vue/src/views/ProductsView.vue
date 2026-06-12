@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useAdminStore } from '@/stores/admin';
-import type { ProductItem } from '@/types';
+import type { AssetItem, ProductItem } from '@/types';
 
 const adminStore = useAdminStore();
 
@@ -31,22 +31,14 @@ const categoryOptions = computed(() =>
   })),
 );
 
-const filterOptions = computed(() => [{ label: '全部分类', value: 'all' }, ...categoryOptions.value]);
+const imageAssets = computed(() => adminStore.dataset.assets.filter((item) => item.type === 'image'));
+const detailAssets = computed(() => adminStore.dataset.assets);
 
 const products = computed(() =>
   categoryFilter.value === 'all'
     ? adminStore.dataset.products
     : adminStore.dataset.products.filter((item) => item.category === categoryFilter.value),
 );
-
-const columns = [
-  { colKey: 'cover', title: '封面', width: 90 },
-  { colKey: 'title', title: '名称', width: 280 },
-  { colKey: 'category', title: '分类', width: 120 },
-  { colKey: 'price', title: '价格', width: 120 },
-  { colKey: 'tags', title: '标签' },
-  { colKey: 'actions', title: '操作', width: 150 },
-];
 
 const categoryNameMap = computed(() =>
   Object.fromEntries(adminStore.productCategories.map((item) => [item.filterKey, item.name])),
@@ -64,6 +56,46 @@ function resetForm() {
   form.detailContent = '';
   form.deliverables = '';
   form.usageNotice = '';
+}
+
+function appendLine(value: string, line: string) {
+  const lines = value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  lines.push(line);
+  return lines.join('\n');
+}
+
+function assetToDetailLine(asset: AssetItem) {
+  if (asset.type === 'image') {
+    return asset.url;
+  }
+
+  return JSON.stringify({
+    type: 'video',
+    url: asset.url,
+    cover: asset.cover || '',
+    title: asset.name,
+  });
+}
+
+function applyCoverAsset(assetId: string) {
+  const asset = imageAssets.value.find((item) => item.id === assetId);
+  if (!asset) return;
+  form.cover = asset.url;
+}
+
+function appendGalleryAsset(assetId: string) {
+  const asset = imageAssets.value.find((item) => item.id === assetId);
+  if (!asset) return;
+  form.gallery = appendLine(form.gallery, asset.url);
+}
+
+function appendDetailAsset(assetId: string) {
+  const asset = detailAssets.value.find((item) => item.id === assetId);
+  if (!asset) return;
+  form.gallery = appendLine(form.gallery, assetToDetailLine(asset));
 }
 
 function openCreate() {
@@ -90,7 +122,7 @@ function openEdit(product: ProductItem) {
 
 async function saveProduct() {
   if (!form.category || form.category === 'all') {
-    MessagePlugin.warning('请选择商品分类');
+    ElMessage.warning('请选择商品分类');
     return;
   }
 
@@ -129,29 +161,26 @@ async function saveProduct() {
   try {
     await adminStore.upsertProduct(product);
     dialogVisible.value = false;
-    MessagePlugin.success(editingId.value ? '商品已更新' : '商品已新增');
+    ElMessage.success(editingId.value ? '商品已更新' : '商品已新增');
   } catch (error) {
-    MessagePlugin.error(error instanceof Error ? error.message : '商品保存失败');
+    ElMessage.error(error instanceof Error ? error.message : '商品保存失败');
   }
 }
 
-function removeProduct(product: ProductItem) {
-  const dialog = DialogPlugin({
-    header: '确认删除商品？',
-    body: `确认删除「${product.title}」吗？`,
-    confirmBtn: '删除',
-    cancelBtn: '取消',
-    onConfirm: async () => {
-      try {
-        await adminStore.removeProduct(product.id);
-        MessagePlugin.success('商品已删除');
-      } catch (error) {
-        MessagePlugin.error(error instanceof Error ? error.message : '商品删除失败');
-      }
-      dialog.hide();
-    },
-    onClose: () => dialog.hide(),
-  });
+async function removeProduct(product: ProductItem) {
+  try {
+    await ElMessageBox.confirm(`确认删除「${product.title}」吗？`, '确认删除商品？', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+    await adminStore.removeProduct(product.id);
+    ElMessage.success('商品已删除');
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error instanceof Error ? error.message : '商品删除失败');
+    }
+  }
 }
 </script>
 
@@ -161,214 +190,183 @@ function removeProduct(product: ProductItem) {
       <div class="toolbar-pills">
         <span class="toolbar-chip">共 {{ products.length }} 个商品</span>
       </div>
-      <t-select v-model="categoryFilter" :options="filterOptions" class="toolbar-select" />
-      <t-button theme="primary" @click="openCreate">新增商品</t-button>
+      <el-select v-model="categoryFilter" class="toolbar-select" placeholder="全部分类">
+        <el-option label="全部分类" value="all" />
+        <el-option v-for="opt in categoryOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+      </el-select>
+      <el-button type="primary" @click="openCreate">新增商品</el-button>
     </div>
 
-    <t-card class="admin-card table-card">
-      <t-table :data="products" :columns="columns" row-key="id" hover table-layout="auto">
-        <template #cover="{ row }">
-          <img :src="row.cover" :alt="row.title" class="admin-thumb" />
-        </template>
+    <el-card class="admin-card table-card" shadow="never">
+      <el-table :data="products" row-key="id" stripe style="width: 100%">
+        <el-table-column label="封面" width="80">
+          <template #default="{ row }">
+            <img :src="row.cover" :alt="row.title" class="admin-thumb" />
+          </template>
+        </el-table-column>
+        <el-table-column label="名称" min-width="240">
+          <template #default="{ row }">
+            <div class="table-title">{{ row.title }}</div>
+            <div class="table-desc">{{ row.description }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="分类" width="120">
+          <template #default="{ row }">
+            <span class="admin-chip">{{ categoryNameMap[row.category] || row.category }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="价格" width="100">
+          <template #default="{ row }">
+            <span class="price-current">¥{{ row.price }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="标签" min-width="160">
+          <template #default="{ row }">
+            <div class="admin-tag-list">
+              <span v-for="tag in row.tags" :key="tag" class="admin-chip">{{ tag }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="140" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="danger" @click="removeProduct(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
-        <template #title="{ row }">
-          <div class="table-title">{{ row.title }}</div>
-          <div class="table-desc">{{ row.description }}</div>
-        </template>
-
-        <template #category="{ row }">
-          <span class="admin-chip">{{ categoryNameMap[row.category] || row.category }}</span>
-        </template>
-
-        <template #price="{ row }">
-          <span class="price-current">¥{{ row.price }}</span>
-        </template>
-
-        <template #tags="{ row }">
-          <div class="admin-tag-list">
-            <span v-for="tag in row.tags" :key="tag" class="admin-chip">{{ tag }}</span>
-          </div>
-        </template>
-
-        <template #actions="{ row }">
-          <t-space>
-            <t-link theme="primary" hover="color" @click="openEdit(row)">编辑</t-link>
-            <t-link theme="danger" hover="color" @click="removeProduct(row)">删除</t-link>
-          </t-space>
-        </template>
-      </t-table>
-    </t-card>
-
-    <t-dialog
-      v-model:visible="dialogVisible"
-      :header="editingId ? '编辑商品' : '新增商品'"
-      width="760px"
-      confirm-btn="保存"
-      cancel-btn="取消"
-      @confirm="saveProduct"
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑商品' : '新增商品'"
+      width="720px"
+      destroy-on-close
     >
       <div class="form-grid">
         <div class="field field-full">
           <span>商品名称</span>
-          <t-input v-model="form.title" placeholder="请输入商品名称" />
+          <el-input v-model="form.title" placeholder="请输入商品名称" />
         </div>
         <div class="field field-full">
           <span>商品简介</span>
-          <t-textarea v-model="form.description" placeholder="请输入商品简介" :autosize="{ minRows: 3, maxRows: 5 }" />
+          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入商品简介" />
         </div>
         <div class="field">
           <span>售价</span>
-          <t-input-number v-model="form.price" theme="normal" />
+          <el-input-number v-model="form.price" :min="0" controls-position="right" style="width: 100%" />
         </div>
         <div class="field">
           <span>分类</span>
-          <t-select v-model="form.category" :options="categoryOptions" placeholder="请选择商品分类" />
+          <el-select v-model="form.category" placeholder="请选择商品分类" style="width: 100%">
+            <el-option v-for="opt in categoryOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </div>
         <div class="field">
           <span>销量</span>
-          <t-input-number v-model="form.sales" theme="normal" />
+          <el-input-number v-model="form.sales" :min="0" controls-position="right" style="width: 100%" />
         </div>
         <div class="field field-full">
           <span>封面图 URL</span>
-          <t-input v-model="form.cover" placeholder="请输入封面图链接" />
+          <el-input v-model="form.cover" placeholder="请输入封面图链接" />
+          <el-select
+            v-if="imageAssets.length"
+            clearable
+            placeholder="从文件管理选择封面图"
+            style="width: 100%; margin-top: 8px"
+            @change="(value: string) => value && applyCoverAsset(value)"
+          >
+            <el-option v-for="item in imageAssets" :key="item.id" :label="item.name" :value="item.id" />
+          </el-select>
         </div>
         <div class="field field-full">
           <span>标签</span>
-          <t-input v-model="form.tags" placeholder="多个标签用逗号分隔" />
+          <el-input v-model="form.tags" placeholder="多个标签用逗号分隔" />
         </div>
         <div class="field field-full">
           <span>详情图集</span>
-          <t-textarea
+          <el-input
             v-model="form.gallery"
-            placeholder="每行一个图片链接"
-            :autosize="{ minRows: 3, maxRows: 5 }"
+            type="textarea"
+            :rows="3"
+            placeholder="每行一个图片链接；视频会以 JSON 行保存并在小程序详情展示"
           />
+          <div class="asset-picker-row">
+            <el-select
+              v-if="imageAssets.length"
+              clearable
+              placeholder="追加图片到图集"
+              @change="(value: string) => value && appendGalleryAsset(value)"
+            >
+              <el-option v-for="item in imageAssets" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+            <el-select
+              v-if="detailAssets.length"
+              clearable
+              placeholder="追加图片/视频到详情媒体"
+              @change="(value: string) => value && appendDetailAsset(value)"
+            >
+              <el-option
+                v-for="item in detailAssets"
+                :key="item.id"
+                :label="`${item.type === 'image' ? '图片' : '视频'} · ${item.name}`"
+                :value="item.id"
+              />
+            </el-select>
+          </div>
         </div>
         <div class="field field-full">
           <span>详情正文</span>
-          <t-textarea
-            v-model="form.detailContent"
-            placeholder="每行一段详情说明"
-            :autosize="{ minRows: 4, maxRows: 8 }"
-          />
+          <el-input v-model="form.detailContent" type="textarea" :rows="4" placeholder="每行一段详情说明" />
         </div>
         <div class="field field-full">
           <span>交付内容</span>
-          <t-textarea
-            v-model="form.deliverables"
-            placeholder="每行一条交付内容"
-            :autosize="{ minRows: 3, maxRows: 6 }"
-          />
+          <el-input v-model="form.deliverables" type="textarea" :rows="3" placeholder="每行一条交付内容" />
         </div>
         <div class="field field-full">
           <span>使用说明</span>
-          <t-textarea
-            v-model="form.usageNotice"
-            placeholder="每行一条使用说明"
-            :autosize="{ minRows: 3, maxRows: 6 }"
-          />
+          <el-input v-model="form.usageNotice" type="textarea" :rows="3" placeholder="每行一条使用说明" />
         </div>
       </div>
-    </t-dialog>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveProduct">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.page-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.toolbar-pills {
-  margin-right: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.toolbar-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid rgba(239, 228, 218, 0.82);
-  color: var(--admin-text-soft);
-  font-size: 12px;
-}
-
-.toolbar-select {
-  width: 180px;
-}
-
-.table-card :deep(.t-card__body) {
-  padding: 10px 12px 12px;
-}
-
-.table-card :deep(.t-table) {
-  border-radius: 18px;
-  overflow: hidden;
-}
-
-.table-card :deep(.t-table th) {
-  background: #fff9f5;
-  color: var(--admin-text-soft);
-  font-weight: 600;
-}
-
-.table-card :deep(.t-table td) {
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.table-card :deep(.t-table tr:hover td) {
-  background: #fffdfb;
+.table-card :deep(.el-card__body) {
+  padding: 0;
 }
 
 .table-title {
-  font-weight: 700;
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .table-desc {
-  margin-top: 6px;
+  margin-top: 4px;
   color: var(--admin-text-soft);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .price-current {
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--admin-primary);
 }
 
-.form-grid {
+.asset-picker-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
-}
-
-.field span {
-  color: var(--admin-text-soft);
-  font-size: 13px;
-}
-
-.field-full {
-  grid-column: 1 / -1;
+  margin-top: 8px;
 }
 
 @media (max-width: 640px) {
-  .toolbar-pills {
-    width: 100%;
-  }
-
-  .toolbar-select {
-    width: 100%;
+  .asset-picker-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

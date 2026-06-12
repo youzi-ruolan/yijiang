@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useAdminStore } from '@/stores/admin';
 import type { CategoryItem } from '@/types';
 
@@ -74,7 +74,7 @@ async function saveCategory() {
   const filterKey = toFilterKey(form.filterKey || form.name);
 
   if (!name || !filterKey) {
-    MessagePlugin.warning('请先填写分类名称和标识');
+    ElMessage.warning('请先填写分类名称和标识');
     return;
   }
 
@@ -82,7 +82,7 @@ async function saveCategory() {
     (item) => item.filterKey === filterKey && item.id !== editingId.value,
   );
   if (duplicated) {
-    MessagePlugin.warning('分类标识已存在，请更换后再保存');
+    ElMessage.warning('分类标识已存在，请更换后再保存');
     return;
   }
 
@@ -95,46 +95,43 @@ async function saveCategory() {
     });
 
     dialogVisible.value = false;
-    MessagePlugin.success(editingId.value ? '分类已更新' : '分类已新增');
+    ElMessage.success(editingId.value ? '分类已更新' : '分类已新增');
   } catch (error) {
-    MessagePlugin.error(error instanceof Error ? error.message : '分类保存失败');
+    ElMessage.error(error instanceof Error ? error.message : '分类保存失败');
   }
 }
 
-function removeCategory(category: CategoryItem) {
+async function removeCategory(category: CategoryItem) {
   if (category.filterKey === 'all') {
-    MessagePlugin.warning('默认“全部”分类建议保留');
+    ElMessage.warning('默认"全部"分类建议保留');
     return;
   }
 
-  const dialog = DialogPlugin({
-    header: '确认删除分类？',
-    body: `确认删除「${category.name}」吗？相关商品会自动切换到其他分类。`,
-    confirmBtn: '删除',
-    cancelBtn: '取消',
-    onConfirm: async () => {
-      try {
-        await adminStore.removeCategory(category.id);
-        MessagePlugin.success('分类已删除');
-      } catch (error) {
-        MessagePlugin.error(error instanceof Error ? error.message : '分类删除失败');
-      }
-      dialog.hide();
-    },
-    onClose: () => dialog.hide(),
-  });
+  try {
+    await ElMessageBox.confirm(
+      `确认删除「${category.name}」吗？相关商品会自动切换到其他分类。`,
+      '确认删除分类？',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+    );
+    await adminStore.removeCategory(category.id);
+    ElMessage.success('分类已删除');
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error instanceof Error ? error.message : '分类删除失败');
+    }
+  }
 }
 </script>
 
 <template>
   <div class="admin-page">
     <div class="page-toolbar">
-      <t-button theme="primary" @click="openCreate">新增分类</t-button>
+      <el-button type="primary" @click="openCreate">新增分类</el-button>
     </div>
 
-    <t-card class="admin-card">
+    <el-card class="admin-card" shadow="never">
       <div class="category-list">
-        <div class="category-list__head">
+        <div class="category-list__head data-table-head">
           <span>分类信息</span>
           <span>分类标识</span>
           <span>归属模块</span>
@@ -142,12 +139,10 @@ function removeCategory(category: CategoryItem) {
           <span>操作</span>
         </div>
 
-        <div v-for="category in categories" :key="category.id" class="category-item">
+        <div v-for="category in categories" :key="category.id" class="category-item data-table-row">
           <div class="category-main">
             <img :src="category.preview" :alt="category.name" class="category-thumb" />
-            <div class="category-main__info">
-              <div class="category-name">{{ category.name }}</div>
-            </div>
+            <div class="category-name">{{ category.name }}</div>
           </div>
 
           <div class="category-cell">
@@ -162,142 +157,95 @@ function removeCategory(category: CategoryItem) {
 
           <div class="category-cell">
             <span class="category-label-mobile">数据 ID</span>
-            <span class="category-plain">{{ category.id }}</span>
+            <span class="category-plain category-id">{{ category.id }}</span>
           </div>
 
           <div class="category-actions">
-            <t-link theme="primary" hover="color" @click="openEdit(category)">编辑</t-link>
-            <t-link theme="danger" hover="color" @click="removeCategory(category)">删除</t-link>
+            <el-button link type="primary" @click="openEdit(category)">编辑</el-button>
+            <el-button link type="danger" @click="removeCategory(category)">删除</el-button>
           </div>
         </div>
       </div>
-    </t-card>
+    </el-card>
 
-    <t-dialog
-      v-model:visible="dialogVisible"
-      :header="editingId ? '编辑分类' : '新增分类'"
-      width="620px"
-      confirm-btn="保存"
-      cancel-btn="取消"
-      @confirm="saveCategory"
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑分类' : '新增分类'"
+      width="560px"
+      destroy-on-close
     >
       <div class="form-grid">
         <div class="field">
           <span>分类名称</span>
-          <t-input v-model="form.name" placeholder="请输入分类名称" />
+          <el-input v-model="form.name" placeholder="请输入分类名称" />
         </div>
         <div class="field">
           <span>分类标识</span>
-          <t-input v-model="form.filterKey" placeholder="如：wedding / retouch" />
+          <el-input v-model="form.filterKey" placeholder="如：wedding / retouch" />
         </div>
         <div class="field field-full">
           <span>归属模块</span>
-          <t-select v-model="form.target" :options="targetOptions" />
+          <el-select v-model="form.target" style="width: 100%">
+            <el-option v-for="opt in targetOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </div>
       </div>
-    </t-dialog>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveCategory">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.page-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.category-list {
-  display: flex;
-  flex-direction: column;
-}
-
 .category-list__head,
 .category-item {
-  display: grid;
-  grid-template-columns: minmax(280px, 2fr) minmax(120px, 0.8fr) minmax(120px, 0.9fr) minmax(150px, 1fr) 120px;
-  gap: 16px;
-  align-items: center;
-}
-
-.category-list__head {
-  padding: 0 16px 12px;
-  color: var(--admin-text-soft);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.category-item {
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(239, 228, 218, 0.72);
-}
-
-.category-item + .category-item {
-  margin-top: 12px;
+  grid-template-columns: minmax(200px, 2fr) minmax(100px, 0.8fr) minmax(100px, 0.8fr) minmax(120px, 1fr) 120px;
 }
 
 .category-main {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
 .category-thumb {
-  width: 88px;
-  height: 64px;
-  border-radius: 14px;
+  width: 64px;
+  height: 48px;
+  border-radius: var(--admin-radius-sm);
   object-fit: cover;
   background: var(--admin-bg);
+  border: 1px solid var(--admin-line);
   flex-shrink: 0;
 }
 
-.category-main__info {
-  min-width: 0;
-}
-
 .category-name {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .category-plain {
   color: var(--admin-text-soft);
   font-size: 13px;
-  line-height: 1.7;
+}
+
+.category-id {
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
 }
 
 .category-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 4px;
   justify-content: flex-end;
 }
 
 .category-label-mobile {
   display: none;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.field span {
-  color: var(--admin-text-soft);
-  font-size: 13px;
-}
-
-.field-full {
-  grid-column: 1 / -1;
 }
 
 @media (max-width: 1100px) {
@@ -307,38 +255,29 @@ function removeCategory(category: CategoryItem) {
 
   .category-item {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 8px;
   }
 
   .category-cell,
   .category-actions {
-    padding-left: 102px;
+    padding-left: 76px;
   }
 
   .category-label-mobile {
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     color: var(--admin-text-soft);
     font-size: 12px;
   }
 
   .category-actions {
     justify-content: flex-start;
+    padding-left: 0;
   }
 }
 
 @media (max-width: 640px) {
-  .category-main {
-    align-items: flex-start;
-  }
-
-  .category-thumb {
-    width: 72px;
-    height: 54px;
-  }
-
-  .category-cell,
-  .category-actions {
+  .category-cell {
     padding-left: 0;
   }
 }

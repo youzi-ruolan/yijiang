@@ -44,6 +44,16 @@ const routes = [
         },
       },
       {
+        path: 'assets',
+        name: 'assets',
+        component: () => import('@/views/AssetsView.vue'),
+        meta: {
+          title: '文件管理',
+          subtitle: '维护腾讯云 COS 图片和视频链接，供商品详情引用展示',
+          requiresAuth: true,
+        },
+      },
+      {
         path: 'content',
         name: 'content',
         component: () => import('@/views/ContentView.vue'),

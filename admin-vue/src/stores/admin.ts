@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import type {
   AdminDataset,
   ArticleItem,
+  AssetItem,
   BannerItem,
   CategoryItem,
   InspirationItem,
@@ -10,28 +11,33 @@ import type {
 } from '@/types';
 import {
   createArticleApi,
+  createAssetApi,
   createBannerApi,
   createCategoryApi,
   createInspirationApi,
   createOrderApi,
   createProductApi,
   deleteArticleApi,
+  deleteAssetApi,
   deleteBannerApi,
   deleteCategoryApi,
   deleteInspirationApi,
   deleteOrderApi,
   deleteProductApi,
   getArticlesApi,
+  getAssetsApi,
   getBannersApi,
   getCategoriesApi,
   getInspirationsApi,
   getOrdersApi,
   getProductsApi,
   getSettingsApi,
+  mapAssetFromApi,
   mapOrderFromApi,
   mapProductFromApi,
   mapSettingsToDataset,
   updateArticleApi,
+  updateAssetApi,
   updateBannerApi,
   updateCategoryApi,
   updateInspirationApi,
@@ -52,6 +58,7 @@ function createEmptyDataset(): AdminDataset {
       subtitle: 'LUT / PowerGrade / ACES / 商业交付模板',
     },
     banners: [],
+    assets: [],
     categories: [],
     inspirations: [],
     articles: [],
@@ -80,10 +87,11 @@ export const useAdminStore = defineStore('admin', {
 
       this.loading = true;
       try {
-        const [settings, categories, banners, inspirations, articles, products, orders] = await Promise.all([
+        const [settings, categories, banners, assets, inspirations, articles, products, orders] = await Promise.all([
           getSettingsApi(),
           getCategoriesApi(),
           getBannersApi(),
+          getAssetsApi(),
           getInspirationsApi(),
           getArticlesApi(),
           getProductsApi(),
@@ -104,6 +112,7 @@ export const useAdminStore = defineStore('admin', {
             subtitle: mappedSettings.headlineSubtitle,
           },
           banners,
+          assets: assets.map(mapAssetFromApi),
           categories,
           inspirations,
           articles,
@@ -155,6 +164,26 @@ export const useAdminStore = defineStore('admin', {
     async removeProduct(productId: string) {
       await deleteProductApi(productId);
       this.dataset.products = this.dataset.products.filter((item) => item.id !== productId);
+    },
+
+    async upsertAsset(payload: AssetItem) {
+      const response =
+        payload.id && this.dataset.assets.some((item) => item.id === payload.id)
+          ? await updateAssetApi(payload.id, payload)
+          : await createAssetApi(payload);
+      const nextAsset = mapAssetFromApi(response);
+      const index = this.dataset.assets.findIndex((item) => item.id === nextAsset.id);
+
+      if (index > -1) {
+        this.dataset.assets.splice(index, 1, nextAsset);
+      } else {
+        this.dataset.assets.unshift(nextAsset);
+      }
+    },
+
+    async removeAsset(assetId: string) {
+      await deleteAssetApi(assetId);
+      this.dataset.assets = this.dataset.assets.filter((item) => item.id !== assetId);
     },
 
     async upsertCategory(payload: CategoryItem) {

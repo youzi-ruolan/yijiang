@@ -65,6 +65,23 @@ model Product {
   @@index([status, sort])
 }
 
+model Asset {
+  id          String   @id
+  name        String
+  type        String
+  url         String   @db.Text
+  cover       String?  @db.Text
+  description String?  @db.Text
+  tags        Json
+  sort        Int      @default(0)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type, sort])
+  @@index([status, sort])
+}
+
 model Banner {
   id          String   @id
   title       String

@@ -914,6 +914,8 @@ export class PublicService {
     const productCard = this.formatProductCard(product, realSales);
     const tags = productCard.tags;
     const gallery = productCard.gallery;
+    const detailMedia = [product.cover, ...gallery].map((item) => this.toProductMediaItem(item));
+    const galleryImages = detailMedia.filter((item) => item.type === 'image').map((item) => item.url);
     const standardPrice = Math.round(product.price * 100);
     const linePrice = Math.round(product.price * 100);
     const specList = tags.length
@@ -947,7 +949,7 @@ export class PublicService {
       title: product.title,
       intro: product.description,
       primaryImage: product.cover,
-      images: [product.cover, ...gallery],
+      images: galleryImages,
       available: 1,
       minSalePrice: standardPrice,
       minLinePrice: linePrice,
@@ -973,7 +975,8 @@ export class PublicService {
         image: null,
       })),
       limitInfo: productCard.usageNotice[0] ? [{ text: productCard.usageNotice[0] }] : [],
-      desc: [product.cover, ...gallery],
+      desc: galleryImages,
+      detailMedia,
       etitle: '',
       detailContent: productCard.detailContent,
       deliverables: productCard.deliverables,
@@ -1216,6 +1219,37 @@ export class PublicService {
 
   private toStringArray(value: unknown) {
     return Array.isArray(value) ? value.map((item) => `${item}`) : [];
+  }
+
+  private toProductMediaItem(value: string) {
+    const fallback = {
+      type: this.inferMediaType(value),
+      url: value,
+      cover: '',
+      title: '',
+    };
+
+    try {
+      const parsed = JSON.parse(value) as { type?: string; url?: string; src?: string; cover?: string; title?: string };
+      const url = `${parsed.url || parsed.src || ''}`.trim();
+
+      if (!url) {
+        return fallback;
+      }
+
+      return {
+        type: parsed.type === 'video' || this.inferMediaType(url) === 'video' ? 'video' : 'image',
+        url,
+        cover: parsed.cover || '',
+        title: parsed.title || '',
+      };
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  private inferMediaType(url: string) {
+    return /\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(url) ? 'video' : 'image';
   }
 
   private async getRealProductSalesMap(productIds?: string[]) {

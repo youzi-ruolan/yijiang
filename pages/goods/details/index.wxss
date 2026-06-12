@@ -410,6 +410,16 @@ page {
   height: auto;
 }
 
+.goods-detail-page .desc-content__video {
+  display: block;
+  width: calc(100% - 48rpx);
+  height: 420rpx;
+  margin: 0 24rpx 24rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  background: #111;
+}
+
 .goods-bottom-operation {
   position: fixed;
   left: 0;

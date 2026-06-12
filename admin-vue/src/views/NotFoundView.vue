@@ -13,7 +13,7 @@ function goHome() {
     <div class="not-found-code">404</div>
     <h1>页面不存在</h1>
     <p>这个地址暂时还没有对应页面，我们先回到后台首页继续工作吧。</p>
-    <t-button theme="primary" @click="goHome">返回项目总览</t-button>
+    <el-button type="primary" @click="goHome">返回项目总览</el-button>
   </div>
 </template>
 
@@ -25,12 +25,12 @@ function goHome() {
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 14px;
+  gap: 12px;
   padding: 32px;
 }
 
 .not-found-code {
-  font-size: 72px;
+  font-size: 64px;
   font-weight: 700;
   color: var(--admin-primary);
   line-height: 1;
@@ -38,13 +38,15 @@ function goHome() {
 
 h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 22px;
+  font-weight: 600;
 }
 
 p {
   margin: 0;
-  max-width: 420px;
+  max-width: 400px;
   color: var(--admin-text-soft);
-  line-height: 1.8;
+  line-height: 1.7;
+  font-size: 14px;
 }
 </style>

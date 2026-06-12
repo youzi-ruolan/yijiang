@@ -86,6 +86,7 @@ Page({
     soldNum: 0, // 已售数量
     intro: '',
     detailContent: [],
+    detailMedia: [],
     deliverables: [],
     usageNotice: [],
     limitBuyInfo: '',
@@ -438,9 +439,11 @@ Page({
       soldNum,
       intro,
       detailContent = [],
+      detailMedia = [],
       deliverables = [],
       usageNotice = [],
     } = details;
+    const normalizedDetailMedia = this.normalizeDetailMedia(detailMedia.length ? detailMedia : details.desc || []);
 
     skuList.forEach((item) => {
       skuArray.push({
@@ -498,10 +501,35 @@ Page({
       selectItem: defaultSku.skuId ? defaultSku : null,
       selectSkuSellsPrice: defaultSku.price || minSalePrice || 0,
       detailContent,
+      detailMedia: normalizedDetailMedia,
       deliverables,
       usageNotice,
       limitBuyInfo: details.limitInfo?.[0]?.text || '',
     });
+  },
+
+  normalizeDetailMedia(mediaList = []) {
+    return mediaList
+      .map((item) => {
+        if (typeof item === 'string') {
+          return {
+            type: /\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(item) ? 'video' : 'image',
+            url: item,
+            cover: '',
+            title: '',
+          };
+        }
+
+        const url = item.url || item.src || '';
+
+        return {
+          type: item.type === 'video' || /\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(url) ? 'video' : 'image',
+          url,
+          cover: item.cover || '',
+          title: item.title || '',
+        };
+      })
+      .filter((item) => item.url);
   },
 
   async getDetail(spuId) {
