@@ -59,6 +59,11 @@ DATABASE_URL=mysql://...
 JWT_SECRET=换成你自己的复杂字符串
 NODE_ENV=production
 CORS_ORIGIN=https://你的-admin-域名,https://你的小程序业务域名
+TENCENT_COS_SECRET_ID=你的腾讯云SecretId
+TENCENT_COS_SECRET_KEY=你的腾讯云SecretKey
+TENCENT_COS_BUCKET=你的存储桶名称
+TENCENT_COS_REGION=ap-guangzhou
+TENCENT_COS_PUBLIC_BASE_URL=https://你的桶访问域名
 ```
 
 说明：
