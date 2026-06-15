@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { uploadAssetFileApi, updateAssetApi, mapAssetFromApi, uploadAssetFileDirectApi } from '@/api/admin';
+import { uploadAssetFileApi, updateAssetApi, mapAssetFromApi } from '@/api/admin';
 import { useAdminStore } from '@/stores/admin';
 import { captureVideoCover } from '@/utils/video-cover';
 import type { AssetItem, AssetType } from '@/types';
@@ -54,20 +54,7 @@ export function useAssetUpload() {
     uploadProgress.value = `正在上传 ${file.name}...`;
 
     try {
-      let asset: AssetItem;
-      if (type === 'video') {
-        try {
-          asset = await uploadAssetFileDirectApi(file, 'video');
-        } catch (directError) {
-          const directMessage = directError instanceof Error ? directError.message : '';
-          if (directMessage.includes('Failed to fetch') || directMessage.includes('NetworkError')) {
-            ElMessage.warning('视频直传失败，正在改经服务端上传...');
-          }
-          asset = await uploadAssetFileApi(file);
-        }
-      } else {
-        asset = await uploadAssetFileApi(file);
-      }
+      const asset = await uploadAssetFileApi(file);
       let nextAsset = asset;
 
       if (type === 'video' && !asset.cover) {
