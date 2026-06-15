@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHash, createHmac, randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import COS from 'cos-nodejs-sdk-v5';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { CreateUploadSignatureDto } from './dto/create-upload-signature.dto';
@@ -64,33 +65,44 @@ export class AssetsService {
     const type = this.resolveUploadType(file);
     this.validateUploadSize(file.size, type);
 
-    const contentType = file.mimetype || this.getDefaultContentType(type);
-    const signature = this.buildUploadSignature(file.originalname, type, contentType);
+    const { bucket, region, publicBaseUrl } = this.getCosConfig();
+    const objectKey = this.createObjectKey(file.originalname, type);
+    const contentType = this.resolveContentType(file, type);
+    const cos = this.getCosClient();
 
-    const response = await fetch(signature.uploadUrl, {
-      method: 'PUT',
-      headers: {
-        Authorization: signature.authorization,
-        'Content-Type': signature.contentType,
-      },
-      body: new Uint8Array(file.buffer),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new BadRequestException(errorText || `COS 上传失败：${response.status}`);
+    try {
+      await cos.putObject({
+        Bucket: bucket,
+        Region: region,
+        Key: objectKey,
+        Body: file.buffer,
+        ContentType: contentType,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'COS 上传失败';
+      throw new BadRequestException(message);
     }
+
+    const publicUrl = `${publicBaseUrl.replace(/\/$/, '')}/${objectKey}`;
 
     return this.create({
       id: `asset_${Date.now()}_${randomBytes(3).toString('hex')}`,
       name: this.getFileNameWithoutExtension(file.originalname),
       type,
-      url: signature.publicUrl,
+      url: publicUrl,
       cover: '',
       description: `上传文件：${file.originalname}`,
       tags: [],
       sort: 0,
       status: 'ACTIVE',
+    });
+  }
+
+  private getCosClient() {
+    const { secretId, secretKey } = this.getCosConfig();
+    return new COS({
+      SecretId: secretId,
+      SecretKey: secretKey,
     });
   }
 
@@ -105,7 +117,34 @@ export class AssetsService {
       throw new BadRequestException('COS 上传配置不完整，请检查服务端环境变量');
     }
 
-    return { secretId, secretKey, bucket, region, publicBaseUrl };
+    return {
+      secretId: secretId.trim(),
+      secretKey: secretKey.trim(),
+      bucket: bucket.trim(),
+      region: region.trim(),
+      publicBaseUrl: publicBaseUrl.trim(),
+    };
+  }
+
+  private resolveContentType(file: { originalname: string; mimetype: string }, type: 'image' | 'video') {
+    const extension = file.originalname.split('.').pop()?.toLowerCase() || '';
+    const contentTypeMap: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      webp: 'image/webp',
+      gif: 'image/gif',
+      mp4: 'video/mp4',
+      mov: 'video/quicktime',
+      m4v: 'video/mp4',
+      webm: 'video/webm',
+    };
+
+    if (file.mimetype && file.mimetype !== 'application/octet-stream') {
+      return file.mimetype;
+    }
+
+    return contentTypeMap[extension] || this.getDefaultContentType(type);
   }
 
   private resolveUploadType(file: { originalname: string; mimetype: string }): 'image' | 'video' {
