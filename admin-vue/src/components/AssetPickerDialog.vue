@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Plus, Upload } from '@element-plus/icons-vue';
 import { useAdminStore } from '@/stores/admin';
 import { useAssetUpload } from '@/composables/useAssetUpload';
+import VideoPreview from '@/components/VideoPreview.vue';
 import type { AssetItem, AssetType } from '@/types';
 
 const props = withDefaults(
@@ -48,6 +49,20 @@ const filteredAssets = computed(() => {
     return matchesType && matchesAssetType && matchesKeyword;
   });
 });
+
+const uploadAccept = computed(() => {
+  if (props.assetType === 'image') {
+    return 'image/jpeg,image/png,image/webp,image/gif';
+  }
+  if (props.assetType === 'video') {
+    return 'video/mp4,video/quicktime,video/webm,video/x-m4v';
+  }
+  return 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm';
+});
+
+const pickedAssets = computed(() =>
+  adminStore.dataset.assets.filter((item) => pickedIds.value.includes(item.id)),
+);
 
 function close() {
   emit('update:visible', false);
@@ -127,11 +142,14 @@ async function handleUpload(event: Event) {
         class="upload-input"
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
+        :accept="uploadAccept"
         @change="handleUpload"
       />
       <el-button :icon="Upload" :loading="uploading" @click="openUpload">上传并选用</el-button>
     </div>
+
+    <p v-if="assetType === 'video'" class="picker-hint">点击卡片选中；点播放按钮可预览视频，有封面的会显示封面图。</p>
+    <p v-else-if="assetType === 'image'" class="picker-hint">点击卡片选中图片，支持多选后一次插入。</p>
 
     <div v-if="filteredAssets.length" class="picker-grid">
       <button
@@ -144,10 +162,13 @@ async function handleUpload(event: Event) {
       >
         <div class="picker-item__preview">
           <img v-if="asset.type === 'image'" :src="asset.url" :alt="asset.name" />
-          <template v-else>
-            <img v-if="asset.cover" :src="asset.cover" :alt="asset.name" />
-            <div v-else class="picker-item__video-placeholder">视频</div>
-          </template>
+          <VideoPreview
+            v-else
+            :src="asset.url"
+            :cover="asset.cover"
+            compact
+            play-on-button
+          />
           <span class="picker-item__type">{{ asset.type === 'image' ? '图片' : '视频' }}</span>
         </div>
         <div class="picker-item__name">{{ asset.name }}</div>
@@ -156,8 +177,24 @@ async function handleUpload(event: Event) {
 
     <div v-else class="picker-empty">
       <el-icon class="picker-empty__icon"><Plus /></el-icon>
-      <p>资源库暂无文件</p>
+      <p>{{ assetType === 'video' ? '资源库暂无视频' : assetType === 'image' ? '资源库暂无图片' : '资源库暂无文件' }}</p>
       <el-button type="primary" :loading="uploading" @click="openUpload">上传第一个文件</el-button>
+    </div>
+
+    <div v-if="mode === 'multiple' && pickedAssets.length" class="picker-selected">
+      <div class="picker-selected__title">已选 {{ pickedAssets.length }} 个</div>
+      <div class="picker-selected__list">
+        <div v-for="asset in pickedAssets" :key="asset.id" class="picker-selected__item">
+          <img v-if="asset.type === 'image'" :src="asset.url" :alt="asset.name" />
+          <VideoPreview
+            v-else
+            :src="asset.url"
+            :cover="asset.cover"
+            compact
+            play-on-button
+          />
+        </div>
+      </div>
     </div>
 
     <template #footer>
@@ -181,6 +218,13 @@ async function handleUpload(event: Event) {
 .picker-search {
   flex: 1;
   min-width: 200px;
+}
+
+.picker-hint {
+  margin: -4px 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--admin-text-soft);
 }
 
 .upload-input {
@@ -227,14 +271,9 @@ async function handleUpload(event: Event) {
   display: block;
 }
 
-.picker-item__video-placeholder {
+.picker-item__preview :deep(.video-preview) {
   width: 100%;
   height: 100%;
-  display: grid;
-  place-items: center;
-  color: var(--admin-text-soft);
-  font-size: 13px;
-  background: #f5f8fc;
 }
 
 .picker-item__type {
@@ -271,5 +310,47 @@ async function handleUpload(event: Event) {
 
 .picker-empty p {
   margin: 0 0 16px;
+}
+
+.picker-selected {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--admin-line);
+}
+
+.picker-selected__title {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--admin-text-soft);
+}
+
+.picker-selected__list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.picker-selected__item {
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  background: #101820;
+  flex-shrink: 0;
+}
+
+.picker-selected__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.picker-selected__item :deep(.video-preview) {
+  width: 100%;
+  height: 100%;
 }
 </style>

@@ -3,6 +3,9 @@ import { computed, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Upload } from '@element-plus/icons-vue';
 import { useAssetUpload } from '@/composables/useAssetUpload';
+import VideoPreview from '@/components/VideoPreview.vue';
+import { uploadAssetFileApi } from '@/api/admin';
+import { captureVideoCoverFromUrl } from '@/utils/video-cover';
 import { useAdminStore } from '@/stores/admin';
 import type { AssetItem, AssetType } from '@/types';
 
@@ -15,6 +18,7 @@ const dialogVisible = ref(false);
 const editingId = ref('');
 const dragOver = ref(false);
 const uploadInputRef = ref<HTMLInputElement | null>(null);
+const generatingCover = ref(false);
 
 const form = reactive({
   name: '',
@@ -87,6 +91,21 @@ const filteredAssets = computed(() => {
     return matchesType && matchesKeyword;
   });
 });
+
+const assetTypeCounts = computed(() => {
+  const assets = adminStore.dataset.assets;
+  return {
+    all: assets.length,
+    image: assets.filter((item) => item.type === 'image').length,
+    video: assets.filter((item) => item.type === 'video').length,
+  };
+});
+
+const typeTabOptions = computed(() => [
+  { label: '全部', value: 'all' as const, count: assetTypeCounts.value.all },
+  { label: '图片', value: 'image' as const, count: assetTypeCounts.value.image },
+  { label: '视频', value: 'video' as const, count: assetTypeCounts.value.video },
+]);
 
 function resetForm() {
   form.name = '';
@@ -162,6 +181,32 @@ async function onDrop(event: DragEvent) {
   await handleSelectedFiles(event.dataTransfer?.files || []);
 }
 
+async function generateCoverFromVideo() {
+  const url = form.url.trim();
+  if (!url) {
+    ElMessage.warning('请先填写视频链接');
+    return;
+  }
+
+  generatingCover.value = true;
+  try {
+    const dataUrl = await captureVideoCoverFromUrl(url);
+    const blob = await fetch(dataUrl).then((response) => response.blob());
+    const coverFile = new File(
+      [blob],
+      `${form.name.trim() || 'video'}-cover.jpg`,
+      { type: 'image/jpeg' },
+    );
+    const coverAsset = await uploadAssetFileApi(coverFile);
+    form.cover = coverAsset.url;
+    ElMessage.success('封面已生成，请保存文件');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '封面生成失败');
+  } finally {
+    generatingCover.value = false;
+  }
+}
+
 async function saveAsset() {
   const name = form.name.trim();
   const url = form.url.trim();
@@ -218,15 +263,10 @@ async function removeAsset(asset: AssetItem) {
   <div class="admin-page">
     <div class="page-toolbar">
       <div class="toolbar-pills">
-        <span class="toolbar-chip">共 {{ filteredAssets.length }} 个文件</span>
-        <span class="toolbar-chip">上传后可在商品管理中直接选用</span>
+        <span class="toolbar-chip">共 {{ assetTypeCounts.all }} 个文件</span>
+        <span class="toolbar-chip">图片 {{ assetTypeCounts.image }} · 视频 {{ assetTypeCounts.video }}</span>
       </div>
       <el-input v-model="keyword" clearable placeholder="搜索名称、描述、标签" class="toolbar-search" />
-      <el-select v-model="typeFilter" class="toolbar-select" placeholder="全部文件">
-        <el-option label="全部文件" value="all" />
-        <el-option label="图片" value="image" />
-        <el-option label="视频" value="video" />
-      </el-select>
       <input
         ref="uploadInputRef"
         class="upload-input"
@@ -270,7 +310,7 @@ async function removeAsset(asset: AssetItem) {
               :preview-src-list="[asset.url]"
               preview-teleported
             />
-            <video v-else :src="asset.url" :poster="asset.cover" controls class="recent-upload-item__video" />
+            <VideoPreview v-else :src="asset.url" :cover="asset.cover" />
           </div>
           <div class="recent-upload-item__body">
             <div class="recent-upload-item__name">{{ asset.name }}</div>
@@ -280,6 +320,9 @@ async function removeAsset(asset: AssetItem) {
               <el-button v-if="asset.type === 'image'" size="small" link type="primary">
                 <a :href="asset.url" target="_blank" rel="noopener noreferrer">新窗口预览</a>
               </el-button>
+              <el-button v-else size="small" link type="primary">
+                <a :href="asset.url" target="_blank" rel="noopener noreferrer">新窗口打开</a>
+              </el-button>
             </div>
           </div>
         </div>
@@ -287,6 +330,15 @@ async function removeAsset(asset: AssetItem) {
     </el-card>
 
     <el-card class="admin-card" shadow="never">
+      <el-tabs v-model="typeFilter" class="asset-type-tabs">
+        <el-tab-pane
+          v-for="tab in typeTabOptions"
+          :key="tab.value"
+          :label="`${tab.label}（${tab.count}）`"
+          :name="tab.value"
+        />
+      </el-tabs>
+
       <div v-if="filteredAssets.length" class="asset-grid">
         <div v-for="asset in filteredAssets" :key="asset.id" class="asset-card" :class="{ 'asset-card--highlight': recentUploads.some((item) => item.id === asset.id) }">
           <div class="asset-preview">
@@ -299,7 +351,12 @@ async function removeAsset(asset: AssetItem) {
               :preview-src-list="[asset.url]"
               preview-teleported
             />
-            <video v-else :src="asset.url" :poster="asset.cover" class="asset-preview__media" controls />
+            <VideoPreview
+              v-else
+              :src="asset.url"
+              :cover="asset.cover"
+              class="asset-preview__media"
+            />
           </div>
           <div class="asset-body">
             <div class="asset-title-row">
@@ -323,7 +380,7 @@ async function removeAsset(asset: AssetItem) {
         </div>
       </div>
       <div v-else class="admin-empty">
-        暂无文件，拖拽上传或点击上方上传区域添加图片、视频。
+        {{ typeFilter === 'video' ? '暂无视频文件，可上传 mp4/mov 等格式。' : typeFilter === 'image' ? '暂无图片文件。' : '暂无文件，拖拽上传或点击上方上传区域添加图片、视频。' }}
       </div>
     </el-card>
 
@@ -348,9 +405,24 @@ async function removeAsset(asset: AssetItem) {
           <span>COS 文件 URL</span>
           <el-input v-model="form.url" placeholder="请输入腾讯云 COS 图片或视频访问链接" />
         </div>
+        <div v-if="form.type === 'video' && form.url" class="field field-full">
+          <span>视频预览</span>
+          <div class="dialog-video-preview">
+            <VideoPreview :src="form.url" :cover="form.cover" />
+          </div>
+        </div>
         <div class="field field-full">
           <span>视频封面 URL</span>
-          <el-input v-model="form.cover" placeholder="视频可填写封面图；图片可留空" />
+          <div class="cover-field">
+            <el-input v-model="form.cover" placeholder="视频可填写封面图；图片可留空" />
+            <el-button
+              v-if="form.type === 'video' && form.url"
+              :loading="generatingCover"
+              @click="generateCoverFromVideo"
+            >
+              从视频生成封面
+            </el-button>
+          </div>
         </div>
         <div class="field">
           <span>排序</span>
@@ -453,6 +525,11 @@ async function removeAsset(asset: AssetItem) {
   object-fit: cover;
 }
 
+.asset-preview :deep(.video-preview) {
+  width: 100%;
+  height: 100%;
+}
+
 .asset-body {
   padding: 12px;
 }
@@ -540,10 +617,34 @@ async function removeAsset(asset: AssetItem) {
   height: 100%;
 }
 
-.recent-upload-item__video {
+.recent-upload-item__preview :deep(.video-preview) {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+}
+
+.dialog-video-preview {
+  height: 220px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #101820;
+}
+
+.asset-type-tabs {
+  margin-bottom: 16px;
+}
+
+.asset-type-tabs :deep(.el-tabs__header) {
+  margin-bottom: 0;
+}
+
+.cover-field {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.cover-field .el-input {
+  flex: 1;
 }
 
 .recent-upload-item__body {

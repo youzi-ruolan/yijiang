@@ -190,6 +190,43 @@ export function uploadAssetFileApi(file: File) {
   return uploadRequest<AssetResponse>('/admin/assets/upload', file).then(mapAssetFromApi);
 }
 
+/** 视频等大文件直传 COS，避免经服务端中转导致截断或损坏 */
+export async function uploadAssetFileDirectApi(file: File, type: 'image' | 'video'): Promise<AssetItem> {
+  const signature = await createAssetUploadSignatureApi({
+    fileName: file.name,
+    type,
+    mimeType: file.type || undefined,
+  });
+
+  const putResponse = await fetch(signature.uploadUrl, {
+    method: 'PUT',
+    headers: {
+      Authorization: signature.authorization,
+      'Content-Type': signature.contentType,
+    },
+    body: file,
+  });
+
+  if (!putResponse.ok) {
+    const text = await putResponse.text().catch(() => '');
+    throw new Error(text || `COS 直传失败：${putResponse.status}`);
+  }
+
+  const created = await createAssetApi({
+    id: `asset_${Date.now()}`,
+    name: file.name.replace(/\.[^.]+$/, ''),
+    type,
+    url: signature.publicUrl,
+    cover: '',
+    description: `上传文件：${file.name}`,
+    tags: [],
+    sort: 0,
+    status: 'ACTIVE',
+  });
+
+  return mapAssetFromApi(created);
+}
+
 export function getBannersApi() {
   return request<BannerItem[]>('/admin/content/banners');
 }

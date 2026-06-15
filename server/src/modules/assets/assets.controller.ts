@@ -6,6 +6,14 @@ import { CreateUploadSignatureDto } from './dto/create-upload-signature.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import type { UploadSignatureResult } from './assets.service';
 
+function decodeUploadedFileName(name: string) {
+  try {
+    return Buffer.from(name, 'latin1').toString('utf8');
+  } catch {
+    return name;
+  }
+}
+
 @Controller('admin/assets')
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
@@ -32,6 +40,9 @@ export class AssetsController {
     }),
   )
   upload(@UploadedFile() file: { originalname: string; mimetype: string; size: number; buffer: Buffer }) {
+    if (file?.originalname) {
+      file.originalname = decodeUploadedFileName(file.originalname);
+    }
     return this.assetsService.uploadFile(file);
   }
 

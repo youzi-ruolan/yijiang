@@ -1,7 +1,8 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { uploadAssetFileApi } from '@/api/admin';
+import { uploadAssetFileApi, updateAssetApi, mapAssetFromApi, uploadAssetFileDirectApi } from '@/api/admin';
 import { useAdminStore } from '@/stores/admin';
+import { captureVideoCover } from '@/utils/video-cover';
 import type { AssetItem, AssetType } from '@/types';
 
 const maxImageSize = 20 * 1024 * 1024;
@@ -53,10 +54,47 @@ export function useAssetUpload() {
     uploadProgress.value = `正在上传 ${file.name}...`;
 
     try {
-      const asset = await uploadAssetFileApi(file);
-      adminStore.registerAsset(asset);
-      recentUploads.value = [asset, ...recentUploads.value.filter((item) => item.id !== asset.id)].slice(0, 6);
-      return asset;
+      let asset: AssetItem;
+      if (type === 'video') {
+        try {
+          asset = await uploadAssetFileDirectApi(file, 'video');
+        } catch (directError) {
+          const directMessage = directError instanceof Error ? directError.message : '';
+          if (directMessage.includes('Failed to fetch') || directMessage.includes('NetworkError')) {
+            ElMessage.warning('视频直传失败，正在改经服务端上传...');
+          }
+          asset = await uploadAssetFileApi(file);
+        }
+      } else {
+        asset = await uploadAssetFileApi(file);
+      }
+      let nextAsset = asset;
+
+      if (type === 'video' && !asset.cover) {
+        uploadProgress.value = `正在为 ${file.name} 生成封面...`;
+        try {
+          const dataUrl = await captureVideoCover(file);
+          const blob = await fetch(dataUrl).then((response) => response.blob());
+          const coverFile = new File(
+            [blob],
+            `${file.name.replace(/\.[^.]+$/, '')}-cover.jpg`,
+            { type: 'image/jpeg' },
+          );
+          const coverAsset = await uploadAssetFileApi(coverFile);
+          const updated = await updateAssetApi(asset.id, {
+            ...asset,
+            cover: coverAsset.url,
+            tags: asset.tags || [],
+          });
+          nextAsset = mapAssetFromApi(updated);
+        } catch {
+          // 封面生成失败时仍保留视频本身
+        }
+      }
+
+      adminStore.registerAsset(nextAsset);
+      recentUploads.value = [nextAsset, ...recentUploads.value.filter((item) => item.id !== nextAsset.id)].slice(0, 6);
+      return nextAsset;
     } catch (error) {
       const message = error instanceof Error ? error.message : '文件上传失败';
       if (message.includes('COS 上传配置不完整')) {
