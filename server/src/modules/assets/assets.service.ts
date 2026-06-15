@@ -7,6 +7,17 @@ import { CreateAssetDto } from './dto/create-asset.dto';
 import { CreateUploadSignatureDto } from './dto/create-upload-signature.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 
+interface UploadSignatureResult {
+  key: string;
+  uploadUrl: string;
+  publicUrl: string;
+  authorization: string;
+  contentType: string;
+  expiresAt: number;
+}
+
+export type { UploadSignatureResult };
+
 @Injectable()
 export class AssetsService {
   constructor(
@@ -41,6 +52,49 @@ export class AssetsService {
   }
 
   createUploadSignature(payload: CreateUploadSignatureDto) {
+    const contentType = payload.mimeType || this.getDefaultContentType(payload.type);
+    return this.buildUploadSignature(payload.fileName, payload.type, contentType);
+  }
+
+  async uploadFile(file: { originalname: string; mimetype: string; size: number; buffer: Buffer }) {
+    if (!file) {
+      throw new BadRequestException('请选择要上传的文件');
+    }
+
+    const type = this.resolveUploadType(file);
+    this.validateUploadSize(file.size, type);
+
+    const contentType = file.mimetype || this.getDefaultContentType(type);
+    const signature = this.buildUploadSignature(file.originalname, type, contentType);
+
+    const response = await fetch(signature.uploadUrl, {
+      method: 'PUT',
+      headers: {
+        Authorization: signature.authorization,
+        'Content-Type': signature.contentType,
+      },
+      body: new Uint8Array(file.buffer),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new BadRequestException(errorText || `COS 上传失败：${response.status}`);
+    }
+
+    return this.create({
+      id: `asset_${Date.now()}_${randomBytes(3).toString('hex')}`,
+      name: this.getFileNameWithoutExtension(file.originalname),
+      type,
+      url: signature.publicUrl,
+      cover: '',
+      description: `上传文件：${file.originalname}`,
+      tags: [],
+      sort: 0,
+      status: 'ACTIVE',
+    });
+  }
+
+  private getCosConfig() {
     const secretId = this.configService.get<string>('TENCENT_COS_SECRET_ID');
     const secretKey = this.configService.get<string>('TENCENT_COS_SECRET_KEY');
     const bucket = this.configService.get<string>('TENCENT_COS_BUCKET');
@@ -51,7 +105,40 @@ export class AssetsService {
       throw new BadRequestException('COS 上传配置不完整，请检查服务端环境变量');
     }
 
-    const objectKey = this.createObjectKey(payload.fileName, payload.type);
+    return { secretId, secretKey, bucket, region, publicBaseUrl };
+  }
+
+  private resolveUploadType(file: { originalname: string; mimetype: string }): 'image' | 'video' {
+    if (file.mimetype?.startsWith('image/')) return 'image';
+    if (file.mimetype?.startsWith('video/')) return 'video';
+
+    const extension = file.originalname.split('.').pop()?.toLowerCase() || '';
+    if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) return 'image';
+    if (['mp4', 'mov', 'm4v', 'webm'].includes(extension)) return 'video';
+
+    throw new BadRequestException('仅支持图片 jpg/jpeg/png/webp/gif 或视频 mp4/mov/m4v/webm');
+  }
+
+  private validateUploadSize(size: number, type: 'image' | 'video') {
+    const maxImageSize = 20 * 1024 * 1024;
+    const maxVideoSize = 500 * 1024 * 1024;
+
+    if (type === 'image' && size > maxImageSize) {
+      throw new BadRequestException('图片不能超过 20MB');
+    }
+
+    if (type === 'video' && size > maxVideoSize) {
+      throw new BadRequestException('视频不能超过 500MB');
+    }
+  }
+
+  private getFileNameWithoutExtension(fileName: string) {
+    return fileName.replace(/\.[^.]+$/, '');
+  }
+
+  private buildUploadSignature(fileName: string, type: 'image' | 'video', contentType: string): UploadSignatureResult {
+    const { secretId, secretKey, bucket, region, publicBaseUrl } = this.getCosConfig();
+    const objectKey = this.createObjectKey(fileName, type);
     const host = `${bucket}.cos.${region}.myqcloud.com`;
     const pathname = `/${objectKey}`;
     const now = Math.floor(Date.now() / 1000);
@@ -59,7 +146,6 @@ export class AssetsService {
     const keyTime = `${now};${expiresAt}`;
     const httpMethod = 'put';
     const headerList = 'content-type;host';
-    const contentType = payload.mimeType || this.getDefaultContentType(payload.type);
     const headers = {
       'content-type': encodeURIComponent(contentType).toLowerCase(),
       host: encodeURIComponent(host).toLowerCase(),

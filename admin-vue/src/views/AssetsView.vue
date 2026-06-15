@@ -7,7 +7,7 @@ import { useAdminStore } from '@/stores/admin';
 import type { AssetItem, AssetType } from '@/types';
 
 const adminStore = useAdminStore();
-const { uploading, uploadProgress, uploadFiles } = useAssetUpload();
+const { uploading, uploadProgress, uploadFiles, recentUploads, clearRecentUploads } = useAssetUpload();
 
 const typeFilter = ref<'all' | AssetType>('all');
 const keyword = ref('');
@@ -248,14 +248,54 @@ async function removeAsset(asset: AssetItem) {
       <div class="upload-dropzone__title">
         {{ uploading ? uploadProgress || '正在上传...' : '拖拽文件到此处上传，或点击选择文件' }}
       </div>
-      <div class="upload-dropzone__desc">支持 jpg / png / webp / gif 图片和 mp4 / mov 视频，上传后自动保存到资源库</div>
+      <div class="upload-dropzone__desc">文件经后端上传到 COS，上传成功后会显示访问链接和缩略图预览</div>
     </div>
+
+    <el-card v-if="recentUploads.length" class="admin-card recent-uploads" shadow="never">
+      <div class="recent-uploads__head">
+        <span class="recent-uploads__title">最近上传（{{ recentUploads.length }}）</span>
+        <el-button link type="primary" @click="clearRecentUploads">清空</el-button>
+      </div>
+      <div class="recent-uploads__list">
+        <div v-for="asset in recentUploads" :key="asset.id" class="recent-upload-item">
+          <div class="recent-upload-item__preview">
+            <el-image
+              v-if="asset.type === 'image'"
+              :src="asset.url"
+              :alt="asset.name"
+              fit="cover"
+              :preview-src-list="[asset.url]"
+              preview-teleported
+            />
+            <video v-else :src="asset.url" :poster="asset.cover" controls class="recent-upload-item__video" />
+          </div>
+          <div class="recent-upload-item__body">
+            <div class="recent-upload-item__name">{{ asset.name }}</div>
+            <div class="recent-upload-item__url" :title="asset.url">{{ asset.url }}</div>
+            <div class="recent-upload-item__actions">
+              <el-button size="small" type="primary" plain @click="copyUrl(asset.url)">复制链接</el-button>
+              <el-button v-if="asset.type === 'image'" size="small" link type="primary">
+                <a :href="asset.url" target="_blank" rel="noopener noreferrer">新窗口预览</a>
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-card>
 
     <el-card class="admin-card" shadow="never">
       <div v-if="filteredAssets.length" class="asset-grid">
-        <div v-for="asset in filteredAssets" :key="asset.id" class="asset-card">
+        <div v-for="asset in filteredAssets" :key="asset.id" class="asset-card" :class="{ 'asset-card--highlight': recentUploads.some((item) => item.id === asset.id) }">
           <div class="asset-preview">
-            <img v-if="asset.type === 'image'" :src="asset.url" :alt="asset.name" class="asset-preview__media" />
+            <el-image
+              v-if="asset.type === 'image'"
+              :src="asset.url"
+              :alt="asset.name"
+              fit="cover"
+              class="asset-preview__media"
+              :preview-src-list="[asset.url]"
+              preview-teleported
+            />
             <video v-else :src="asset.url" :poster="asset.cover" class="asset-preview__media" controls />
           </div>
           <div class="asset-body">
@@ -449,5 +489,93 @@ async function removeAsset(asset: AssetItem) {
   justify-content: flex-end;
   gap: 4px;
   margin-top: 10px;
+}
+
+.recent-uploads :deep(.el-card__body) {
+  padding: 16px;
+}
+
+.recent-uploads__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.recent-uploads__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.recent-uploads__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recent-upload-item {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-bg-soft);
+}
+
+.recent-upload-item__preview {
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border-radius: var(--admin-radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  background: #fff;
+}
+
+.recent-upload-item__preview :deep(.el-image) {
+  width: 100%;
+  height: 100%;
+}
+
+.recent-upload-item__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-upload-item__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.recent-upload-item__name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.recent-upload-item__url {
+  margin-top: 6px;
+  color: var(--admin-text-soft);
+  font-size: 12px;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.recent-upload-item__actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.asset-card--highlight {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 2px var(--admin-primary-soft);
+}
+
+.asset-preview :deep(.el-image) {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 </style>

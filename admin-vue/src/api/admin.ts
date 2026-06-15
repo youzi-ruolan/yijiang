@@ -8,7 +8,7 @@ import type {
   OrderItem,
   ProductItem,
 } from '@/types';
-import { request } from './client';
+import { request, uploadRequest } from './client';
 
 interface LoginResponse {
   token: string;
@@ -178,6 +178,10 @@ export function createAssetUploadSignatureApi(payload: {
     method: 'POST',
     body: payload,
   });
+}
+
+export function uploadAssetFileApi(file: File) {
+  return uploadRequest<AssetResponse>('/admin/assets/upload', file).then(mapAssetFromApi);
 }
 
 export function getBannersApi() {

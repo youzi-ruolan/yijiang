@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { createAssetUploadSignatureApi } from '@/api/admin';
+import { uploadAssetFileApi } from '@/api/admin';
 import { useAdminStore } from '@/stores/admin';
 import type { AssetItem, AssetType } from '@/types';
 
@@ -32,14 +32,11 @@ function validateUploadFile(file: File, type: AssetType) {
   return true;
 }
 
-function getFileNameWithoutExtension(fileName: string) {
-  return fileName.replace(/\.[^.]+$/, '');
-}
-
 export function useAssetUpload() {
   const adminStore = useAdminStore();
   const uploading = ref(false);
   const uploadProgress = ref('');
+  const recentUploads = ref<AssetItem[]>([]);
 
   async function uploadFile(file: File): Promise<AssetItem | null> {
     const type = resolveFileType(file);
@@ -56,39 +53,9 @@ export function useAssetUpload() {
     uploadProgress.value = `正在上传 ${file.name}...`;
 
     try {
-      const signature = await createAssetUploadSignatureApi({
-        fileName: file.name,
-        type,
-        mimeType: file.type || undefined,
-      });
-
-      const response = await fetch(signature.uploadUrl, {
-        method: 'PUT',
-        headers: {
-          Authorization: signature.authorization,
-          'Content-Type': signature.contentType,
-        },
-        body: file,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `COS 上传失败：${response.status}`);
-      }
-
-      const asset: AssetItem = {
-        id: `asset_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        name: getFileNameWithoutExtension(file.name),
-        type,
-        url: signature.publicUrl,
-        cover: '',
-        description: `上传文件：${file.name}`,
-        tags: [],
-        sort: 0,
-        status: 'ACTIVE',
-      };
-
-      await adminStore.upsertAsset(asset);
+      const asset = await uploadAssetFileApi(file);
+      adminStore.registerAsset(asset);
+      recentUploads.value = [asset, ...recentUploads.value.filter((item) => item.id !== asset.id)].slice(0, 6);
       return asset;
     } catch (error) {
       const message = error instanceof Error ? error.message : '文件上传失败';
@@ -121,11 +88,17 @@ export function useAssetUpload() {
     return results;
   }
 
+  function clearRecentUploads() {
+    recentUploads.value = [];
+  }
+
   return {
     uploading,
     uploadProgress,
+    recentUploads,
     uploadFile,
     uploadFiles,
+    clearRecentUploads,
     resolveFileType,
   };
 }

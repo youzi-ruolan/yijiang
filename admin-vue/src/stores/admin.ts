@@ -186,6 +186,15 @@ export const useAdminStore = defineStore('admin', {
       this.dataset.assets = this.dataset.assets.filter((item) => item.id !== assetId);
     },
 
+    registerAsset(asset: AssetItem) {
+      const index = this.dataset.assets.findIndex((item) => item.id === asset.id);
+      if (index > -1) {
+        this.dataset.assets.splice(index, 1, asset);
+      } else {
+        this.dataset.assets.unshift(asset);
+      }
+    },
+
     async upsertCategory(payload: CategoryItem) {
       const exists = this.dataset.categories.some((item) => item.id === payload.id);
       const response = exists ? await updateCategoryApi(payload.id, payload) : await createCategoryApi(payload);

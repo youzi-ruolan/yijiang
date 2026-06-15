@@ -57,3 +57,37 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   return response.json() as Promise<T>;
 }
+
+export async function uploadRequest<T>(path: string, file: File): Promise<T> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const headers: HeadersInit = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = `上传失败：${response.status}`;
+    try {
+      const errorPayload = await response.json();
+      message = errorPayload?.message || errorPayload?.error || message;
+      if (Array.isArray(message)) {
+        message = message.join('；');
+      }
+    } catch {
+      const text = await response.text();
+      message = text || message;
+    }
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
