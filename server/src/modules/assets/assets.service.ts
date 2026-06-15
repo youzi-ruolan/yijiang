@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHash, createHmac, randomBytes } from 'crypto';
+import { createReadStream, promises as fs } from 'fs';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import COS from 'cos-nodejs-sdk-v5';
@@ -18,6 +19,14 @@ interface UploadSignatureResult {
 }
 
 export type { UploadSignatureResult };
+
+interface UploadFilePayload {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer?: Buffer;
+  path?: string;
+}
 
 @Injectable()
 export class AssetsService {
@@ -57,31 +66,42 @@ export class AssetsService {
     return this.buildUploadSignature(payload.fileName, payload.type, contentType);
   }
 
-  async uploadFile(file: { originalname: string; mimetype: string; size: number; buffer: Buffer }) {
+  async uploadFile(file: UploadFilePayload) {
     if (!file) {
       throw new BadRequestException('请选择要上传的文件');
     }
 
     const type = this.resolveUploadType(file);
     this.validateUploadSize(file.size, type);
+    this.validateUploadIntegrity(file);
 
     const { bucket, region, publicBaseUrl } = this.getCosConfig();
     const objectKey = this.createObjectKey(file.originalname, type);
     const contentType = this.resolveContentType(file, type);
     const cos = this.getCosClient();
+    const body = file.path ? createReadStream(file.path) : file.buffer;
+
+    if (!body) {
+      throw new BadRequestException('文件读取失败，请重试');
+    }
 
     try {
       await cos.putObject({
         Bucket: bucket,
         Region: region,
         Key: objectKey,
-        Body: file.buffer,
+        Body: body,
+        ContentLength: file.size,
         ContentType: contentType,
         ACL: 'public-read',
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'COS 上传失败';
       throw new BadRequestException(message);
+    } finally {
+      if (file.path) {
+        await fs.unlink(file.path).catch(() => undefined);
+      }
     }
 
     const publicUrl = `${publicBaseUrl.replace(/\/$/, '')}/${objectKey}`;
@@ -157,6 +177,18 @@ export class AssetsService {
     if (['mp4', 'mov', 'm4v', 'webm'].includes(extension)) return 'video';
 
     throw new BadRequestException('仅支持图片 jpg/jpeg/png/webp/gif 或视频 mp4/mov/m4v/webm');
+  }
+
+  private validateUploadIntegrity(file: UploadFilePayload) {
+    if (file.buffer && file.buffer.length !== file.size) {
+      throw new BadRequestException(
+        `文件上传不完整（收到 ${file.buffer.length} 字节，期望 ${file.size} 字节）。请检查服务端/Nginx 上传大小限制。`,
+      );
+    }
+
+    if (!file.buffer && !file.path) {
+      throw new BadRequestException('文件读取失败，请重试');
+    }
   }
 
   private validateUploadSize(size: number, type: 'image' | 'video') {

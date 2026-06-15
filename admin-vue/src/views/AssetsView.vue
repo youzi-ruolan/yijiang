@@ -291,7 +291,7 @@ async function removeAsset(asset: AssetItem) {
       <div class="upload-dropzone__title">
         {{ uploading ? uploadProgress || '正在上传...' : '拖拽文件到此处上传，或点击选择文件' }}
       </div>
-      <div class="upload-dropzone__desc">文件经后端上传到 COS，上传成功后会显示访问链接和缩略图预览</div>
+      <div class="upload-dropzone__desc">文件经后端上传到 COS。视频请使用 H.264 编码的 MP4，H.265/HEVC 会导致播放黑屏。</div>
     </div>
 
     <el-card v-if="recentUploads.length" class="admin-card recent-uploads" shadow="never">

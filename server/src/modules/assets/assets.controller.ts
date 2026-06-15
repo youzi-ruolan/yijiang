@@ -1,5 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { randomBytes } from 'crypto';
+import { extname } from 'path';
+import { tmpdir } from 'os';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { CreateUploadSignatureDto } from './dto/create-upload-signature.dto';
@@ -37,9 +41,24 @@ export class AssetsController {
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 500 * 1024 * 1024 },
+      storage: diskStorage({
+        destination: tmpdir(),
+        filename: (_req, file, callback) => {
+          const extension = extname(file.originalname || '') || '.bin';
+          callback(null, `asset-${Date.now()}-${randomBytes(8).toString('hex')}${extension}`);
+        },
+      }),
     }),
   )
-  upload(@UploadedFile() file: { originalname: string; mimetype: string; size: number; buffer: Buffer }) {
+  upload(
+    @UploadedFile()
+    file: {
+      originalname: string;
+      mimetype: string;
+      size: number;
+      path: string;
+    },
+  ) {
     if (file?.originalname) {
       file.originalname = decodeUploadedFileName(file.originalname);
     }

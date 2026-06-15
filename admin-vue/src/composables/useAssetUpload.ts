@@ -2,7 +2,7 @@ import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { uploadAssetFileApi, updateAssetApi, mapAssetFromApi } from '@/api/admin';
 import { useAdminStore } from '@/stores/admin';
-import { captureVideoCover } from '@/utils/video-cover';
+import { captureVideoCover, inspectVideoFile } from '@/utils/video-cover';
 import type { AssetItem, AssetType } from '@/types';
 
 const maxImageSize = 20 * 1024 * 1024;
@@ -48,6 +48,17 @@ export function useAssetUpload() {
 
     if (!validateUploadFile(file, type)) {
       return null;
+    }
+
+    if (type === 'video') {
+      uploadProgress.value = `正在检测 ${file.name}...`;
+      const inspection = await inspectVideoFile(file);
+      if (!inspection.ok) {
+        ElMessage.error(inspection.message);
+        uploading.value = false;
+        uploadProgress.value = '';
+        return null;
+      }
     }
 
     uploading.value = true;
