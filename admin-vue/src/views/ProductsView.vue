@@ -127,7 +127,12 @@ async function saveProduct() {
     dialogVisible.value = false;
     ElMessage.success(editingId.value ? '商品已更新' : '商品已新增');
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '商品保存失败');
+    const message = error instanceof Error ? error.message : '商品保存失败';
+    if (message.includes('bannerImages') || message.includes('detailContent must be an array')) {
+      ElMessage.error('服务端版本过旧：请部署最新 server 代码并执行 prisma migrate deploy 后再保存');
+      return;
+    }
+    ElMessage.error(message);
   }
 }
 

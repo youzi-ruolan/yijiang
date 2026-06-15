@@ -29,6 +29,7 @@ export class CreateProductDto {
   @IsArray()
   bannerImages?: string[];
 
+  @IsOptional()
   @Allow()
   detailContent!: string | string[];
 
