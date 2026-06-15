@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AssetImageField from '@/components/AssetImageField.vue';
 import { useAdminStore } from '@/stores/admin';
 import type { BannerItem } from '@/types';
 
@@ -104,7 +105,14 @@ async function removeCurrent(item: BannerItem) {
         </div>
         <div v-for="item in adminStore.dataset.banners" :key="item.id" class="content-row data-table-row">
           <div class="content-main">
-            <img :src="item.image" :alt="item.title" class="content-thumb" />
+            <el-image
+              :src="item.image"
+              :alt="item.title"
+              fit="cover"
+              class="content-thumb"
+              :preview-src-list="[item.image]"
+              preview-teleported
+            />
             <div>
               <div class="content-title">{{ item.title }}</div>
               <div class="content-meta">{{ item.subtitle }}</div>
@@ -135,10 +143,7 @@ async function removeCurrent(item: BannerItem) {
           <span>副标题</span>
           <el-input v-model="form.subtitle" placeholder="请输入副标题" />
         </div>
-        <div class="field field-full">
-          <span>图片 URL</span>
-          <el-input v-model="form.image" placeholder="请输入图片链接" />
-        </div>
+        <AssetImageField v-model="form.image" label="Banner 图片" placeholder="请输入图片链接，或从资源库选择" />
         <div class="field">
           <span>角标</span>
           <el-input v-model="form.badge" placeholder="请输入角标文案" />
@@ -190,10 +195,15 @@ async function removeCurrent(item: BannerItem) {
   width: 72px;
   height: 72px;
   border-radius: var(--admin-radius-sm);
-  object-fit: cover;
   background: var(--admin-bg);
   border: 1px solid var(--admin-line);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.content-thumb :deep(.el-image) {
+  width: 100%;
+  height: 100%;
 }
 
 .content-title {

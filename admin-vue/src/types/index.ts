@@ -73,14 +73,28 @@ export interface ArticleItem {
   status?: string;
 }
 
+export interface OrderLineItem {
+  spuId: string;
+  skuId: string;
+  goodsName: string;
+  goodsPictureUrl: string;
+  buyQuantity: number;
+  actualPrice: number;
+  tagPrice: number;
+}
+
 export interface OrderItem {
   id: string;
+  userId?: string | null;
   customer: string;
   amount: number;
   status: string;
+  statusName: string;
   items: number;
   createdAt: string;
-  itemsDetail?: unknown;
+  itemsDetail?: OrderLineItem[];
+  nextStatuses?: Array<{ value: string; label: string }>;
+  isPaid?: boolean;
 }
 
 export interface AdminDataset {

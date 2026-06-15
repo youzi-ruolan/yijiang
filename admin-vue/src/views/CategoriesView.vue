@@ -30,14 +30,6 @@ const categories = computed(() =>
   adminStore.dataset.categories.map((category) => ({
     ...category,
     targetLabel: targetLabelMap[category.target] || category.target,
-    preview:
-      category.target === 'inspirationSection'
-        ? adminStore.dataset.inspirations[0]?.cover
-        : category.target === 'articleSection'
-          ? adminStore.dataset.articles[0]?.cover
-          : adminStore.dataset.products.find((item) =>
-              category.filterKey === 'all' ? true : item.category === category.filterKey,
-            )?.cover,
   })),
 );
 
@@ -132,7 +124,7 @@ async function removeCategory(category: CategoryItem) {
     <el-card class="admin-card" shadow="never">
       <div class="category-list">
         <div class="category-list__head data-table-head">
-          <span>分类信息</span>
+          <span>分类名称</span>
           <span>分类标识</span>
           <span>归属模块</span>
           <span>数据 ID</span>
@@ -140,10 +132,7 @@ async function removeCategory(category: CategoryItem) {
         </div>
 
         <div v-for="category in categories" :key="category.id" class="category-item data-table-row">
-          <div class="category-main">
-            <img :src="category.preview" :alt="category.name" class="category-thumb" />
-            <div class="category-name">{{ category.name }}</div>
-          </div>
+          <div class="category-name">{{ category.name }}</div>
 
           <div class="category-cell">
             <span class="category-label-mobile">分类标识</span>
@@ -201,24 +190,7 @@ async function removeCategory(category: CategoryItem) {
 <style scoped>
 .category-list__head,
 .category-item {
-  grid-template-columns: minmax(200px, 2fr) minmax(100px, 0.8fr) minmax(100px, 0.8fr) minmax(120px, 1fr) 120px;
-}
-
-.category-main {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.category-thumb {
-  width: 64px;
-  height: 48px;
-  border-radius: var(--admin-radius-sm);
-  object-fit: cover;
-  background: var(--admin-bg);
-  border: 1px solid var(--admin-line);
-  flex-shrink: 0;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(120px, 1fr) 120px;
 }
 
 .category-name {
@@ -260,7 +232,7 @@ async function removeCategory(category: CategoryItem) {
 
   .category-cell,
   .category-actions {
-    padding-left: 76px;
+    padding-left: 0;
   }
 
   .category-label-mobile {

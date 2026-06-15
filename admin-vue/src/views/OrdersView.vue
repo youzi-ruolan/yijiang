@@ -1,118 +1,78 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { computed, ref } from 'vue';
+import { ElMessage } from 'element-plus';
+import { Refresh } from '@element-plus/icons-vue';
 import { useAdminStore } from '@/stores/admin';
+import {
+  formatOrderAmount,
+  ORDER_STATUS,
+  ORDER_STATUS_FILTER_OPTIONS,
+  ORDER_STATUS_TAG_TYPE,
+} from '@/constants/orders';
 import type { OrderItem } from '@/types';
 
 const adminStore = useAdminStore();
-const dialogVisible = ref(false);
-const editingId = ref('');
+const statusFilter = ref('all');
+const detailVisible = ref(false);
+const activeOrder = ref<OrderItem | null>(null);
+const refreshing = ref(false);
 
-const form = reactive({
-  customer: '',
-  amount: 0,
-  status: '待处理',
-  items: 1,
-  createdAt: '',
+const filteredOrders = computed(() => {
+  if (statusFilter.value === 'all') {
+    return adminStore.dataset.orders;
+  }
+  return adminStore.dataset.orders.filter((item) => item.status === statusFilter.value);
 });
 
-const statusOptions = [
-  { label: '待处理', value: '待处理' },
-  { label: '已付款', value: '已付款' },
-  { label: '待交付', value: '待交付' },
-  { label: '已完成', value: '已完成' },
-  { label: '已取消', value: '已取消' },
-];
-
-const statusTypeMap: Record<string, '' | 'success' | 'warning' | 'info' | 'danger'> = {
-  待处理: 'warning',
-  已付款: '',
-  待交付: 'warning',
-  已完成: 'success',
-  已取消: 'danger',
-};
-
 const stats = computed(() => {
-  const total = adminStore.dataset.orders.reduce((sum, item) => sum + item.amount, 0) / 100;
-  const pending = adminStore.dataset.orders.filter((item) => ['待处理', '待交付'].includes(item.status)).length;
-  const finished = adminStore.dataset.orders.filter((item) => item.status === '已完成').length;
+  const orders = adminStore.dataset.orders;
+  const paidOrders = orders.filter((item) => item.isPaid);
+  const total = paidOrders.reduce((sum, item) => sum + item.amount, 0) / 100;
+  const pendingDelivery = orders.filter((item) => item.status === ORDER_STATUS.PENDING_DELIVERY).length;
+  const finished = orders.filter((item) => item.status === ORDER_STATUS.COMPLETE).length;
 
   return [
-    { label: '订单总数', value: adminStore.dataset.orders.length },
-    { label: '待处理订单', value: pending },
-    { label: '已完成订单', value: finished },
+    { label: '订单总数', value: orders.length },
+    { label: '待交付', value: pendingDelivery },
+    { label: '已完成', value: finished },
     { label: '累计成交额', value: `¥${total.toFixed(2)}` },
     {
       label: '平均客单价',
-      value: `¥${(total / Math.max(adminStore.dataset.orders.length, 1)).toFixed(2)}`,
+      value: `¥${(total / Math.max(paidOrders.length, 1)).toFixed(2)}`,
     },
     {
       label: '商品件数',
-      value: adminStore.dataset.orders.reduce((sum, item) => sum + item.items, 0),
+      value: orders.reduce((sum, item) => sum + item.items, 0),
     },
   ];
 });
 
-function resetForm() {
-  form.customer = '';
-  form.amount = 0;
-  form.status = '待处理';
-  form.items = 1;
-  form.createdAt = '';
-}
-
-function openCreate() {
-  editingId.value = '';
-  resetForm();
-  dialogVisible.value = true;
-}
-
-function openEdit(order: OrderItem) {
-  editingId.value = order.id;
-  form.customer = order.customer;
-  form.amount = order.amount / 100;
-  form.status = order.status;
-  form.items = order.items;
-  form.createdAt = order.createdAt;
-  dialogVisible.value = true;
-}
-
-async function saveOrder() {
-  if (!form.customer.trim() || !form.createdAt.trim()) {
-    ElMessage.warning('请先填写客户名称和下单时间');
-    return;
-  }
-
+async function refreshOrders() {
+  refreshing.value = true;
   try {
-    await adminStore.upsertOrder({
-      id: editingId.value || `order_${Date.now()}`,
-      customer: form.customer.trim(),
-      amount: Math.round(Number(form.amount) * 100),
-      status: form.status,
-      items: Number(form.items),
-      createdAt: form.createdAt.trim(),
-    });
-
-    dialogVisible.value = false;
-    ElMessage.success(editingId.value ? '订单已更新' : '订单已新增');
+    await adminStore.bootstrap(true);
+    ElMessage.success('订单数据已刷新');
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '订单保存失败');
+    ElMessage.error(error instanceof Error ? error.message : '订单刷新失败');
+  } finally {
+    refreshing.value = false;
   }
 }
 
-async function removeOrder(order: OrderItem) {
+function openDetail(order: OrderItem) {
+  activeOrder.value = order;
+  detailVisible.value = true;
+}
+
+async function updateStatus(order: OrderItem, status: string) {
   try {
-    await ElMessageBox.confirm(`确认删除订单「${order.id}」吗？`, '确认删除订单？', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    });
-    await adminStore.removeOrder(order.id);
-    ElMessage.success('订单已删除');
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error instanceof Error ? error.message : '订单删除失败');
+    await adminStore.updateOrderStatus(order.id, status);
+    if (activeOrder.value?.id === order.id) {
+      activeOrder.value = adminStore.dataset.orders.find((item) => item.id === order.id) || null;
     }
+    ElMessage.success('订单状态已更新');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '订单状态更新失败');
   }
 }
 </script>
@@ -128,9 +88,14 @@ async function removeOrder(order: OrderItem) {
 
     <div class="page-toolbar">
       <div class="toolbar-pills">
-        <span class="toolbar-chip">最近订单 {{ adminStore.dataset.orders.length }} 条</span>
+        <span class="toolbar-chip">小程序真实订单 {{ adminStore.dataset.orders.length }} 条</span>
+        <el-radio-group v-model="statusFilter" size="small">
+          <el-radio-button v-for="option in ORDER_STATUS_FILTER_OPTIONS" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </el-radio-button>
+        </el-radio-group>
       </div>
-      <el-button type="primary" @click="openCreate">新增订单</el-button>
+      <el-button :icon="Refresh" :loading="refreshing" @click="refreshOrders">刷新订单</el-button>
     </div>
 
     <el-card class="admin-card" shadow="never">
@@ -141,62 +106,108 @@ async function removeOrder(order: OrderItem) {
         <span>操作</span>
       </div>
       <div class="order-list">
-        <div v-for="order in adminStore.dataset.orders" :key="order.id" class="order-item data-table-row">
+        <div v-for="order in filteredOrders" :key="order.id" class="order-item data-table-row">
           <div>
             <div class="order-title">{{ order.id }}</div>
-            <div class="order-meta">{{ order.customer }} · {{ order.createdAt }}</div>
+            <div class="order-meta">
+              {{ order.customer }}
+              <span v-if="order.userId"> · 用户 {{ order.userId.slice(0, 8) }}...</span>
+              · {{ order.createdAt }}
+            </div>
           </div>
           <div class="order-right">
-            <div class="order-amount">¥{{ (order.amount / 100).toFixed(2) }}</div>
+            <div class="order-amount">{{ formatOrderAmount(order.amount) }}</div>
             <div class="order-count">{{ order.items }} 件商品</div>
           </div>
           <div>
-            <el-tag :type="statusTypeMap[order.status] || 'info'" size="small">{{ order.status }}</el-tag>
+            <el-tag :type="ORDER_STATUS_TAG_TYPE[order.status] || 'info'" size="small">
+              {{ order.statusName }}
+            </el-tag>
           </div>
           <div class="order-actions">
-            <el-button link type="primary" @click="openEdit(order)">编辑</el-button>
-            <el-button link type="danger" @click="removeOrder(order)">删除</el-button>
+            <el-button link type="primary" @click="openDetail(order)">查看详情</el-button>
+            <el-button
+              v-for="next in order.nextStatuses"
+              :key="next.value"
+              link
+              type="primary"
+              @click="updateStatus(order, next.value)"
+            >
+              {{ next.label }}
+            </el-button>
           </div>
         </div>
-        <div v-if="!adminStore.dataset.orders.length" class="admin-empty">暂无订单数据。</div>
+        <div v-if="!filteredOrders.length" class="admin-empty">
+          {{ statusFilter === 'all' ? '暂无订单，用户下单后会自动出现在这里。' : '当前筛选条件下暂无订单。' }}
+        </div>
       </div>
     </el-card>
 
-    <el-dialog
-      v-model="dialogVisible"
-      :title="editingId ? '编辑订单' : '新增订单'"
-      width="640px"
-      destroy-on-close
-    >
-      <div class="form-grid">
-        <div class="field">
-          <span>客户名称</span>
-          <el-input v-model="form.customer" placeholder="请输入客户名称" />
+    <el-drawer v-model="detailVisible" title="订单详情" size="520px" destroy-on-close>
+      <template v-if="activeOrder">
+        <div class="detail-section">
+          <div class="detail-row">
+            <span>订单号</span>
+            <strong>{{ activeOrder.id }}</strong>
+          </div>
+          <div class="detail-row">
+            <span>客户</span>
+            <strong>{{ activeOrder.customer }}</strong>
+          </div>
+          <div v-if="activeOrder.userId" class="detail-row">
+            <span>用户 ID</span>
+            <strong>{{ activeOrder.userId }}</strong>
+          </div>
+          <div class="detail-row">
+            <span>下单时间</span>
+            <strong>{{ activeOrder.createdAt }}</strong>
+          </div>
+          <div class="detail-row">
+            <span>订单状态</span>
+            <el-tag :type="ORDER_STATUS_TAG_TYPE[activeOrder.status] || 'info'" size="small">
+              {{ activeOrder.statusName }}
+            </el-tag>
+          </div>
+          <div class="detail-row">
+            <span>订单金额</span>
+            <strong>{{ formatOrderAmount(activeOrder.amount) }}</strong>
+          </div>
         </div>
-        <div class="field">
-          <span>订单状态</span>
-          <el-select v-model="form.status" style="width: 100%">
-            <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
+
+        <div class="detail-section">
+          <div class="detail-section__title">商品明细</div>
+          <div v-if="activeOrder.itemsDetail?.length" class="order-goods">
+            <div v-for="(item, index) in activeOrder.itemsDetail" :key="`${item.skuId}-${index}`" class="order-goods__item">
+              <el-image
+                v-if="item.goodsPictureUrl"
+                :src="item.goodsPictureUrl"
+                fit="cover"
+                class="order-goods__thumb"
+              />
+              <div v-else class="order-goods__thumb order-goods__thumb--empty">无图</div>
+              <div class="order-goods__info">
+                <div class="order-goods__name">{{ item.goodsName }}</div>
+                <div class="order-goods__meta">
+                  数量 {{ item.buyQuantity }} · {{ formatOrderAmount(item.actualPrice) }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="admin-empty">暂无商品明细。</div>
         </div>
-        <div class="field">
-          <span>订单金额（元）</span>
-          <el-input-number v-model="form.amount" :min="0" controls-position="right" style="width: 100%" />
+
+        <div v-if="activeOrder.nextStatuses?.length" class="detail-actions">
+          <el-button
+            v-for="next in activeOrder.nextStatuses"
+            :key="next.value"
+            type="primary"
+            @click="updateStatus(activeOrder, next.value)"
+          >
+            标记为「{{ next.label }}」
+          </el-button>
         </div>
-        <div class="field">
-          <span>商品件数</span>
-          <el-input-number v-model="form.items" :min="1" controls-position="right" style="width: 100%" />
-        </div>
-        <div class="field field-full">
-          <span>下单时间</span>
-          <el-input v-model="form.createdAt" placeholder="如：2026-05-13 18:20" />
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveOrder">保存</el-button>
       </template>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 
@@ -217,9 +228,16 @@ async function removeOrder(order: OrderItem) {
   color: var(--admin-primary);
 }
 
+.toolbar-pills {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .order-table__head,
 .order-item {
-  grid-template-columns: minmax(220px, 2fr) minmax(120px, 0.9fr) 100px 120px;
+  grid-template-columns: minmax(220px, 2fr) minmax(120px, 0.9fr) 100px minmax(140px, 1fr);
 }
 
 .order-list {
@@ -253,6 +271,74 @@ async function removeOrder(order: OrderItem) {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-wrap: wrap;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section__title {
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--admin-line);
+  font-size: 14px;
+}
+
+.detail-row span {
+  color: var(--admin-text-soft);
+}
+
+.order-goods {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-goods__item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.order-goods__thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid var(--admin-line);
+  flex-shrink: 0;
+}
+
+.order-goods__thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-text-soft);
+  font-size: 12px;
+  background: var(--admin-bg);
+}
+
+.order-goods__name {
+  font-weight: 500;
+}
+
+.order-goods__meta {
+  margin-top: 4px;
+  color: var(--admin-text-soft);
+  font-size: 13px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 920px) {

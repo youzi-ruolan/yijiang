@@ -63,12 +63,17 @@ interface AssetUploadSignatureResponse {
 
 interface OrderResponse {
   id: string;
+  userId?: string | null;
   customer: string;
   amount: number;
   status: string;
+  statusName: string;
   items: number;
+  itemsDetail?: OrderItem['itemsDetail'];
   orderCreatedAt?: string;
   createdAt?: string;
+  nextStatuses?: Array<{ value: string; label: string }>;
+  isPaid?: boolean;
 }
 
 export function loginApi(payload: { username: string; password: string }) {
@@ -274,6 +279,13 @@ export function updateOrderApi(id: string, payload: OrderItem) {
   });
 }
 
+export function updateOrderStatusApi(id: string, status: string) {
+  return request<OrderResponse>(`/admin/orders/${id}/status`, {
+    method: 'PATCH',
+    body: { status },
+  });
+}
+
 export function deleteOrderApi(id: string) {
   return request(`/admin/orders/${id}`, {
     method: 'DELETE',
@@ -325,11 +337,16 @@ export function mapAssetFromApi(asset: AssetResponse): AssetItem {
 export function mapOrderFromApi(order: OrderResponse): OrderItem {
   return {
     id: order.id,
+    userId: order.userId,
     customer: order.customer,
     amount: order.amount,
     status: order.status,
+    statusName: order.statusName || order.status,
     items: order.items,
     createdAt: order.orderCreatedAt || order.createdAt || '',
+    itemsDetail: order.itemsDetail || [],
+    nextStatuses: order.nextStatuses || [],
+    isPaid: order.isPaid,
   };
 }
 
@@ -376,6 +393,6 @@ function toOrderPayload(order: OrderItem) {
     status: order.status,
     items: order.items,
     createdAt: order.createdAt,
-    itemsDetail: null,
+    itemsDetail: order.itemsDetail,
   };
 }

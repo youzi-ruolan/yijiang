@@ -42,6 +42,7 @@ import {
   updateCategoryApi,
   updateInspirationApi,
   updateOrderApi,
+  updateOrderStatusApi,
   updateProductApi,
   updateSettingsApi,
 } from '@/api/admin';
@@ -261,6 +262,16 @@ export const useAdminStore = defineStore('admin', {
     async removeArticle(articleId: string) {
       await deleteArticleApi(articleId);
       this.dataset.articles = this.dataset.articles.filter((item) => item.id !== articleId);
+    },
+
+    async updateOrderStatus(orderId: string, status: string) {
+      const response = await updateOrderStatusApi(orderId, status);
+      const nextOrder = mapOrderFromApi(response);
+      const index = this.dataset.orders.findIndex((item) => item.id === nextOrder.id);
+
+      if (index > -1) {
+        this.dataset.orders.splice(index, 1, nextOrder);
+      }
     },
 
     async upsertOrder(payload: OrderItem) {

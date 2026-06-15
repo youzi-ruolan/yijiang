@@ -3,47 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
 const { HOME_MOCK } = require('../../pages/home/mock.js');
 
-const DEFAULT_ORDERS = [
-  {
-    id: 'YJ20260513001',
-    customer: '青岚影像工作室',
-    amount: 38800,
-    status: '待交付',
-    items: 3,
-    createdAt: '2026-05-13 10:20',
-    itemsDetail: ['人像肤色控制 LUT 套装 Pro', '轻奢商业广告主视觉包', '客户交付流程清单包'],
-  },
-  {
-    id: 'YJ20260512008',
-    customer: '拾光婚礼影像',
-    amount: 16900,
-    status: '已完成',
-    items: 2,
-    createdAt: '2026-05-12 18:42',
-    itemsDetail: ['婚礼纪实柔光调色包', '纪录片自然校正基础包'],
-  },
-  {
-    id: 'YJ20260512003',
-    customer: '木白品牌视觉',
-    amount: 24900,
-    status: '待处理',
-    items: 1,
-    createdAt: '2026-05-12 11:08',
-    itemsDetail: ['DaVinci 节点工程母版'],
-  },
-  {
-    id: 'YJ20260511006',
-    customer: '澄片纪录工作组',
-    amount: 45800,
-    status: '已付款',
-    items: 4,
-    createdAt: '2026-05-11 16:36',
-    itemsDetail: ['纪录片自然校正基础包', '新闻快剪统一风格包', '独立短片低饱和风格预设', '客户交付流程清单包'],
-  },
-];
-
 async function main() {
-  await prisma.order.deleteMany();
   await prisma.product.deleteMany();
   await prisma.article.deleteMany();
   await prisma.inspiration.deleteMany();
@@ -165,21 +125,7 @@ async function main() {
     });
   }
 
-  for (const item of DEFAULT_ORDERS) {
-    await prisma.order.create({
-      data: {
-        id: item.id,
-        customer: item.customer,
-        amount: item.amount,
-        status: item.status,
-        items: item.items,
-        itemsDetail: item.itemsDetail as Prisma.InputJsonValue,
-        orderCreatedAt: item.createdAt,
-      },
-    });
-  }
-
-  console.log('Seed completed: 艺匠调色全新 mock 数据已写入数据库。');
+  console.log('Seed completed: 艺匠调色全新 mock 数据已写入数据库（订单数据保留真实记录，不再写入演示订单）。');
 }
 
 main()
