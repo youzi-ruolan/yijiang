@@ -917,6 +917,7 @@ export class PublicService {
     const tags = productCard.tags;
     const gallery = productCard.gallery;
     const detailMedia = [product.cover, ...gallery].map((item) => this.toProductMediaItem(item));
+    const galleryMedia = gallery.map((item) => this.toProductMediaItem(item));
     const fallbackBannerImages = detailMedia.filter((item) => item.type === 'image').map((item) => item.url);
     const bannerImages = productCard.bannerImages.length ? productCard.bannerImages : fallbackBannerImages;
     const galleryImages = bannerImages.filter(Boolean);
@@ -981,6 +982,7 @@ export class PublicService {
       limitInfo: productCard.usageNotice[0] ? [{ text: productCard.usageNotice[0] }] : [],
       desc: galleryImages,
       detailMedia,
+      galleryMedia,
       etitle: '',
       detailHtml: productCard.detailContent,
       detailContent: productCard.detailContent,

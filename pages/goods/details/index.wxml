@@ -118,16 +118,60 @@
             object-fit="contain"
             show-center-play-btn
           />
+          <view
+            wx:elif="{{item.type === 'external-video'}}"
+            class="detail-external-video"
+            bindtap="openExternalVideo"
+            data-url="{{item.url}}"
+          >
+            <image
+              wx:if="{{item.poster}}"
+              class="detail-external-video__poster"
+              src="{{item.poster}}"
+              mode="aspectFill"
+            />
+            <view class="detail-external-video__body">
+              <view class="detail-external-video__label">{{item.label || '外链视频'}}</view>
+              <view class="detail-external-video__tip">哔哩哔哩等链接无法在小程序内直接播放，点击复制链接</view>
+            </view>
+          </view>
         </block>
       </view>
     </view>
 
-    <view class="desc-content__title" wx:if="{{detailBlocks.length === 0 && detailMedia.length > 0}}">
+    <view class="detail-block" wx:if="{{galleryMedia.length > 0}}">
+      <view class="detail-block__title">详情图集</view>
+      <view class="detail-gallery-list">
+        <block wx:for="{{galleryMedia}}" wx:key="url">
+          <image
+            wx:if="{{item.type === 'image'}}"
+            class="detail-gallery-image"
+            src="{{item.url}}"
+            mode="widthFix"
+            lazy-load
+            show-menu-by-longpress
+            data-url="{{item.url}}"
+            bindtap="previewGalleryImage"
+          />
+          <video
+            wx:else
+            class="detail-gallery-video"
+            src="{{item.url}}"
+            poster="{{item.cover}}"
+            controls
+            object-fit="contain"
+            show-center-play-btn
+          />
+        </block>
+      </view>
+    </view>
+
+    <view class="desc-content__title" wx:if="{{detailBlocks.length === 0 && galleryMedia.length === 0 && detailMedia.length > 0}}">
       <t-image t-class="img" src="{{recLeftImg}}" />
       <span class="desc-content__title--text">详情介绍</span>
       <t-image t-class="img" src="{{recRightImg}}" />
     </view>
-    <view wx:if="{{detailBlocks.length === 0 && detailMedia.length > 0}}" wx:for="{{detailMedia}}" wx:key="index">
+    <view wx:if="{{detailBlocks.length === 0 && galleryMedia.length === 0 && detailMedia.length > 0}}" wx:for="{{detailMedia}}" wx:key="index">
       <t-image wx:if="{{item.type == 'image'}}" t-class="desc-content__img" src="{{item.url}}" mode="widthFix" />
       <video
         wx:else

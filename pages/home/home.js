@@ -69,11 +69,16 @@ Page({
     interval: 5200,
   },
 
+  onHide() {
+    this.setData({ autoplay: false });
+  },
+
   onShow() {
     const tabBar = this.getTabBar && this.getTabBar();
     if (tabBar && tabBar.init) {
       tabBar.init();
     }
+    this.restartBannerAutoplay();
   },
 
   onLoad() {
@@ -98,11 +103,13 @@ Page({
         pageLoading: false,
         ...normalizeHomePayload(payload),
       });
+      this.restartBannerAutoplay();
     } catch (error) {
       this.setData({
         pageLoading: false,
         ...buildDefaultState(),
       });
+      this.restartBannerAutoplay();
       wx.showToast({
         title: '接口异常，已使用本地数据',
         icon: 'none',
@@ -110,6 +117,17 @@ Page({
     } finally {
       wx.stopPullDownRefresh();
     }
+  },
+
+  restartBannerAutoplay() {
+    const bannerList = this.data.bannerList || [];
+    if (bannerList.length <= 1) {
+      return;
+    }
+
+    this.setData({ autoplay: false }, () => {
+      this.setData({ autoplay: true });
+    });
   },
 
   onBannerChange(event) {

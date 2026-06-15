@@ -41,26 +41,69 @@ const toolbarConfig: Partial<IToolbarConfig> = {
   ],
 };
 
+function escapeAttr(value: string) {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function buildVideoHtml(url: string, poster = '', label = '视频') {
+  const safeUrl = escapeAttr(url);
+  const safePoster = escapeAttr(poster);
+  const safeLabel = escapeAttr(label);
+  return `<section class="mp-video-block" data-video-url="${safeUrl}" data-video-poster="${safePoster}"><p style="margin:12px 0;text-align:center;color:#8a7b70;">[${safeLabel}]</p></section><p><br></p>`;
+}
+
+function buildVideoHtmlFromAsset(asset: AssetItem) {
+  return buildVideoHtml(asset.url, asset.cover || '', asset.name || '视频');
+}
+
+function releaseEditorSelection(editor: IDomEditor) {
+  model.value = editor.getHtml();
+  setTimeout(() => {
+    editor.focus(true);
+  }, 0);
+}
+
 const editorConfig: Partial<IEditorConfig> = {
-  placeholder: '编写商品详情，支持文字、图片、视频，类似公众号图文排版',
+  placeholder:
+    '编写商品详情，支持文字、图片、视频。直链 mp4 可在小程序内播放；哔哩哔哩等外链会以卡片形式展示。',
   autoFocus: false,
+  hoverbarKeys: {
+    video: {
+      menuKeys: [],
+    },
+  },
   MENU_CONF: {
     uploadImage: {
       async customUpload(file: File, insertFn: (url: string, alt?: string, href?: string) => void) {
         try {
           const asset = await uploadAssetFileApi(file);
           insertFn(asset.url, asset.name, asset.url);
+          const editor = editorRef.value;
+          if (editor) {
+            editor.dangerouslyInsertHtml('<p><br></p>');
+            releaseEditorSelection(editor);
+          }
         } catch (error) {
           ElMessage.error(error instanceof Error ? error.message : '图片上传失败');
         }
       },
     },
     insertVideo: {
-      checkVideo(_src: string) {
-        return true;
+      checkVideo(src: string) {
+        return !!src.trim();
       },
       parseVideoSrc(src: string) {
         return src.trim();
+      },
+      customInsert(video: string) {
+        const editor = editorRef.value;
+        if (!editor) return;
+
+        const url = video.trim();
+        if (!url) return;
+
+        editor.dangerouslyInsertHtml(buildVideoHtml(url));
+        releaseEditorSelection(editor);
       },
     },
   },
@@ -71,11 +114,6 @@ function handleCreated(editor: IDomEditor) {
   if (model.value) {
     editor.setHtml(model.value);
   }
-}
-
-function buildVideoHtml(asset: AssetItem) {
-  const poster = asset.cover || '';
-  return `<section class="mp-video-block" data-video-url="${asset.url}" data-video-poster="${poster}"><video src="${asset.url}" poster="${poster}" controls style="width:100%;max-width:100%;display:block;margin:12px 0;"></video></section>`;
 }
 
 function insertVideoFromAssets(assets: AssetItem[]) {
@@ -89,9 +127,9 @@ function insertVideoFromAssets(assets: AssetItem[]) {
   }
 
   videos.forEach((asset) => {
-    editor.dangerouslyInsertHtml(buildVideoHtml(asset));
+    editor.dangerouslyInsertHtml(buildVideoHtmlFromAsset(asset));
   });
-  model.value = editor.getHtml();
+  releaseEditorSelection(editor);
 }
 
 watch(
@@ -119,6 +157,7 @@ onBeforeUnmount(() => {
       <Toolbar :editor="editorRef" :default-config="toolbarConfig" mode="default" />
       <el-button size="small" type="primary" plain @click="videoPickerVisible = true">从资源库插入视频</el-button>
     </div>
+    <p class="mp-rich-editor__hint">小程序内可直接播放 COS 的 mp4 视频；哔哩哔哩等页面链接会以「外链视频」卡片展示。</p>
     <Editor
       v-model="model"
       class="mp-rich-editor__body"
@@ -158,6 +197,16 @@ onBeforeUnmount(() => {
   border: none !important;
 }
 
+.mp-rich-editor__hint {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-soft);
+  border-bottom: 1px solid var(--admin-line);
+}
+
 .mp-rich-editor__body {
   min-height: 320px;
   overflow-y: auto;
@@ -165,5 +214,13 @@ onBeforeUnmount(() => {
 
 .mp-rich-editor__body :deep(.w-e-text-container) {
   min-height: 320px !important;
+}
+
+.mp-rich-editor__body :deep(.mp-video-block) {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px dashed var(--admin-line);
+  border-radius: 8px;
+  background: var(--admin-bg-soft);
 }
 </style>

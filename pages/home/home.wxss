@@ -230,12 +230,13 @@ page {
   margin-top: 10rpx;
   color: #766c63;
   font-size: 23rpx;
-  line-height: 1.42;
+  line-height: 32rpx;
+  max-height: 64rpx;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  min-height: 64rpx;
+  word-break: break-all;
 }
 
 .tag-row {

@@ -14,23 +14,25 @@
   <view class="home-shell" wx:else>
     <view class="search-bar" bindtap="navToSearchPage">
       <t-icon prefix="wr" name="search" size="34rpx" color="#c4c4c4" />
-      <text class="search-text">新品火热发售中</text>
+      <text class="search-text">搜索</text>
     </view>
 
     <view class="hero-wrap">
       <swiper
+        wx:if="{{bannerList.length}}"
         class="hero-swiper"
-        circular
-        autoplay="{{autoplay}}"
+        circular="{{bannerList.length > 1}}"
+        autoplay="{{autoplay && bannerList.length > 1}}"
         interval="{{interval}}"
         duration="{{duration}}"
+        easing-function="easeInOutCubic"
         current="{{currentBannerIndex}}"
         bindchange="onBannerChange"
       >
         <block wx:for="{{bannerList}}" wx:key="id">
           <swiper-item>
             <view class="hero-slide" data-id="{{item.id}}" bindtap="onBannerAction">
-              <image class="hero-image" src="{{item.image}}" mode="aspectFill" lazy-load />
+              <image class="hero-image" src="{{item.image}}" mode="aspectFill" />
               <view class="hero-overlay"></view>
               <view class="hero-content">
                 <view class="hero-badge">{{item.badge}}</view>

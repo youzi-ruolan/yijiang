@@ -88,6 +88,7 @@ Page({
     intro: '',
     detailHtml: '',
     detailBlocks: [],
+    galleryMedia: [],
     detailMedia: [],
     deliverables: [],
     usageNotice: [],
@@ -146,6 +147,32 @@ Page({
     wx.previewImage({
       current: images[index],
       urls: images,
+    });
+  },
+
+  previewGalleryImage(e) {
+    const { url } = e.currentTarget.dataset;
+    const urls = (this.data.galleryMedia || [])
+      .filter((item) => item.type === 'image')
+      .map((item) => item.url);
+    if (!url || !urls.length) return;
+    wx.previewImage({
+      current: url,
+      urls,
+    });
+  },
+
+  openExternalVideo(e) {
+    const { url } = e.currentTarget.dataset;
+    if (!url) return;
+    wx.setClipboardData({
+      data: url,
+      success() {
+        wx.showToast({
+          title: '链接已复制，请在浏览器打开',
+          icon: 'none',
+        });
+      },
     });
   },
 
@@ -444,12 +471,16 @@ Page({
       detailHtml = '',
       detailContent = '',
       detailMedia = [],
+      galleryMedia = [],
       deliverables = [],
       usageNotice = [],
     } = details;
     const normalizedDetailHtml = detailHtml || detailContentToHtml(detailContent || details.detailContent);
     const detailBlocks = parseDetailContentHtml(normalizedDetailHtml);
-    const normalizedDetailMedia = this.normalizeDetailMedia(detailMedia.length ? detailMedia : details.desc || []);
+    const normalizedDetailMedia = this.normalizeDetailMedia(detailMedia || []);
+    const normalizedGalleryMedia = this.normalizeDetailMedia(
+      galleryMedia.length ? galleryMedia : normalizedDetailMedia.length > 1 ? normalizedDetailMedia.slice(1) : [],
+    );
 
     skuList.forEach((item) => {
       skuArray.push({
@@ -508,6 +539,7 @@ Page({
       selectSkuSellsPrice: defaultSku.price || minSalePrice || 0,
       detailHtml: normalizedDetailHtml,
       detailBlocks,
+      galleryMedia: normalizedGalleryMedia,
       detailMedia: normalizedDetailMedia,
       deliverables,
       usageNotice,

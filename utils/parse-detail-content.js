@@ -2,6 +2,15 @@
  * 将商品详情 HTML 解析为小程序可渲染的块列表（文字/图片用 rich-text，视频用 video 组件）
  * 兼容 wangEditor 输出的 video 节点与自定义 mp-video-block
  */
+
+function isPlayableVideoUrl(url) {
+  return /\.(mp4|mov|m4v|webm|m3u8)(\?|#|$)/i.test(url);
+}
+
+function isExternalVideoPage(url) {
+  return /bilibili\.com|b23\.tv|youtube\.com|youtu\.be|v\.qq\.com|youku\.com/i.test(url);
+}
+
 function extractVideoMeta(segment) {
   const urlMatch =
     segment.match(/data-video-url=["']([^"']+)["']/i) ||
@@ -17,10 +26,21 @@ function extractVideoMeta(segment) {
   const url = urlMatch ? urlMatch[1] : '';
   if (!url) return null;
 
+  const poster = posterMatch ? posterMatch[1] : '';
+
+  if (isPlayableVideoUrl(url)) {
+    return {
+      type: 'video',
+      url,
+      poster,
+    };
+  }
+
   return {
-    type: 'video',
+    type: 'external-video',
     url,
-    poster: posterMatch ? posterMatch[1] : '',
+    poster,
+    label: isExternalVideoPage(url) ? '外链视频' : '视频链接',
   };
 }
 
@@ -85,4 +105,12 @@ export function detailContentToHtml(value) {
   }
 
   return '';
+}
+
+export function isDirectVideoUrl(url) {
+  return isPlayableVideoUrl(url);
+}
+
+export function isExternalVideoUrl(url) {
+  return isExternalVideoPage(url) || (!!url && !isPlayableVideoUrl(url));
 }
