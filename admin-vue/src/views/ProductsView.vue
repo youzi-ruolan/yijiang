@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import MpRichEditor from '@/components/MpRichEditor.vue';
+import ProductBannerFields from '@/components/ProductBannerFields.vue';
 import ProductMediaFields from '@/components/ProductMediaFields.vue';
 import { useAdminStore } from '@/stores/admin';
 import { galleryTextToLines } from '@/utils/asset';
@@ -20,6 +22,7 @@ const form = reactive({
   sales: 0,
   cover: '',
   tags: '',
+  bannerImages: [] as string[],
   gallery: '',
   detailContent: '',
   deliverables: '',
@@ -51,6 +54,7 @@ function resetForm() {
   form.sales = 0;
   form.cover = '';
   form.tags = '';
+  form.bannerImages = [];
   form.gallery = '';
   form.detailContent = '';
   form.deliverables = '';
@@ -72,8 +76,9 @@ function openEdit(product: ProductItem) {
   form.sales = product.sales;
   form.cover = product.cover;
   form.tags = (product.tags || []).join(', ');
+  form.bannerImages = [...(product.bannerImages || [])];
   form.gallery = (product.gallery || []).join('\n');
-  form.detailContent = (product.detailContent || []).join('\n');
+  form.detailContent = product.detailContent || '';
   form.deliverables = (product.deliverables || []).join('\n');
   form.usageNotice = (product.usageNotice || []).join('\n');
   dialogVisible.value = true;
@@ -102,11 +107,9 @@ async function saveProduct() {
       .map((item) => item.trim())
       .filter(Boolean),
     category: form.category,
+    bannerImages: form.bannerImages.filter(Boolean),
     gallery: galleryTextToLines(form.gallery),
-    detailContent: form.detailContent
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean),
+    detailContent: form.detailContent.trim(),
     deliverables: form.deliverables
       .split('\n')
       .map((item) => item.trim())
@@ -179,9 +182,9 @@ async function removeProduct(product: ProductItem) {
             <span class="admin-chip">{{ categoryNameMap[row.category] || row.category }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="详情图" width="90">
+        <el-table-column label="轮播" width="80">
           <template #default="{ row }">
-            <span class="gallery-count">{{ (row.gallery || []).length }} 张</span>
+            <span class="gallery-count">{{ (row.bannerImages || []).length || (row.gallery || []).length }} 张</span>
           </template>
         </el-table-column>
         <el-table-column label="价格" width="100">
@@ -208,7 +211,8 @@ async function removeProduct(product: ProductItem) {
     <el-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑商品' : '新增商品'"
-      width="760px"
+      width="900px"
+      top="4vh"
       destroy-on-close
     >
       <div class="form-grid">
@@ -240,10 +244,11 @@ async function removeProduct(product: ProductItem) {
         </div>
 
         <ProductMediaFields v-model:cover="form.cover" v-model:gallery="form.gallery" />
+        <ProductBannerFields v-model:banner-images="form.bannerImages" />
 
         <div class="field field-full">
           <span>详情正文</span>
-          <el-input v-model="form.detailContent" type="textarea" :rows="4" placeholder="每行一段详情说明" />
+          <MpRichEditor v-model="form.detailContent" />
         </div>
         <div class="field field-full">
           <span>交付内容</span>

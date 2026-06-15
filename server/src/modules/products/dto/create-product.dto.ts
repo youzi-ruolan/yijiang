@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Allow, IsArray, IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateProductDto {
   @IsString()
@@ -25,8 +25,12 @@ export class CreateProductDto {
   @IsArray()
   gallery!: string[];
 
+  @IsOptional()
   @IsArray()
-  detailContent!: string[];
+  bannerImages?: string[];
+
+  @Allow()
+  detailContent!: string | string[];
 
   @IsArray()
   deliverables!: string[];

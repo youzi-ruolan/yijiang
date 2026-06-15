@@ -32,7 +32,8 @@ interface ProductResponse {
   cover: string;
   tags: string[];
   gallery: string[];
-  detailContent: string[];
+  bannerImages?: string[];
+  detailContent: string | string[];
   deliverables: string[];
   usageNotice: string[];
   category: string;
@@ -311,13 +312,28 @@ export function mapProductFromApi(product: ProductResponse): ProductItem {
     cover: product.cover,
     tags: product.tags || [],
     gallery: product.gallery || [],
-    detailContent: product.detailContent || [],
+    bannerImages: product.bannerImages || [],
+    detailContent: normalizeDetailContentFromApi(product.detailContent),
     deliverables: product.deliverables || [],
     usageNotice: product.usageNotice || [],
     category: product.category,
     isNew: Boolean(product.isNew),
     isHot: Boolean(product.isHot),
   };
+}
+
+function normalizeDetailContentFromApi(value: string | string[] | undefined) {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => `<p>${`${item}`.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+      .join('');
+  }
+
+  return '';
 }
 
 export function mapAssetFromApi(asset: AssetResponse): AssetItem {
@@ -361,7 +377,8 @@ function toProductPayload(product: ProductItem) {
     tags: product.tags || [],
     category: product.category,
     gallery: product.gallery || [],
-    detailContent: product.detailContent || [],
+    bannerImages: product.bannerImages || [],
+    detailContent: product.detailContent || '',
     deliverables: product.deliverables || [],
     usageNotice: product.usageNotice || [],
     isNew: product.isNew,

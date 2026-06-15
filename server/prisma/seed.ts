@@ -112,8 +112,11 @@ async function main() {
         sales: item.sales,
         cover: item.cover,
         tags: item.tags as Prisma.InputJsonValue,
+        bannerImages: (item.gallery ?? []).slice(0, 4) as Prisma.InputJsonValue,
         gallery: (item.gallery ?? []) as Prisma.InputJsonValue,
-        detailContent: (item.detailContent ?? []) as Prisma.InputJsonValue,
+        detailContent: Array.isArray(item.detailContent)
+          ? ((item.detailContent ?? []) as Prisma.InputJsonValue)
+          : ((item.detailContent ?? '') as Prisma.InputJsonValue),
         deliverables: (item.deliverables ?? []) as Prisma.InputJsonValue,
         usageNotice: (item.usageNotice ?? []) as Prisma.InputJsonValue,
         category: item.category,

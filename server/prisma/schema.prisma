@@ -49,6 +49,7 @@ model Product {
   sales         Int      @default(0)
   cover         String
   tags          Json
+  bannerImages  Json     @default("[]")
   gallery       Json
   detailContent Json
   deliverables  Json

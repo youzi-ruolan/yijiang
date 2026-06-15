@@ -51,6 +51,9 @@ const assetUsageMap = computed(() => {
 
   for (const product of adminStore.dataset.products) {
     addUsage(product.cover, `商品封面：${product.title}`);
+    for (const url of product.bannerImages || []) {
+      addUsage(url, `顶部轮播：${product.title}`);
+    }
     for (const line of product.gallery || []) {
       if (line.startsWith('{')) {
         try {

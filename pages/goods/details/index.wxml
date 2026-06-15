@@ -1,25 +1,27 @@
 <view class="goods-detail-page">
   <view class="goods-head">
-    <swiper
-      wx:if="{{details.images.length > 0}}"
-      class="detail-swiper"
-      current="{{current}}"
-      autoplay="{{autoplay}}"
-      duration="{{duration}}"
-      interval="{{interval}}"
-      circular
-      bindchange="handleSwiperChange"
-    >
-      <block wx:for="{{details.images}}" wx:key="*this">
-        <swiper-item>
-          <view class="detail-swiper-item" data-index="{{index}}" bindtap="showCurImg">
-            <t-image class="detail-swiper-image" src="{{item}}" mode="aspectFit" lazy-load />
-          </view>
-        </swiper-item>
-      </block>
-    </swiper>
-    <view wx:if="{{details.images.length > 1}}" class="detail-swiper-indicator">
-      {{current + 1}} / {{details.images.length}}
+    <view class="detail-swiper-wrap">
+      <swiper
+        wx:if="{{details.images.length > 0}}"
+        class="detail-swiper"
+        current="{{current}}"
+        autoplay="{{autoplay}}"
+        duration="{{duration}}"
+        interval="{{interval}}"
+        circular
+        bindchange="handleSwiperChange"
+      >
+        <block wx:for="{{details.images}}" wx:key="*this">
+          <swiper-item>
+            <view class="detail-swiper-item" data-index="{{index}}" bindtap="showCurImg">
+              <image class="detail-swiper-image" src="{{item}}" mode="aspectFit" lazy-load show-menu-by-longpress />
+            </view>
+          </swiper-item>
+        </block>
+      </swiper>
+      <view wx:if="{{details.images.length > 1}}" class="detail-swiper-indicator">
+        {{current + 1}} / {{details.images.length}}
+      </view>
     </view>
     <view class="goods-info">
       <view class="goods-number">
@@ -102,19 +104,30 @@
         </view>
       </view>
     </view>
-    <view class="detail-block" wx:if="{{detailContent.length > 0}}">
+    <view class="detail-block" wx:if="{{detailBlocks.length > 0}}">
       <view class="detail-block__title">商品详情</view>
-      <view class="detail-block__list">
-        <view wx:for="{{detailContent}}" wx:key="index" class="detail-block__item">{{item}}</view>
+      <view class="detail-rich-content">
+        <block wx:for="{{detailBlocks}}" wx:key="index">
+          <rich-text wx:if="{{item.type === 'rich'}}" class="detail-rich-text" nodes="{{item.html}}" />
+          <video
+            wx:elif="{{item.type === 'video'}}"
+            class="detail-rich-video"
+            src="{{item.url}}"
+            poster="{{item.poster}}"
+            controls
+            object-fit="contain"
+            show-center-play-btn
+          />
+        </block>
       </view>
     </view>
 
-    <view class="desc-content__title" wx:if="{{detailMedia.length > 0}}">
+    <view class="desc-content__title" wx:if="{{detailBlocks.length === 0 && detailMedia.length > 0}}">
       <t-image t-class="img" src="{{recLeftImg}}" />
       <span class="desc-content__title--text">详情介绍</span>
       <t-image t-class="img" src="{{recRightImg}}" />
     </view>
-    <view wx:if="{{detailMedia.length > 0}}" wx:for="{{detailMedia}}" wx:key="index">
+    <view wx:if="{{detailBlocks.length === 0 && detailMedia.length > 0}}" wx:for="{{detailMedia}}" wx:key="index">
       <t-image wx:if="{{item.type == 'image'}}" t-class="desc-content__img" src="{{item.url}}" mode="widthFix" />
       <video
         wx:else

@@ -7,6 +7,7 @@ import {
 import { cdnBase } from '../../../config/index';
 import { addLocalCartItem, getLocalCartCount } from '../../../utils/local-cart';
 import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
+import { detailContentToHtml, parseDetailContentHtml } from '../../../utils/parse-detail-content';
 
 const imgPrefix = `${cdnBase}/`;
 
@@ -85,7 +86,8 @@ Page({
     interval: 5000,
     soldNum: 0, // 已售数量
     intro: '',
-    detailContent: [],
+    detailHtml: '',
+    detailBlocks: [],
     detailMedia: [],
     deliverables: [],
     usageNotice: [],
@@ -138,11 +140,12 @@ Page({
   },
 
   showCurImg(e) {
-    const index = e.detail?.index ?? e.currentTarget?.dataset?.index ?? 0;
-    const { images } = this.data.details;
+    const index = e.currentTarget?.dataset?.index ?? 0;
+    const { images = [] } = this.data.details;
+    if (!images.length) return;
     wx.previewImage({
       current: images[index],
-      urls: images, // 需要预览的图片http链接列表
+      urls: images,
     });
   },
 
@@ -438,11 +441,14 @@ Page({
       maxLinePrice,
       soldNum,
       intro,
-      detailContent = [],
+      detailHtml = '',
+      detailContent = '',
       detailMedia = [],
       deliverables = [],
       usageNotice = [],
     } = details;
+    const normalizedDetailHtml = detailHtml || detailContentToHtml(detailContent || details.detailContent);
+    const detailBlocks = parseDetailContentHtml(normalizedDetailHtml);
     const normalizedDetailMedia = this.normalizeDetailMedia(detailMedia.length ? detailMedia : details.desc || []);
 
     skuList.forEach((item) => {
@@ -500,7 +506,8 @@ Page({
       selectedAttrStr: defaultAttrStr,
       selectItem: defaultSku.skuId ? defaultSku : null,
       selectSkuSellsPrice: defaultSku.price || minSalePrice || 0,
-      detailContent,
+      detailHtml: normalizedDetailHtml,
+      detailBlocks,
       detailMedia: normalizedDetailMedia,
       deliverables,
       usageNotice,

@@ -8,7 +8,8 @@ export interface ProductItem {
   tags: string[];
   category: string;
   gallery?: string[];
-  detailContent?: string[];
+  bannerImages?: string[];
+  detailContent?: string;
   deliverables?: string[];
   usageNotice?: string[];
   isNew?: boolean;

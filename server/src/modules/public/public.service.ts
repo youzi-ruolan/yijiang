@@ -880,6 +880,7 @@ export class PublicService {
     sales: number;
     cover: string;
     tags: unknown;
+    bannerImages?: unknown;
     gallery: unknown;
     detailContent: unknown;
     deliverables: unknown;
@@ -898,8 +899,9 @@ export class PublicService {
       sales: realSales,
       cover: product.cover,
       tags: this.toStringArray(product.tags),
+      bannerImages: this.toStringArray(product.bannerImages),
       gallery: this.toStringArray(product.gallery),
-      detailContent: this.toStringArray(product.detailContent),
+      detailContent: this.normalizeDetailHtml(product.detailContent),
       deliverables: this.toStringArray(product.deliverables),
       usageNotice: this.toStringArray(product.usageNotice),
       category: product.category,
@@ -915,7 +917,9 @@ export class PublicService {
     const tags = productCard.tags;
     const gallery = productCard.gallery;
     const detailMedia = [product.cover, ...gallery].map((item) => this.toProductMediaItem(item));
-    const galleryImages = detailMedia.filter((item) => item.type === 'image').map((item) => item.url);
+    const fallbackBannerImages = detailMedia.filter((item) => item.type === 'image').map((item) => item.url);
+    const bannerImages = productCard.bannerImages.length ? productCard.bannerImages : fallbackBannerImages;
+    const galleryImages = bannerImages.filter(Boolean);
     const standardPrice = Math.round(product.price * 100);
     const linePrice = Math.round(product.price * 100);
     const specList = tags.length
@@ -978,6 +982,7 @@ export class PublicService {
       desc: galleryImages,
       detailMedia,
       etitle: '',
+      detailHtml: productCard.detailContent,
       detailContent: productCard.detailContent,
       deliverables: productCard.deliverables,
       usageNotice: productCard.usageNotice,
@@ -1219,6 +1224,20 @@ export class PublicService {
 
   private toStringArray(value: unknown) {
     return Array.isArray(value) ? value.map((item) => `${item}`) : [];
+  }
+
+  private normalizeDetailHtml(value: unknown) {
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => `<p>${`${item}`.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+        .join('');
+    }
+
+    return '';
   }
 
   private toProductMediaItem(value: string) {

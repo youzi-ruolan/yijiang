@@ -102,6 +102,13 @@ function moveGalleryItem(index: number, offset: number) {
             <img v-if="item.preview" :src="item.preview" :alt="item.parsed.title || '详情媒体'" />
             <div v-else class="gallery-item__placeholder">{{ item.parsed.type === 'video' ? '视频' : '图片' }}</div>
             <span class="gallery-item__badge">{{ item.parsed.type === 'video' ? '视频' : '图片' }}</span>
+            <el-button
+              class="gallery-item__remove"
+              :icon="Delete"
+              circle
+              size="small"
+              @click="removeGalleryItem(item.index)"
+            />
           </div>
           <div class="gallery-item__actions">
             <el-button size="small" text :disabled="item.index === 0" @click="moveGalleryItem(item.index, -1)">
@@ -115,7 +122,6 @@ function moveGalleryItem(index: number, offset: number) {
             >
               右移
             </el-button>
-            <el-button size="small" text type="danger" @click="removeGalleryItem(item.index)">移除</el-button>
           </div>
         </div>
       </div>
@@ -227,14 +233,13 @@ function moveGalleryItem(index: number, offset: number) {
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
   gap: 12px;
 }
 
 .gallery-item {
   border: 1px solid var(--admin-line);
   border-radius: var(--admin-radius-md);
-  overflow: hidden;
   background: #fff;
 }
 
@@ -242,6 +247,8 @@ function moveGalleryItem(index: number, offset: number) {
   position: relative;
   aspect-ratio: 1;
   background: var(--admin-bg);
+  border-radius: var(--admin-radius-md) var(--admin-radius-md) 0 0;
+  overflow: hidden;
 }
 
 .gallery-item__preview img {
@@ -270,10 +277,18 @@ function moveGalleryItem(index: number, offset: number) {
   font-size: 11px;
 }
 
+.gallery-item__remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+}
+
 .gallery-item__actions {
   display: flex;
-  justify-content: space-between;
-  padding: 4px;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 4px;
 }
 
 .gallery-empty {

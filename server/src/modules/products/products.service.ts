@@ -49,8 +49,9 @@ export class ProductsService {
       sales: payload.sales ?? 0,
       cover: payload.cover,
       tags: payload.tags ?? [],
+      bannerImages: payload.bannerImages ?? [],
       gallery: payload.gallery ?? [],
-      detailContent: payload.detailContent ?? [],
+      detailContent: this.normalizeDetailContentInput(payload.detailContent),
       deliverables: payload.deliverables ?? [],
       usageNotice: payload.usageNotice ?? [],
       category: payload.category,
@@ -70,8 +71,11 @@ export class ProductsService {
       ...(payload.sales !== undefined ? { sales: payload.sales } : {}),
       ...(payload.cover !== undefined ? { cover: payload.cover } : {}),
       ...(payload.tags !== undefined ? { tags: payload.tags } : {}),
+      ...(payload.bannerImages !== undefined ? { bannerImages: payload.bannerImages } : {}),
       ...(payload.gallery !== undefined ? { gallery: payload.gallery } : {}),
-      ...(payload.detailContent !== undefined ? { detailContent: payload.detailContent } : {}),
+      ...(payload.detailContent !== undefined
+        ? { detailContent: this.normalizeDetailContentInput(payload.detailContent) }
+        : {}),
       ...(payload.deliverables !== undefined ? { deliverables: payload.deliverables } : {}),
       ...(payload.usageNotice !== undefined ? { usageNotice: payload.usageNotice } : {}),
       ...(payload.category !== undefined ? { category: payload.category } : {}),
@@ -80,5 +84,11 @@ export class ProductsService {
       ...(payload.sort !== undefined ? { sort: payload.sort } : {}),
       ...(payload.status !== undefined ? { status: payload.status } : {}),
     };
+  }
+
+  private normalizeDetailContentInput(value: string | string[] | undefined) {
+    if (value === undefined) return [];
+    if (typeof value === 'string') return value.trim();
+    return value.map((item) => `${item}`.trim()).filter(Boolean);
   }
 }
