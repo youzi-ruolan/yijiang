@@ -77,6 +77,7 @@ export class AssetsService {
         Key: objectKey,
         Body: file.buffer,
         ContentType: contentType,
+        ACL: 'public-read',
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'COS 上传失败';
