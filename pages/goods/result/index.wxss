@@ -1,3 +1,5 @@
+@import '../../../style/product-card.wxss';
+
 page {
   background-color: #f7f5f2;
 }
@@ -66,12 +68,8 @@ page view {
   -webkit-overflow-scrolling: touch;
 }
 
-.result-container .wr-goods-list {
-  background: #f7f5f2 !important;
-}
-
-.result-container .t-image__mask {
-  display: flex !important;
+.result-container .product-grid {
+  margin-top: 8rpx;
 }
 
 .result-container .empty-wrap {

@@ -162,6 +162,18 @@ Page({
     });
   },
 
+  previewDetailImage(e) {
+    const { url } = e.currentTarget.dataset;
+    const urls = (this.data.detailBlocks || [])
+      .filter((item) => item.type === 'image')
+      .map((item) => item.url);
+    if (!url || !urls.length) return;
+    wx.previewImage({
+      current: url,
+      urls,
+    });
+  },
+
   openExternalVideo(e) {
     const { url } = e.currentTarget.dataset;
     if (!url) return;

@@ -1,8 +1,31 @@
 import { getSearchResult } from '../../../services/good/fetchSearchResult';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { addLocalCartItem, getLocalCartCount } from '../../../utils/local-cart';
-import { buildCartItemFromGoods } from '../../../utils/cart-item';
 import { saveSearchHistory } from '../../../services/good/fetchSearchHistory';
+
+function normalizeTags(tags = []) {
+  return tags
+    .map((item) => (typeof item === 'string' ? item : item?.title || ''))
+    .filter(Boolean);
+}
+
+function normalizeSearchProduct(item = {}, isRecommendMode = false) {
+  const baseTags = normalizeTags(item.tags);
+  const recommendTags = isRecommendMode
+    ? [item.isHot ? '热门' : '', item.isNew ? '新品' : ''].filter(Boolean)
+    : [];
+  const priceYuan = Number(item.price || 0) / 100;
+  const originYuan = Number(item.originPrice || 0) / 100;
+
+  return {
+    ...item,
+    cover: item.thumb || item.primaryImage || item.cover || '',
+    displayDescription: item.desc || item.description || '',
+    tags: [...recommendTags, ...baseTags].slice(0, 2),
+    price: priceYuan,
+    originalPrice: originYuan > priceYuan ? originYuan : priceYuan,
+    format: item.format || baseTags[0] || '',
+  };
+}
 
 Page({
   data: {
@@ -12,7 +35,6 @@ Page({
     isRecommendMode: false,
     loadMoreStatus: 0,
     loading: true,
-    cartNum: 0,
     totalCount: 0,
   },
 
@@ -33,9 +55,7 @@ Page({
     );
   },
 
-  onShow() {
-    this.refreshCartCount();
-  },
+  onShow() {},
 
   generalQueryData(reset = false) {
     const { keywords } = this.data;
@@ -61,17 +81,9 @@ Page({
     try {
       const result = await getSearchResult(params);
       const { spuList = [], totalCount = 0 } = result || {};
-      const nextGoodsList = reset ? spuList : goodsList.concat(spuList);
       const isRecommendMode = !`${this.data.keywords || ''}`.trim();
-
-      nextGoodsList.forEach((item) => {
-        const baseTags = Array.isArray(item.tags) ? item.tags : [];
-        const recommendTags = isRecommendMode
-          ? [item.isHot ? '热门' : '', item.isNew ? '新品' : ''].filter(Boolean)
-          : [];
-        item.tags = [...recommendTags, ...baseTags].slice(0, 2);
-        item.hideKey = { desc: true };
-      });
+      const mappedList = spuList.map((item) => normalizeSearchProduct(item, isRecommendMode));
+      const nextGoodsList = reset ? mappedList : goodsList.concat(mappedList);
 
       this.pageNum = params.pageNum;
       this.total = totalCount;
@@ -153,41 +165,11 @@ Page({
     this.init(false);
   },
 
-  handleCartTap() {
-    wx.switchTab({
-      url: '/pages/cart/index',
-    });
-  },
-
-  refreshCartCount() {
-    this.setData({
-      cartNum: getLocalCartCount(),
-    });
-  },
-
-  handleAddCart(event) {
-    const { index } = event.detail;
-    const goods = this.data.goodsList[index];
-    if (!goods) return;
-
-    addLocalCartItem(buildCartItemFromGoods(goods));
-    this.refreshCartCount();
-    const tabBar = this.getTabBar && this.getTabBar();
-    if (tabBar && tabBar.updateCartCount) {
-      tabBar.updateCartCount();
-    }
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: '已加入购物车',
-    });
-  },
-
-  gotoGoodsDetail(e) {
-    const { index } = e.detail;
-    const { spuId } = this.data.goodsList[index];
+  openProductCard(e) {
+    const { id } = e.currentTarget.dataset;
+    if (!id) return;
     wx.navigateTo({
-      url: `/pages/goods/details/index?spuId=${spuId}`,
+      url: `/pages/goods/details/index?spuId=${id}`,
     });
   },
 });

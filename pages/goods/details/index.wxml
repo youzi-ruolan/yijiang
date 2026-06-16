@@ -14,7 +14,7 @@
         <block wx:for="{{details.images}}" wx:key="*this">
           <swiper-item>
             <view class="detail-swiper-item" data-index="{{index}}" bindtap="showCurImg">
-              <image class="detail-swiper-image" src="{{item}}" mode="aspectFit" lazy-load show-menu-by-longpress />
+              <image class="detail-swiper-image" src="{{item}}" mode="aspectFill" lazy-load show-menu-by-longpress />
             </view>
           </swiper-item>
         </block>
@@ -104,11 +104,47 @@
         </view>
       </view>
     </view>
+    <view class="detail-block" wx:if="{{galleryMedia.length > 0}}">
+      <view class="detail-block__title">详情图集</view>
+      <view class="detail-gallery-list">
+        <block wx:for="{{galleryMedia}}" wx:key="url">
+          <image
+            wx:if="{{item.type === 'image'}}"
+            class="detail-gallery-image"
+            src="{{item.url}}"
+            mode="widthFix"
+            lazy-load
+            show-menu-by-longpress
+            data-url="{{item.url}}"
+            bindtap="previewGalleryImage"
+          />
+          <video
+            wx:else
+            class="detail-gallery-video"
+            src="{{item.url}}"
+            poster="{{item.cover}}"
+            controls
+            object-fit="contain"
+            show-center-play-btn
+          />
+        </block>
+      </view>
+    </view>
     <view class="detail-block" wx:if="{{detailBlocks.length > 0}}">
       <view class="detail-block__title">商品详情</view>
       <view class="detail-rich-content">
         <block wx:for="{{detailBlocks}}" wx:key="index">
           <rich-text wx:if="{{item.type === 'rich'}}" class="detail-rich-text" nodes="{{item.html}}" />
+          <image
+            wx:elif="{{item.type === 'image'}}"
+            class="detail-rich-image"
+            src="{{item.url}}"
+            mode="widthFix"
+            lazy-load
+            show-menu-by-longpress
+            data-url="{{item.url}}"
+            bindtap="previewDetailImage"
+          />
           <video
             wx:elif="{{item.type === 'video'}}"
             class="detail-rich-video"
@@ -135,33 +171,6 @@
               <view class="detail-external-video__tip">哔哩哔哩等链接无法在小程序内直接播放，点击复制链接</view>
             </view>
           </view>
-        </block>
-      </view>
-    </view>
-
-    <view class="detail-block" wx:if="{{galleryMedia.length > 0}}">
-      <view class="detail-block__title">详情图集</view>
-      <view class="detail-gallery-list">
-        <block wx:for="{{galleryMedia}}" wx:key="url">
-          <image
-            wx:if="{{item.type === 'image'}}"
-            class="detail-gallery-image"
-            src="{{item.url}}"
-            mode="widthFix"
-            lazy-load
-            show-menu-by-longpress
-            data-url="{{item.url}}"
-            bindtap="previewGalleryImage"
-          />
-          <video
-            wx:else
-            class="detail-gallery-video"
-            src="{{item.url}}"
-            poster="{{item.cover}}"
-            controls
-            object-fit="contain"
-            show-center-play-btn
-          />
         </block>
       </view>
     </view>

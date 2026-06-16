@@ -44,18 +44,63 @@ function extractVideoMeta(segment) {
   };
 }
 
+function normalizeImgTag(attrs) {
+  const forcedStyle = 'width:100%;height:auto;display:block;margin:12px 0;';
+  let next = attrs
+    .replace(/\s+width=["'][^"']*["']/gi, '')
+    .replace(/\s+height=["'][^"']*["']/gi, '');
+
+  if (/style=/i.test(next)) {
+    next = next.replace(/style=["']([^"']*)["']/i, () => `style="${forcedStyle}"`);
+  } else {
+    next = `${next} style="${forcedStyle}"`;
+  }
+
+  return `<img${next}>`;
+}
+
 function normalizeRichHtml(html) {
   const trimmed = `${html || ''}`.trim();
   if (!trimmed) return '';
 
   return trimmed
-    .replace(/<img([^>]*?)(?:\s*\/)?>/gi, (match, attrs) => {
-      if (/style=/i.test(attrs)) {
-        return `<img${attrs}>`;
-      }
-      return `<img${attrs} style="max-width:100%;height:auto;display:block;margin:12px 0;">`;
-    })
+    .replace(/<img([^>]*?)(?:\s*\/)?>/gi, (_match, attrs) => normalizeImgTag(attrs))
     .replace(/<p><br><\/p>/gi, '<p style="margin:8px 0;"></p>');
+}
+
+function splitRichHtmlParts(html) {
+  const source = `${html || ''}`.trim();
+  if (!source) return [];
+
+  const parts = [];
+  const imgRe = /<img[^>]+src=["']([^"']+)["'][^>]*\/?>/gi;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = imgRe.exec(source)) !== null) {
+    const before = source.slice(lastIndex, match.index).trim();
+    if (before) {
+      parts.push({ type: 'rich', html: before });
+    }
+    parts.push({ type: 'image', url: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  const tail = source.slice(lastIndex).trim();
+  if (tail) {
+    parts.push({ type: 'rich', html: tail });
+  }
+
+  return parts.length ? parts : [{ type: 'rich', html: source }];
+}
+
+function pushRichParts(blocks, html) {
+  const richHtml = normalizeRichHtml(html);
+  if (!richHtml) return;
+
+  splitRichHtmlParts(richHtml).forEach((part) => {
+    blocks.push(part);
+  });
 }
 
 const VIDEO_SPLIT_RE =
@@ -72,10 +117,7 @@ export function parseDetailContentHtml(html) {
   VIDEO_SPLIT_RE.lastIndex = 0;
   while ((match = VIDEO_SPLIT_RE.exec(source)) !== null) {
     const richPart = source.slice(lastIndex, match.index);
-    const richHtml = normalizeRichHtml(richPart);
-    if (richHtml) {
-      blocks.push({ type: 'rich', html: richHtml });
-    }
+    pushRichParts(blocks, richPart);
 
     const videoMeta = extractVideoMeta(match[0]);
     if (videoMeta) {
@@ -85,10 +127,7 @@ export function parseDetailContentHtml(html) {
     lastIndex = match.index + match[0].length;
   }
 
-  const tail = normalizeRichHtml(source.slice(lastIndex));
-  if (tail) {
-    blocks.push({ type: 'rich', html: tail });
-  }
+  pushRichParts(blocks, source.slice(lastIndex));
 
   return blocks;
 }
