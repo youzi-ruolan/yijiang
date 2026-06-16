@@ -93,7 +93,7 @@
           <view class="product-title">{{item.title}}</view>
           <view class="product-desc">{{item.displayDescription}}</view>
           <view class="tag-row" wx:if="{{item.tags && item.tags.length}}">
-            <text class="product-tag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+            <view class="product-tag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</view>
           </view>
 
           <view class="price-row">

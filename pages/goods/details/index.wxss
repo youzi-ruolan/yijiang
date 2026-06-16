@@ -2,7 +2,6 @@
 page {
   width: 100vw;
   background: #f7f7f7;
-  padding-bottom: calc(env(safe-area-inset-bottom) + 200rpx);
 }
 
 .goods-detail-page .detail-swiper-wrap {
@@ -294,7 +293,14 @@ page {
 .goods-detail-page .desc-content {
   margin-top: 20rpx;
   background-color: #fff;
-  padding-bottom: 32rpx;
+}
+
+/* 固定购买栏占位：page padding 无法可靠撑开滚动高度，需用真实节点 */
+.goods-detail-page .detail-bottom-spacer {
+  height: calc(140rpx + constant(safe-area-inset-bottom));
+  height: calc(140rpx + env(safe-area-inset-bottom));
+  width: 100%;
+  flex-shrink: 0;
 }
 
 .goods-detail-page .detail-block {
