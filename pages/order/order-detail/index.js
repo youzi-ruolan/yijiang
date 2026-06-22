@@ -151,9 +151,11 @@ Page({
 
   normalizeOrderStatus(status, statusDesc) {
     if (status === OrderStatus.PENDING_PAYMENT) return '待付款';
-    if (status === OrderStatus.PENDING_DELIVERY) return '待交付';
-    if (status === OrderStatus.PENDING_RECEIPT) return '已交付';
-    if (status === OrderStatus.COMPLETE) return '已完成';
+    if (status === OrderStatus.PAID || status === OrderStatus.PENDING_DELIVERY || status === OrderStatus.PENDING_RECEIPT) {
+      return '已付款';
+    }
+    if (status === OrderStatus.PENDING_COMMENT) return '待评价';
+    if (status === OrderStatus.COMMENTED || status === OrderStatus.COMPLETE) return '已评价';
     return statusDesc || '已关闭';
   },
 

@@ -6,35 +6,34 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 const ORDER_STATUS = {
   PENDING_PAYMENT: '待处理',
-  PENDING_DELIVERY: '待交付',
-  PENDING_RECEIPT: '待收货',
-  COMPLETE: '已完成',
+  PAID: '已付款',
+  COMPLETE: '已评价',
   CANCELED: '已取消',
 } as const;
 
 const ORDER_STATUS_CODE = {
   [ORDER_STATUS.PENDING_PAYMENT]: 5,
-  [ORDER_STATUS.PENDING_DELIVERY]: 10,
-  [ORDER_STATUS.PENDING_RECEIPT]: 40,
-  [ORDER_STATUS.COMPLETE]: 50,
+  [ORDER_STATUS.PAID]: 10,
+  [ORDER_STATUS.COMPLETE]: 42,
   [ORDER_STATUS.CANCELED]: 80,
+} as const;
+
+const ORDER_TAB_FILTER = {
+  PAID: '已付款',
+  PENDING_COMMENT: '待评价',
+  COMMENTED: '已评价',
 } as const;
 
 const ORDER_STATUS_NAME = {
   [ORDER_STATUS.PENDING_PAYMENT]: '待付款',
-  [ORDER_STATUS.PENDING_DELIVERY]: '待交付',
-  [ORDER_STATUS.PENDING_RECEIPT]: '已交付',
-  [ORDER_STATUS.COMPLETE]: '已完成',
+  [ORDER_STATUS.PAID]: '已付款',
+  [ORDER_STATUS.COMPLETE]: '已评价',
   [ORDER_STATUS.CANCELED]: '已取消',
 } as const;
 
 type OrderStatusValue = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
 
-const PAID_ORDER_STATUSES: OrderStatusValue[] = [
-  ORDER_STATUS.PENDING_DELIVERY,
-  ORDER_STATUS.PENDING_RECEIPT,
-  ORDER_STATUS.COMPLETE,
-];
+const PAID_ORDER_STATUSES: OrderStatusValue[] = [ORDER_STATUS.PAID, ORDER_STATUS.COMPLETE];
 
 const PAYMENT_TIMEOUT_MS = 60 * 60 * 1000;
 
@@ -203,8 +202,8 @@ export class PublicService {
 
     countsData[0].num = addressCount;
 
-    const orderTagInfos = this.buildOrderCountList(orders.map((item) => item.status)).filter((item) =>
-      [5, 10, 40, 0].includes(item.tabType),
+    const orderTagInfos = (await this.buildOrderCountList(orders, uid)).filter((item) =>
+      [-1, 5, 10, 41, 42].includes(item.tabType),
     );
 
     return {
@@ -470,6 +469,26 @@ export class PublicService {
 
   async getOrders(status?: string, uid?: string) {
     await this.cancelExpiredPendingOrders(uid);
+    const statusText = `${status || ''}`.trim();
+
+    if (
+      statusText === ORDER_TAB_FILTER.PAID ||
+      statusText === ORDER_TAB_FILTER.PENDING_COMMENT ||
+      statusText === ORDER_TAB_FILTER.COMMENTED
+    ) {
+      const orders = await this.prisma.order.findMany({
+        where: uid ? { userId: uid } : undefined,
+        orderBy: [{ createdAt: 'desc' }],
+      });
+      const commentedSet = await this.buildCommentedSet(
+        orders.map((order) => order.id),
+        uid,
+      );
+      return orders
+        .filter((order) => this.matchOrderTabFilter(order, statusText, commentedSet))
+        .map((item) => this.formatPublicOrder(item, commentedSet));
+    }
+
     const normalizedStatus = this.normalizeOrderStatus(status);
     const orders = await this.prisma.order.findMany({
       where: {
@@ -479,18 +498,10 @@ export class PublicService {
       orderBy: [{ createdAt: 'desc' }],
     });
 
-    const orderIds = orders.map((order) => order.id);
-    const comments =
-      orderIds.length && uid
-        ? await this.prisma.productComment.findMany({
-            where: {
-              orderNo: { in: orderIds },
-              userId: uid,
-            },
-            select: { orderNo: true, skuId: true },
-          })
-        : [];
-    const commentedSet = new Set(comments.map((comment) => `${comment.orderNo}_${comment.skuId}`));
+    const commentedSet = await this.buildCommentedSet(
+      orders.map((order) => order.id),
+      uid,
+    );
 
     return orders.map((item) => this.formatPublicOrder(item, commentedSet));
   }
@@ -499,10 +510,9 @@ export class PublicService {
     await this.cancelExpiredPendingOrders(uid);
     const orders = await this.prisma.order.findMany({
       where: uid ? { userId: uid } : undefined,
-      select: { status: true },
     });
 
-    return this.buildOrderCountList(orders.map((item) => item.status));
+    return this.buildOrderCountList(orders, uid);
   }
 
   async cancelOrder(id: string, uid?: string) {
@@ -534,7 +544,7 @@ export class PublicService {
       return this.formatPublicOrder(
         await this.prisma.order.update({
           where: { id },
-          data: { status: ORDER_STATUS.PENDING_DELIVERY },
+          data: { status: ORDER_STATUS.PAID },
         }),
       );
     }
@@ -730,6 +740,8 @@ export class PublicService {
         throw error;
       });
 
+    await this.syncOrderReviewStatus(orderNo, userId);
+
     return {
       data: this.formatComment(comment),
       code: 'Success',
@@ -879,7 +891,7 @@ export class PublicService {
     if (notifyData.trade_state === 'SUCCESS') {
       await this.prisma.order.update({
         where: { id: orderNo },
-        data: { status: ORDER_STATUS.PENDING_DELIVERY },
+        data: { status: ORDER_STATUS.PAID },
       });
     }
 
@@ -1295,9 +1307,9 @@ export class PublicService {
   private normalizeOrderStatus(status?: string): OrderStatusValue | '' {
     if (!status) return '';
     if (status === '待付款' || status === '待支付' || status === '待处理') return ORDER_STATUS.PENDING_PAYMENT;
-    if (status === '已付款' || status === '待发货' || status === '待交付') return ORDER_STATUS.PENDING_DELIVERY;
-    if (status === '待收货' || status === '已交付') return ORDER_STATUS.PENDING_RECEIPT;
-    if (status === '已完成') return ORDER_STATUS.COMPLETE;
+    if (status === '已付款' || status === '待发货' || status === '待交付') return ORDER_STATUS.PAID;
+    if (status === '待收货' || status === '已交付') return ORDER_STATUS.PAID;
+    if (status === '已评价' || status === '已完成') return ORDER_STATUS.COMPLETE;
     return ORDER_STATUS.CANCELED;
   }
 
@@ -1306,14 +1318,132 @@ export class PublicService {
     return normalizedStatus ? ORDER_STATUS_NAME[normalizedStatus] : ORDER_STATUS_NAME[ORDER_STATUS.CANCELED];
   }
 
-  private buildOrderCountList(statuses: string[]) {
-    const normalizedStatuses = statuses.map((status) => this.normalizeOrderStatus(status));
+  private async buildCommentedSet(orderIds: string[], uid?: string) {
+    if (!orderIds.length || !uid) {
+      return new Set<string>();
+    }
+
+    const comments = await this.prisma.productComment.findMany({
+      where: {
+        orderNo: { in: orderIds },
+        userId: uid,
+      },
+      select: { orderNo: true, skuId: true },
+    });
+
+    return new Set(comments.map((comment) => `${comment.orderNo}_${comment.skuId}`));
+  }
+
+  private getOrderCommentState(order: { id: string; itemsDetail: unknown }, commentedSet: Set<string>) {
+    const items = this.getOrderItems(order.itemsDetail);
+    if (!items.length) {
+      return { allCommented: false, hasItems: false };
+    }
+
+    const allCommented = items.every((item) => commentedSet.has(`${order.id}_${item.skuId || ''}`));
+    return { allCommented, hasItems: true };
+  }
+
+  private isPaidOrderStatus(status: string) {
+    const normalizedStatus = this.normalizeOrderStatus(status);
+    return (
+      normalizedStatus === ORDER_STATUS.PAID ||
+      normalizedStatus === ORDER_STATUS.COMPLETE
+    );
+  }
+
+  private matchOrderTabFilter(
+    order: { id: string; status: string; itemsDetail: unknown },
+    tab: string,
+    commentedSet: Set<string>,
+  ) {
+    const normalizedStatus = this.normalizeOrderStatus(order.status);
+    if (normalizedStatus === ORDER_STATUS.PENDING_PAYMENT || normalizedStatus === ORDER_STATUS.CANCELED) {
+      return false;
+    }
+
+    if (!this.isPaidOrderStatus(order.status)) {
+      return false;
+    }
+
+    const { allCommented, hasItems } = this.getOrderCommentState(order, commentedSet);
+    if (!hasItems) {
+      return false;
+    }
+
+    if (tab === ORDER_TAB_FILTER.PAID) {
+      return true;
+    }
+    if (tab === ORDER_TAB_FILTER.PENDING_COMMENT) {
+      return !allCommented;
+    }
+    if (tab === ORDER_TAB_FILTER.COMMENTED) {
+      return allCommented;
+    }
+
+    return false;
+  }
+
+  private async syncOrderReviewStatus(orderNo: string, userId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderNo } });
+    if (!order || order.userId !== userId) {
+      return;
+    }
+
+    const commentedSet = await this.buildCommentedSet([order.id], userId);
+    const { allCommented, hasItems } = this.getOrderCommentState(order, commentedSet);
+    if (!hasItems || !allCommented) {
+      return;
+    }
+
+    await this.prisma.order.update({
+      where: { id: orderNo },
+      data: { status: ORDER_STATUS.COMPLETE },
+    });
+  }
+
+  private async buildOrderCountList(orders: Array<{ id: string; status: string; itemsDetail: unknown }>, uid?: string) {
+    const activeOrders = orders.filter((order) => this.normalizeOrderStatus(order.status) !== ORDER_STATUS.CANCELED);
+    const commentedSet = await this.buildCommentedSet(
+      activeOrders.map((order) => order.id),
+      uid,
+    );
+
+    let pendingPayment = 0;
+    let paid = 0;
+    let pendingComment = 0;
+    let commented = 0;
+
+    activeOrders.forEach((order) => {
+      const normalizedStatus = this.normalizeOrderStatus(order.status);
+      if (normalizedStatus === ORDER_STATUS.PENDING_PAYMENT) {
+        pendingPayment += 1;
+        return;
+      }
+
+      if (!this.isPaidOrderStatus(order.status)) {
+        return;
+      }
+
+      const { allCommented, hasItems } = this.getOrderCommentState(order, commentedSet);
+      if (!hasItems) {
+        return;
+      }
+
+      paid += 1;
+      if (allCommented) {
+        commented += 1;
+      } else {
+        pendingComment += 1;
+      }
+    });
+
     return [
-      { tabType: -1, orderNum: normalizedStatuses.length },
-      { tabType: 5, orderNum: normalizedStatuses.filter((status) => status === ORDER_STATUS.PENDING_PAYMENT).length },
-      { tabType: 10, orderNum: normalizedStatuses.filter((status) => status === ORDER_STATUS.PENDING_DELIVERY).length },
-      { tabType: 40, orderNum: normalizedStatuses.filter((status) => status === ORDER_STATUS.PENDING_RECEIPT).length },
-      { tabType: 0, orderNum: 0 },
+      { tabType: -1, orderNum: activeOrders.length },
+      { tabType: 5, orderNum: pendingPayment },
+      { tabType: 10, orderNum: paid },
+      { tabType: 41, orderNum: pendingComment },
+      { tabType: 42, orderNum: commented },
     ];
   }
 

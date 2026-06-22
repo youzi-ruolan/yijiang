@@ -32,24 +32,24 @@ const orderTagInfos = [
     status: 1,
   },
   {
-    title: '待发货',
-    iconName: 'deliver',
+    title: '已付款',
+    iconName: 'check-circle',
     orderNum: 0,
     tabType: 10,
     status: 1,
   },
   {
-    title: '待收货',
-    iconName: 'package',
+    title: '待评价',
+    iconName: 'chat',
     orderNum: 0,
-    tabType: 40,
+    tabType: 41,
     status: 1,
   },
   {
-    title: '退款/售后',
-    iconName: 'exchang',
+    title: '已评价',
+    iconName: 'star',
     orderNum: 0,
-    tabType: 0,
+    tabType: 42,
     status: 1,
   },
 ];
@@ -120,10 +120,9 @@ Page({
         });
       }
 
-      const info = orderTagInfos.map((v, index) => ({
+      const info = orderTagInfos.map((v) => ({
         ...v,
-        ...(mergedUser ? orderInfo[index] : {}),
-        orderNum: mergedUser ? orderInfo[index]?.orderNum || 0 : 0,
+        orderNum: mergedUser ? orderInfo.find((item) => item.tabType === v.tabType)?.orderNum || 0 : 0,
       }));
 
       const displayUserInfo = mergedUser

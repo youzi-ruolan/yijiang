@@ -31,7 +31,7 @@ Page({
       wx.switchTab({ url: '/pages/home/home' });
     } else if (target === 'orderList') {
       wx.navigateTo({
-        url: `/pages/order/order-list/index?status=10&orderNo=${orderNo}`,
+        url: `/pages/order/order-list/index?status=41&orderNo=${orderNo}`,
       });
     } else if (target === 'order') {
       wx.navigateTo({

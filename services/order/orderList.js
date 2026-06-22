@@ -125,25 +125,27 @@ export function fetchOrdersCount(params) {
 
 function mapStatusToText(statusCode) {
   if (statusCode === 5) return '待处理';
-  if (statusCode === 10) return '待交付';
-  if (statusCode === 40) return '待收货';
-  if (statusCode === 50) return '已完成';
+  if (statusCode === 10) return '已付款';
+  if (statusCode === 41) return '待评价';
+  if (statusCode === 42) return '已评价';
   return '';
 }
 
 function mapStatusToCode(statusText) {
   if (statusText === '待付款' || statusText === '待支付' || statusText === '待处理') return 5;
   if (statusText === '已付款' || statusText === '待发货' || statusText === '待交付') return 10;
-  if (statusText === '待收货' || statusText === '已交付') return 40;
-  if (statusText === '已完成') return 50;
+  if (statusText === '待收货' || statusText === '已交付') return 10;
+  if (statusText === '待评价') return 41;
+  if (statusText === '已评价' || statusText === '已完成') return 42;
   return 80;
 }
 
 function mapStatusToName(statusText) {
   if (statusText === '待付款' || statusText === '待支付' || statusText === '待处理') return '待付款';
-  if (statusText === '已付款' || statusText === '待发货' || statusText === '待交付') return '待交付';
-  if (statusText === '待收货' || statusText === '已交付') return '已交付';
-  if (statusText === '已完成') return '已完成';
+  if (statusText === '已付款' || statusText === '待发货' || statusText === '待交付') return '已付款';
+  if (statusText === '待收货' || statusText === '已交付') return '已付款';
+  if (statusText === '待评价') return '待评价';
+  if (statusText === '已评价' || statusText === '已完成') return '已评价';
   return '已取消';
 }
 

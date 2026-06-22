@@ -11,64 +11,15 @@ Component({
     order: {
       type: Object,
       observer(order) {
-        // 判定有传goodsIndex ，则认为是商品button bar, 仅显示申请售后按钮
-        if (this.properties?.goodsIndex !== null) {
-          const goods = order.goodsList[Number(this.properties.goodsIndex)];
-          this.setData({
-            buttons: {
-              left: [],
-              right: (goods.buttons || []).filter(
-                (b) => b.type === OrderButtonTypes.APPLY_REFUND || b.type === OrderButtonTypes.COMMENT,
-              ),
-            },
-          });
-          return;
-        }
-        // 订单的button bar 不显示申请售后按钮
-        const buttonsRight = (order.buttons || [])
-          // .filter((b) => b.type !== OrderButtonTypes.APPLY_REFUND)
-          .map((button) => {
-            //邀请好友拼团按钮
-            if (button.type === OrderButtonTypes.INVITE_GROUPON && order.groupInfoVo) {
-              const {
-                groupInfoVo: { groupId, promotionId, remainMember, groupPrice },
-                goodsList,
-              } = order;
-              const goodsImg = goodsList[0] && goodsList[0].imgUrl;
-              const goodsName = goodsList[0] && goodsList[0].name;
-              return {
-                ...button,
-                openType: 'share',
-                dataShare: {
-                  goodsImg,
-                  goodsName,
-                  groupId,
-                  promotionId,
-                  remainMember,
-                  groupPrice,
-                  storeId: order.storeId,
-                },
-              };
-            }
-            return button;
-          });
-        // 删除订单按钮单独挪到左侧
-        const deleteBtnIndex = buttonsRight.findIndex((b) => b.type === OrderButtonTypes.DELETE);
-        let buttonsLeft = [];
-        if (deleteBtnIndex > -1) {
-          buttonsLeft = buttonsRight.splice(deleteBtnIndex, 1);
-        }
-        this.setData({
-          buttons: {
-            left: buttonsLeft,
-            right: buttonsRight,
-          },
-        });
+        this.updateButtons(order);
       },
     },
     goodsIndex: {
       type: Number,
-      value: null,
+      value: -1,
+      observer() {
+        this.updateButtons(this.data.order);
+      },
     },
     isBtnMax: {
       type: Boolean,
@@ -85,6 +36,58 @@ Component({
   },
 
   methods: {
+    updateButtons(order = this.data.order) {
+      const goodsIndex = Number(this.properties.goodsIndex);
+      if (goodsIndex >= 0) {
+        const goods = order?.goodsList?.[goodsIndex];
+        this.setData({
+          buttons: {
+            left: [],
+            right: (goods?.buttons || []).filter(
+              (b) => b.type === OrderButtonTypes.APPLY_REFUND || b.type === OrderButtonTypes.COMMENT,
+            ),
+          },
+        });
+        return;
+      }
+
+      const buttonsRight = (order?.buttons || []).map((button) => {
+        if (button.type === OrderButtonTypes.INVITE_GROUPON && order.groupInfoVo) {
+          const {
+            groupInfoVo: { groupId, promotionId, remainMember, groupPrice },
+            goodsList,
+          } = order;
+          const goodsImg = goodsList[0] && goodsList[0].imgUrl;
+          const goodsName = goodsList[0] && goodsList[0].name;
+          return {
+            ...button,
+            openType: 'share',
+            dataShare: {
+              goodsImg,
+              goodsName,
+              groupId,
+              promotionId,
+              remainMember,
+              groupPrice,
+              storeId: order.storeId,
+            },
+          };
+        }
+        return button;
+      });
+      const deleteBtnIndex = buttonsRight.findIndex((b) => b.type === OrderButtonTypes.DELETE);
+      let buttonsLeft = [];
+      if (deleteBtnIndex > -1) {
+        buttonsLeft = buttonsRight.splice(deleteBtnIndex, 1);
+      }
+      this.setData({
+        buttons: {
+          left: buttonsLeft,
+          right: buttonsRight,
+        },
+      });
+    },
+
     // 点击【订单操作】按钮，根据按钮类型分发
     onOrderBtnTap(e) {
       const { type } = e.currentTarget.dataset;
@@ -223,10 +226,10 @@ Component({
 
     /** 添加订单评论 */
     onAddComment(order) {
-      const goodsIndex = this.properties.goodsIndex;
+      const goodsIndex = Number(this.properties.goodsIndex);
       const goods =
-        goodsIndex !== null && goodsIndex !== undefined
-          ? order?.goodsList?.[Number(goodsIndex)]
+        goodsIndex >= 0
+          ? order?.goodsList?.[goodsIndex]
           : order?.goodsList?.find((item) =>
               (item.buttons || []).some((button) => button.type === OrderButtonTypes.COMMENT),
             ) || order?.goodsList?.[0] || {};
