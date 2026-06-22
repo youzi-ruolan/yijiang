@@ -35,7 +35,12 @@ Page({
       spuId: options.spuId || '',
       skuId: options.skuId || '',
       orderNo: options.orderNo || '',
+      goodRateValue: 5,
+      serviceRateValue: 5,
+      conveyRateValue: 5,
     });
+    this.textAreaValue = '';
+    this.updateButtonStatus();
   },
 
   onRateChange(e) {

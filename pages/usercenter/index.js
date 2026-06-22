@@ -11,6 +11,10 @@ import {
   saveLocalAvatarToSession,
   updateCurrentUser,
 } from '../../utils/local-auth';
+import {
+  acknowledgeOrderTab,
+  applyOrderTabBadges,
+} from '../../utils/order-tab-badge';
 
 const menuData = [
   [
@@ -33,14 +37,14 @@ const orderTagInfos = [
   },
   {
     title: '已付款',
-    iconName: 'check-circle',
+    iconName: 'paid',
     orderNum: 0,
     tabType: 10,
     status: 1,
   },
   {
     title: '待评价',
-    iconName: 'chat',
+    iconName: 'comment',
     orderNum: 0,
     tabType: 41,
     status: 1,
@@ -120,10 +124,15 @@ Page({
         });
       }
 
-      const info = orderTagInfos.map((v) => ({
-        ...v,
-        orderNum: mergedUser ? orderInfo.find((item) => item.tabType === v.tabType)?.orderNum || 0 : 0,
-      }));
+      const taggedCounts = applyOrderTabBadges(orderInfo);
+      const info = orderTagInfos.map((v) => {
+        const tabCount = taggedCounts.find((item) => item.tabType === v.tabType);
+        return {
+          ...v,
+          rawCount: tabCount?.rawCount || 0,
+          orderNum: tabCount?.badgeCount || 0,
+        };
+      });
 
       const displayUserInfo = mergedUser
         ? {
@@ -167,18 +176,26 @@ Page({
   },
 
   async jumpNav(e) {
-    const status = e.detail.tabType;
+    const { tabType, rawCount, orderNum } = e.detail;
 
-    if (status === 0) {
+    if (tabType === 0) {
       const loginResult = await this.ensureLogin();
       if (!loginResult.authed || loginResult.guided) return;
       wx.navigateTo({ url: '/pages/order/after-service-list/index' });
-    } else {
-      const url = `/pages/order/order-list/index?status=${status}`;
-      const loginResult = await this.ensureLogin();
-      if (!loginResult.authed || loginResult.guided) return;
-      wx.navigateTo({ url });
+      return;
     }
+
+    const loginResult = await this.ensureLogin();
+    if (!loginResult.authed || loginResult.guided) return;
+
+    acknowledgeOrderTab(tabType, rawCount ?? orderNum);
+    this.setData({
+      orderTagInfos: this.data.orderTagInfos.map((item) =>
+        item.tabType === tabType ? { ...item, orderNum: 0 } : item,
+      ),
+    });
+
+    wx.navigateTo({ url: `/pages/order/order-list/index?status=${tabType}` });
   },
 
   async jumpAllOrder() {

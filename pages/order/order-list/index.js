@@ -3,6 +3,11 @@ import { fetchOrders, fetchOrdersCount } from '../../../services/order/orderList
 import { cosThumb } from '../../../utils/util';
 import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 import { computePaymentCountDown } from '../../../utils/order-countdown';
+import {
+  acknowledgeOrderTab,
+  applyOrderTabBadges,
+  getOrderTabBadgeCount,
+} from '../../../utils/order-tab-badge';
 
 Page({
   page: {
@@ -35,6 +40,9 @@ Page({
 
     let status = parseInt(query.status);
     status = this.data.tabs.map((t) => t.key).includes(status) ? status : -1;
+    if (status !== -1) {
+      this.pendingAckTab = status;
+    }
     this.init(status);
     this.pullDownRefresh = this.selectComponent('#wr-pull-down-refresh');
   },
@@ -112,9 +120,9 @@ Page({
                 price: goods.tagPrice ? goods.tagPrice : goods.actualPrice,
                 num: goods.buyQuantity,
                 titlePrefixTags: goods.tagText ? [{ text: goods.tagText }] : [],
-                buttons: goods.buttonVOs || [],
+                buttons: this.filterCommentButtons(goods.buttonVOs || [], statusCode),
               })),
-              buttons: this.getOrderButtons(order),
+              buttons: this.getOrderButtons(order, statusCode),
               groupInfoVo: order.groupInfoVo,
               freightFee: order.freightFee,
               countDownTime: computePaymentCountDown({
@@ -147,24 +155,43 @@ Page({
 
   onTabChange(e) {
     const { value } = e.detail;
+    this.acknowledgeCurrentTab(value);
     this.setData({
       status: value,
     });
     this.refreshList(value);
   },
 
+  acknowledgeCurrentTab(tabType) {
+    const tab = this.data.tabs.find((item) => item.key === tabType);
+    if (!tab) return;
+    acknowledgeOrderTab(tabType, tab.rawCount ?? tab.info ?? 0);
+    this.setData({
+      tabs: this.data.tabs.map((item) =>
+        item.key === tabType ? { ...item, info: getOrderTabBadgeCount(tabType, item.rawCount ?? 0) } : item,
+      ),
+    });
+  },
+
   getOrdersCount() {
     return fetchOrdersCount().then((res) => {
-      const tabsCount = res.data || [];
+      const tabsCount = applyOrderTabBadges(res.data || []);
       const tabs = this.data.tabs.map((tab) => {
         const tabCount = tabsCount.find((c) => c.tabType === tab.key);
         if (!tabCount) return tab;
+        const badgeCount = getOrderTabBadgeCount(tab.key, tabCount.rawCount);
         return {
           ...tab,
-          info: tabCount.orderNum,
+          rawCount: tabCount.rawCount,
+          info: badgeCount > 0 ? badgeCount : '',
         };
       });
-      this.setData({ tabs });
+      this.setData({ tabs }, () => {
+        if (this.pendingAckTab !== undefined) {
+          this.acknowledgeCurrentTab(this.pendingAckTab);
+          this.pendingAckTab = undefined;
+        }
+      });
     });
   },
 
@@ -203,20 +230,33 @@ Page({
     this.onRefresh();
   },
 
-  getOrderButtons(order) {
+  filterCommentButtons(buttons, statusCode) {
+    if (statusCode === OrderStatus.PAID) {
+      return (buttons || []).filter((button) => button.type !== OrderButtonTypes.COMMENT);
+    }
+    return buttons || [];
+  },
+
+  getOrderButtons(order, statusCode = -1) {
     const buttons = order.buttonVOs || [];
     const hasCommentableGoods = (order.orderItemVOs || []).some((item) =>
       (item.buttonVOs || []).some((button) => button.type === OrderButtonTypes.COMMENT),
     );
 
     if (
+      statusCode !== OrderStatus.PAID &&
       hasCommentableGoods &&
       !buttons.some((button) => button.type === OrderButtonTypes.COMMENT)
     ) {
       return [{ primary: true, type: OrderButtonTypes.COMMENT, name: '评价' }];
     }
 
-    if (buttons.length || order.orderStatus !== OrderStatus.PENDING_PAYMENT) return buttons;
+    const nextButtons =
+      statusCode === OrderStatus.PAID
+        ? buttons.filter((button) => button.type !== OrderButtonTypes.COMMENT)
+        : buttons;
+
+    if (nextButtons.length || order.orderStatus !== OrderStatus.PENDING_PAYMENT) return nextButtons;
     return [{ primary: false, type: OrderButtonTypes.CANCEL, name: '取消订单' }];
   },
 });
