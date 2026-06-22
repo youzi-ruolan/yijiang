@@ -24,22 +24,21 @@
   <!-- 已登录且已经授权用户信息的情况 -->
   <block wx:if="{{currAuthStep === AuthStepType.THREE}}">
     <view class="user-center-card__header">
-      <view class="user-center-card__avatar-wrap" bind:tap="gotoUserEditPage">
+      <view
+        class="user-center-card__avatar-wrap"
+        bind:tap="{{profileIncomplete ? 'requestProfileAuth' : 'gotoUserEditPage'}}"
+      >
         <t-avatar image="{{userInfo.avatarUrl || defaultAvatarUrl}}" class="user-center-card__header__avatar" />
         <view class="user-center-card__edit-badge">
-          <t-icon name="edit-1" size="22rpx" color="#ffffff" />
+          <t-icon name="{{profileIncomplete ? 'user' : 'edit-1'}}" size="22rpx" color="#ffffff" />
         </view>
       </view>
       <view class="user-center-card__profile">
         <view class="user-center-card__header__name">{{userInfo.nickName || '微信用户'}}</view>
         <view class="user-center-card__profile-sub" wx:if="{{userInfo.phoneNumber}}">{{userInfo.phoneNumber}}</view>
-        <button
-          wx:if="{{profileIncomplete}}"
-          class="user-center-card__profile-btn"
-          bindtap="requestProfileAuth"
-        >
-          授权微信头像昵称
-        </button>
+        <view wx:if="{{profileIncomplete}}" class="user-center-card__profile-hint" bind:tap="requestProfileAuth">
+          点击头像，选择微信头像并填写昵称
+        </view>
       </view>
     </view>
   </block>

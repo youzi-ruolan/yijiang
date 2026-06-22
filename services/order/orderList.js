@@ -58,6 +58,8 @@ export function fetchOrders(params) {
             actualPrice: Number(item.actualPrice || item.tagPrice || 0),
             buyQuantity: Number(item.buyQuantity || 1),
             tagText: item.tagText || '',
+            buttonVOs: item.buttonVOs || [],
+            commented: Boolean(item.commented),
           })),
           buttonVOs: order.buttonVOs || getOrderButtons(order.status),
           groupInfoVo: null,

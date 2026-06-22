@@ -479,7 +479,20 @@ export class PublicService {
       orderBy: [{ createdAt: 'desc' }],
     });
 
-    return orders.map((item) => this.formatPublicOrder(item));
+    const orderIds = orders.map((order) => order.id);
+    const comments =
+      orderIds.length && uid
+        ? await this.prisma.productComment.findMany({
+            where: {
+              orderNo: { in: orderIds },
+              userId: uid,
+            },
+            select: { orderNo: true, skuId: true },
+          })
+        : [];
+    const commentedSet = new Set(comments.map((comment) => `${comment.orderNo}_${comment.skuId}`));
+
+    return orders.map((item) => this.formatPublicOrder(item, commentedSet));
   }
 
   async getOrdersCount(uid?: string) {
@@ -1013,17 +1026,28 @@ export class PublicService {
     };
   }
 
-  private formatPublicOrder(order: {
-    id: string;
-    customer: string;
-    amount: number;
-    status: string;
-    items: number;
-    itemsDetail: unknown;
-    orderCreatedAt: string;
-  }) {
+  private formatPublicOrder(
+    order: {
+      id: string;
+      customer: string;
+      amount: number;
+      status: string;
+      items: number;
+      itemsDetail: unknown;
+      orderCreatedAt: string;
+      createdAt?: Date;
+    },
+    commentedSet: Set<string> = new Set(),
+  ) {
     const status = this.normalizeOrderStatus(order.status);
-    const itemsDetail = this.getOrderItems(order.itemsDetail);
+    const itemsDetail = this.getOrderItems(order.itemsDetail).map((item) => {
+      const commented = commentedSet.has(`${order.id}_${item.skuId || ''}`);
+      return {
+        ...item,
+        commented,
+        buttonVOs: this.getOrderItemButtons({ status }, { ...item, commented }),
+      };
+    });
 
     return {
       id: order.id,

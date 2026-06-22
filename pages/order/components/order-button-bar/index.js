@@ -17,7 +17,9 @@ Component({
           this.setData({
             buttons: {
               left: [],
-              right: (goods.buttons || []).filter((b) => b.type === OrderButtonTypes.APPLY_REFUND),
+              right: (goods.buttons || []).filter(
+                (b) => b.type === OrderButtonTypes.APPLY_REFUND || b.type === OrderButtonTypes.COMMENT,
+              ),
             },
           });
           return;
@@ -221,7 +223,13 @@ Component({
 
     /** 添加订单评论 */
     onAddComment(order) {
-      const goods = order?.goodsList?.[0] || {};
+      const goodsIndex = this.properties.goodsIndex;
+      const goods =
+        goodsIndex !== null && goodsIndex !== undefined
+          ? order?.goodsList?.[Number(goodsIndex)]
+          : order?.goodsList?.find((item) =>
+              (item.buttons || []).some((button) => button.type === OrderButtonTypes.COMMENT),
+            ) || order?.goodsList?.[0] || {};
       const imgUrl = encodeURIComponent(goods.thumb || '');
       const title = encodeURIComponent(goods.title || '');
       const specs = encodeURIComponent(Array.isArray(goods.specs) ? goods.specs.join(' ') : goods.specs || '');

@@ -133,6 +133,10 @@ Page({
 
   onShow() {
     this.refreshCartNum();
+    if (this.data.spuId) {
+      this.getCommentsList();
+      this.getCommentsStatistics();
+    }
   },
 
   showCurImg(e) {

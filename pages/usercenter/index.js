@@ -7,6 +7,8 @@ import {
   ensureWechatLoginWithGuide,
   getCurrentUser,
   isWechatProfileComplete,
+  mergeWechatProfile,
+  saveLocalAvatarToSession,
   updateCurrentUser,
 } from '../../utils/local-auth';
 
@@ -68,14 +70,17 @@ const getDefaultData = () => ({
   showLoginAuth: false,
   loginAuthLoading: false,
   profileIncomplete: false,
+  showProfileSetup: false,
+  profileDraft: {
+    avatarUrl: '',
+    nickName: '',
+  },
 });
 
 Page({
   data: getDefaultData(),
 
-  onLoad() {
-    this.getVersionInfo();
-  },
+  onLoad() {},
 
   onShow() {
     this.getTabBar().init();
@@ -93,12 +98,7 @@ Page({
     fetchUserCenter().then(({ userInfo: serverUserInfo, countsData, orderTagInfos: orderInfo, customerServiceInfo }) => {
       const currentUser = getCurrentUser();
       if (currentUser && serverUserInfo) {
-        updateCurrentUser({
-          nickName: serverUserInfo.nickName || currentUser.nickName,
-          avatarUrl: serverUserInfo.avatarUrl || currentUser.avatarUrl,
-          phoneNumber: serverUserInfo.phoneNumber || currentUser.phoneNumber,
-          gender: serverUserInfo.gender ?? currentUser.gender,
-        });
+        updateCurrentUser(mergeWechatProfile(serverUserInfo, currentUser));
       }
 
       const mergedUser = getCurrentUser();
@@ -300,28 +300,94 @@ Page({
     };
   },
 
-  async authorizeWechatProfile() {
+  authorizeWechatProfile() {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    this.setData({
+      showProfileSetup: true,
+      profileDraft: {
+        avatarUrl: user.avatarUrl || '',
+        nickName: user.nickName && user.nickName !== '微信用户' ? user.nickName : '',
+      },
+    });
+  },
+
+  closeProfileSetup(e) {
+    if (e?.detail?.visible) return;
+    this.setData({ showProfileSetup: false });
+  },
+
+  async onProfileChooseAvatar(e) {
+    const { avatarUrl } = e.detail || {};
+    if (!avatarUrl) return;
+
     try {
-      const profileRes = await new Promise((resolve, reject) => {
-        wx.getUserProfile({
-          desc: '用于展示个人头像和昵称',
-          success: resolve,
-          fail: reject,
-        });
+      const nextUser = await saveLocalAvatarToSession(avatarUrl);
+      this.setData({
+        'profileDraft.avatarUrl': nextUser.avatarUrl,
+        'userInfo.avatarUrl': nextUser.avatarUrl,
       });
+    } catch (error) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: error?.message || '头像选择失败',
+        icon: '',
+      });
+    }
+  },
 
+  onProfileNicknameInput(e) {
+    this.setData({
+      'profileDraft.nickName': e.detail.value,
+    });
+  },
+
+  async onSaveProfileSetup() {
+    const nickName = `${this.data.profileDraft.nickName || ''}`.trim();
+    const avatarUrl = `${this.data.profileDraft.avatarUrl || getCurrentUser()?.avatarUrl || ''}`.trim();
+
+    if (!avatarUrl) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '请先选择微信头像',
+        icon: '',
+      });
+      return;
+    }
+
+    if (!nickName || nickName === '微信用户') {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '请填写微信昵称',
+        icon: '',
+      });
+      return;
+    }
+
+    try {
       const savedProfile = await updatePersonProfile({
-        nickName: profileRes.userInfo.nickName,
-        avatarUrl: profileRes.userInfo.avatarUrl,
-        gender: profileRes.userInfo.gender,
+        nickName,
+        avatarUrl,
+      });
+      const nextUser = updateCurrentUser({
+        nickName: savedProfile.nickName || nickName,
+        avatarUrl: savedProfile.avatarUrl || avatarUrl,
+        gender: savedProfile.gender,
       });
 
-      updateCurrentUser({
-        nickName: savedProfile.nickName || profileRes.userInfo.nickName,
-        avatarUrl: savedProfile.avatarUrl || profileRes.userInfo.avatarUrl,
-        gender: savedProfile.gender ?? profileRes.userInfo.gender,
+      this.setData({
+        showProfileSetup: false,
+        profileIncomplete: false,
+        userInfo: {
+          ...nextUser,
+          phoneNumber: phoneEncryption(nextUser.phoneNumber || ''),
+        },
       });
-      this.init();
+
       Toast({
         context: this,
         selector: '#t-toast',
@@ -332,7 +398,7 @@ Page({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: error?.errMsg || error?.message || '授权未完成',
+        message: error?.message || '资料保存失败',
         icon: '',
       });
     }
@@ -346,22 +412,14 @@ Page({
 
     wx.showModal({
       title: '完善资料',
-      content: '授权后可展示您的微信头像和昵称',
-      confirmText: '去授权',
+      content: '选择微信头像并填写昵称，将在个人中心展示',
+      confirmText: '去完善',
       cancelText: '稍后',
       success: (res) => {
         if (res.confirm) {
           this.authorizeWechatProfile();
         }
       },
-    });
-  },
-
-  getVersionInfo() {
-    const versionInfo = wx.getAccountInfoSync();
-    const { version, envVersion = __wxConfig } = versionInfo.miniProgram;
-    this.setData({
-      versionNo: envVersion === 'release' ? version : envVersion,
     });
   },
 });

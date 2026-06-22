@@ -42,7 +42,34 @@
   <view class="guest-login__logo">艺</view>
   <button class="guest-login__button" bindtap="loginByAvatar">手机号快捷登录</button>
 </view>
-<view class="footer__version" wx:if="{{versionNo !== '' && currAuthStep === 3}}">当前版本 {{versionNo}}</view>
+<t-popup visible="{{showProfileSetup}}" placement="bottom" bind:visible-change="closeProfileSetup">
+  <view class="profile-setup">
+    <view class="profile-setup__handle"></view>
+    <view class="profile-setup__title">完善微信资料</view>
+    <view class="profile-setup__desc">选择头像并填写昵称，保存后立即在个人中心展示</view>
+    <button class="profile-setup__avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onProfileChooseAvatar">
+      <image
+        class="profile-setup__avatar"
+        src="{{profileDraft.avatarUrl || userInfo.avatarUrl || 'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png'}}"
+        mode="aspectFill"
+      />
+      <view class="profile-setup__avatar-tip">点击选择微信头像</view>
+    </button>
+    <view class="profile-setup__field">
+      <view class="profile-setup__label">微信昵称</view>
+      <input
+        class="profile-setup__input"
+        type="nickname"
+        placeholder="点击输入或选择微信昵称"
+        value="{{profileDraft.nickName}}"
+        bindinput="onProfileNicknameInput"
+        bindblur="onProfileNicknameInput"
+      />
+    </view>
+    <button class="profile-setup__save" bindtap="onSaveProfileSetup">保存资料</button>
+    <button class="profile-setup__cancel" bindtap="closeProfileSetup">稍后再说</button>
+  </view>
+</t-popup>
 <t-popup visible="{{showLoginAuth}}" placement="bottom" bind:visible-change="closeLoginAuth">
   <view class="login-auth">
     <view class="login-auth__handle"></view>

@@ -111,6 +111,7 @@ Page({
                 price: goods.tagPrice ? goods.tagPrice : goods.actualPrice,
                 num: goods.buyQuantity,
                 titlePrefixTags: goods.tagText ? [{ text: goods.tagText }] : [],
+                buttons: goods.buttonVOs || [],
               })),
               buttons: this.getOrderButtons(order),
               groupInfoVo: order.groupInfoVo,
@@ -201,6 +202,17 @@ Page({
 
   getOrderButtons(order) {
     const buttons = order.buttonVOs || [];
+    const hasCommentableGoods = (order.orderItemVOs || []).some((item) =>
+      (item.buttonVOs || []).some((button) => button.type === OrderButtonTypes.COMMENT),
+    );
+
+    if (
+      hasCommentableGoods &&
+      !buttons.some((button) => button.type === OrderButtonTypes.COMMENT)
+    ) {
+      return [{ primary: true, type: OrderButtonTypes.COMMENT, name: '评价' }];
+    }
+
     if (buttons.length || order.orderStatus !== OrderStatus.PENDING_PAYMENT) return buttons;
     return [{ primary: false, type: OrderButtonTypes.CANCEL, name: '取消订单' }];
   },

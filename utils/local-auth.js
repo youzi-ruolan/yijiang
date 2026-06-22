@@ -6,6 +6,24 @@ const LOCAL_AVATAR_KEY = 'yijiang_local_avatar_map';
 const DEFAULT_AVATAR =
   'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png';
 
+function isGenericNickName(nickName = '') {
+  const value = `${nickName}`.trim();
+  return !value || value === '微信用户';
+}
+
+function isGenericAvatar(avatarUrl = '') {
+  const value = `${avatarUrl}`.trim();
+  return !value || value === DEFAULT_AVATAR;
+}
+
+function pickBetterProfileValue(serverValue, localValue, isInvalid) {
+  const local = `${localValue || ''}`.trim();
+  const server = `${serverValue || ''}`.trim();
+  if (local && !isInvalid(local)) return local;
+  if (server && !isInvalid(server)) return server;
+  return local || server;
+}
+
 function readSession() {
   try {
     return wx.getStorageSync(AUTH_SESSION_KEY) || null;
@@ -162,10 +180,16 @@ export function promptLoginRequired(options = {}) {
 
 export function isWechatProfileComplete(user = getCurrentUser()) {
   if (!user) return false;
-  const nickName = `${user.nickName || ''}`.trim();
-  const avatarUrl = `${user.avatarUrl || ''}`.trim();
+  return !isGenericNickName(user.nickName) && !isGenericAvatar(user.avatarUrl);
+}
 
-  return Boolean(nickName && nickName !== '微信用户' && avatarUrl && avatarUrl !== DEFAULT_AVATAR);
+export function mergeWechatProfile(serverUser = {}, localUser = {}) {
+  return {
+    nickName: pickBetterProfileValue(serverUser.nickName, localUser.nickName, isGenericNickName),
+    avatarUrl: pickBetterProfileValue(serverUser.avatarUrl, localUser.avatarUrl, isGenericAvatar),
+    phoneNumber: serverUser.phoneNumber || localUser.phoneNumber || '',
+    gender: serverUser.gender ?? localUser.gender ?? 0,
+  };
 }
 
 export function authorizeWechatUser() {

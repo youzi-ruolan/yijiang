@@ -256,8 +256,14 @@ Page({
 
   /** 跳转订单评价 */
   navToCommentCreate() {
+    const goods = this.data._order?.goodsList?.[0] || {};
+    const imgUrl = encodeURIComponent(goods.thumb || '');
+    const title = encodeURIComponent(goods.title || '');
+    const specs = encodeURIComponent(Array.isArray(goods.specs) ? goods.specs.join(' ') : goods.specs || '');
     wx.navigateTo({
-      url: `/pages/order/createComment/index?orderNo=${this.orderNo}`,
+      url: `/pages/goods/comments/create/index?specs=${specs}&title=${title}&orderNo=${
+        this.orderNo || ''
+      }&imgUrl=${imgUrl}&spuId=${goods.spuId || ''}&skuId=${goods.skuId || ''}`,
     });
   },
 
@@ -276,6 +282,17 @@ Page({
 
   getOrderButtons(order) {
     const buttons = order.buttonVOs || [];
+    const hasCommentableGoods = (order.orderItemVOs || []).some((item) =>
+      (item.buttonVOs || []).some((button) => button.type === OrderButtonTypes.COMMENT),
+    );
+
+    if (
+      hasCommentableGoods &&
+      !buttons.some((button) => button.type === OrderButtonTypes.COMMENT)
+    ) {
+      return [{ primary: true, type: OrderButtonTypes.COMMENT, name: '评价' }];
+    }
+
     if (buttons.length || order.orderStatus !== OrderStatus.PENDING_PAYMENT) return buttons;
     return [{ primary: false, type: OrderButtonTypes.CANCEL, name: '取消订单' }];
   },

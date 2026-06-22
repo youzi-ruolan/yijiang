@@ -54,21 +54,11 @@
   color: #888;
 }
 
-.user-center-card__profile-btn {
-  margin: 14rpx 0 0;
-  padding: 0 20rpx;
-  height: 52rpx;
-  line-height: 52rpx;
-  border: 0;
-  border-radius: 999rpx;
-  background: rgba(250, 65, 38, 0.12);
-  color: #fa4126;
+.user-center-card__profile-hint {
+  margin-top: 12rpx;
   font-size: 22rpx;
-  font-weight: 600;
-}
-
-.user-center-card__profile-btn::after {
-  border: 0;
+  line-height: 32rpx;
+  color: #fa4126;
 }
 .user-center-card__header__avatar {
   width: 96rpx;
