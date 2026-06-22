@@ -45,7 +45,7 @@ model Product {
   id            String   @id
   title         String
   description   String   @db.Text
-  price         Int
+  price         Decimal  @db.Decimal(10, 2)
   sales         Int      @default(0)
   cover         String
   tags          Json

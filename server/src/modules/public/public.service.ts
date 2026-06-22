@@ -911,7 +911,7 @@ export class PublicService {
     id: string;
     title: string;
     description: string;
-    price: number;
+    price: number | { toString(): string };
     sales: number;
     cover: string;
     tags: unknown;
@@ -930,7 +930,7 @@ export class PublicService {
       id: product.id,
       title: product.title,
       description: product.description,
-      price: product.price,
+      price: Number(product.price),
       sales: realSales,
       cover: product.cover,
       tags: this.toStringArray(product.tags),
@@ -956,8 +956,9 @@ export class PublicService {
     const fallbackBannerImages = detailMedia.filter((item) => item.type === 'image').map((item) => item.url);
     const bannerImages = productCard.bannerImages.length ? productCard.bannerImages : fallbackBannerImages;
     const galleryImages = bannerImages.filter(Boolean);
-    const standardPrice = Math.round(product.price * 100);
-    const linePrice = Math.round(product.price * 100);
+    const priceYuan = Number(product.price);
+    const standardPrice = Math.round(priceYuan * 100);
+    const linePrice = Math.round(priceYuan * 100);
     const specList = tags.length
       ? [
           {

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Product } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -8,30 +8,38 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(category?: string) {
-    return this.prisma.product.findMany({
+  async findAll(category?: string) {
+    const products = await this.prisma.product.findMany({
       where: category && category !== 'all' ? { category } : undefined,
       orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }],
     });
+
+    return products.map((product) => this.serializeProduct(product));
   }
 
-  findOne(id: string) {
-    return this.prisma.product.findUnique({
+  async findOne(id: string) {
+    const product = await this.prisma.product.findUnique({
       where: { id },
     });
+
+    return product ? this.serializeProduct(product) : null;
   }
 
   create(payload: CreateProductDto) {
-    return this.prisma.product.create({
-      data: this.toCreateInput(payload),
-    });
+    return this.prisma.product
+      .create({
+        data: this.toCreateInput(payload),
+      })
+      .then((product) => this.serializeProduct(product));
   }
 
   update(id: string, payload: UpdateProductDto) {
-    return this.prisma.product.update({
-      where: { id },
-      data: this.toUpdateInput(payload),
-    });
+    return this.prisma.product
+      .update({
+        where: { id },
+        data: this.toUpdateInput(payload),
+      })
+      .then((product) => this.serializeProduct(product));
   }
 
   remove(id: string) {
@@ -45,7 +53,7 @@ export class ProductsService {
       id: payload.id,
       title: payload.title,
       description: payload.description,
-      price: payload.price,
+      price: this.normalizePrice(payload.price),
       sales: payload.sales ?? 0,
       cover: payload.cover,
       tags: payload.tags ?? [],
@@ -67,7 +75,7 @@ export class ProductsService {
       ...(payload.id ? { id: payload.id } : {}),
       ...(payload.title !== undefined ? { title: payload.title } : {}),
       ...(payload.description !== undefined ? { description: payload.description } : {}),
-      ...(payload.price !== undefined ? { price: payload.price } : {}),
+      ...(payload.price !== undefined ? { price: this.normalizePrice(payload.price) } : {}),
       ...(payload.sales !== undefined ? { sales: payload.sales } : {}),
       ...(payload.cover !== undefined ? { cover: payload.cover } : {}),
       ...(payload.tags !== undefined ? { tags: payload.tags } : {}),
@@ -90,5 +98,16 @@ export class ProductsService {
     if (value === undefined) return [];
     if (typeof value === 'string') return value.trim();
     return value.map((item) => `${item}`.trim()).filter(Boolean);
+  }
+
+  private normalizePrice(price: number) {
+    return Math.round(Number(price) * 100) / 100;
+  }
+
+  private serializeProduct(product: Product) {
+    return {
+      ...product,
+      price: Number(product.price),
+    };
   }
 }

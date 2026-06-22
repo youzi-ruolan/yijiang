@@ -8,6 +8,14 @@ import { useAdminStore } from '@/stores/admin';
 import { galleryTextToLines } from '@/utils/asset';
 import type { ProductItem } from '@/types';
 
+function formatPriceYuan(price: number) {
+  return Number(price).toFixed(2).replace(/\.?0+$/, '').replace(/\.$/, '') || '0';
+}
+
+function normalizePriceYuan(price: number) {
+  return Math.round(Number(price) * 100) / 100;
+}
+
 const adminStore = useAdminStore();
 
 const categoryFilter = ref('all');
@@ -99,7 +107,7 @@ async function saveProduct() {
     id: editingId.value || `product_${Date.now()}`,
     title: form.title.trim(),
     description: form.description.trim(),
-    price: Number(form.price),
+    price: normalizePriceYuan(form.price),
     sales: Number(form.sales),
     cover: form.cover.trim(),
     tags: form.tags
@@ -194,7 +202,7 @@ async function removeProduct(product: ProductItem) {
         </el-table-column>
         <el-table-column label="价格" width="100">
           <template #default="{ row }">
-            <span class="price-current">¥{{ row.price }}</span>
+            <span class="price-current">¥{{ formatPriceYuan(row.price) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="标签" min-width="140">
@@ -231,7 +239,14 @@ async function removeProduct(product: ProductItem) {
         </div>
         <div class="field">
           <span>售价</span>
-          <el-input-number v-model="form.price" :min="0" controls-position="right" style="width: 100%" />
+          <el-input-number
+            v-model="form.price"
+            :min="0"
+            :step="0.1"
+            :precision="2"
+            controls-position="right"
+            style="width: 100%"
+          />
         </div>
         <div class="field">
           <span>分类</span>
