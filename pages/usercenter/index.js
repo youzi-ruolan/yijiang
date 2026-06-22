@@ -11,10 +11,6 @@ import {
   saveLocalAvatarToSession,
   updateCurrentUser,
 } from '../../utils/local-auth';
-import {
-  acknowledgeOrderTab,
-  applyOrderTabBadges,
-} from '../../utils/order-tab-badge';
 
 const menuData = [
   [
@@ -124,13 +120,13 @@ Page({
         });
       }
 
-      const taggedCounts = applyOrderTabBadges(orderInfo);
       const info = orderTagInfos.map((v) => {
-        const tabCount = taggedCounts.find((item) => item.tabType === v.tabType);
+        const tabCount = orderInfo.find((item) => item.tabType === v.tabType);
+        const count = mergedUser ? Number(tabCount?.orderNum || 0) : 0;
         return {
           ...v,
-          rawCount: tabCount?.rawCount || 0,
-          orderNum: tabCount?.badgeCount || 0,
+          rawCount: count,
+          orderNum: count,
         };
       });
 
@@ -176,7 +172,7 @@ Page({
   },
 
   async jumpNav(e) {
-    const { tabType, rawCount, orderNum } = e.detail;
+    const { tabType } = e.detail;
 
     if (tabType === 0) {
       const loginResult = await this.ensureLogin();
@@ -187,13 +183,6 @@ Page({
 
     const loginResult = await this.ensureLogin();
     if (!loginResult.authed || loginResult.guided) return;
-
-    acknowledgeOrderTab(tabType, rawCount ?? orderNum);
-    this.setData({
-      orderTagInfos: this.data.orderTagInfos.map((item) =>
-        item.tabType === tabType ? { ...item, orderNum: 0 } : item,
-      ),
-    });
 
     wx.navigateTo({ url: `/pages/order/order-list/index?status=${tabType}` });
   },

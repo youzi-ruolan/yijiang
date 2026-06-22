@@ -18,7 +18,9 @@
 .order-group__content {
   overflow: hidden;
   width: 100%;
-  height: 164rpx;
+  min-height: 164rpx;
+  padding: 8rpx 0 20rpx;
+  box-sizing: border-box;
   display: flex;
   background-color: #fff;
   border-radius: 0 0 16rpx 16rpx;
@@ -43,10 +45,18 @@
   line-height: 32rpx;
 }
 .order-group__item__icon {
-  margin-bottom: 20rpx;
+  margin-bottom: 12rpx;
   width: 56rpx;
   height: 56rpx;
   position: relative;
+}
+.order-group__item__count {
+  margin-top: 6rpx;
+  min-height: 28rpx;
+  font-size: 22rpx;
+  line-height: 28rpx;
+  color: #999;
+  font-weight: 500;
 }
 .order-group__top__title {
   font-weight: bold;

@@ -22,16 +22,7 @@
       bindtap="onClickItem"
     >
       <view class="order-group__item__icon icon-class">
-        <t-badge wx:if="{{item.orderNum > 0}}" count="{{item.orderNum}}" max-count="{{99}}" color="#FF4646">
-          <t-icon
-            prefix="{{classPrefix}}"
-            name="{{item.iconName}}"
-            size="56rpx"
-            customStyle="background-image: -webkit-linear-gradient(90deg, #6a6a6a 0%,#929292 100%);-webkit-background-clip: text;-webkit-text-fill-color: transparent;"
-          />
-        </t-badge>
         <t-icon
-          wx:else
           prefix="{{classPrefix}}"
           name="{{item.iconName}}"
           size="56rpx"
@@ -39,6 +30,7 @@
         />
       </view>
       <view class="order-group__item__title title-class">{{item.title}}</view>
+      <view class="order-group__item__count">{{item.orderNum}}</view>
     </view>
   </view>
 </view>
