@@ -3,6 +3,7 @@ import { OrderButtonTypes, OrderStatus, LogisticsIconMap } from '../config';
 import { fetchBusinessTime, fetchOrderDetail } from '../../../services/order/orderDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { getAddressPromise } from '../../../services/address/list';
+import { computePaymentCountDown } from '../../../utils/order-countdown';
 import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 
 Page({
@@ -195,10 +196,8 @@ Page({
   },
 
   // 仅对待支付状态计算付款倒计时
-  // 返回时间若是大于2020.01.01，说明返回的是关闭时间，否则说明返回的直接就是剩余时间
   computeCountDownTime(order) {
-    if (order.orderStatus !== OrderStatus.PENDING_PAYMENT) return null;
-    return order.autoCancelTime > 1577808000000 ? order.autoCancelTime - Date.now() : order.autoCancelTime;
+    return computePaymentCountDown(order);
   },
 
   onCountDownFinish() {

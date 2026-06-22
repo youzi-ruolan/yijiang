@@ -97,7 +97,7 @@ Page({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: '微信地址已保存',
+        message: '微信地址已同步',
         theme: 'success',
         duration: 1000,
       });

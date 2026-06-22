@@ -117,16 +117,11 @@ Page({
 
   async buyItNow() {
     if (!(await this.ensureActionLogin('请先登录后再购买'))) return;
-    this.showSkuSelectPopup(1);
+    await this.gotoBuy();
   },
 
   toAddCart() {
-    if (this.data.isAllSelectedSku) {
-      this.addCart();
-      return;
-    }
-
-    this.showSkuSelectPopup(2);
+    this.addCart();
   },
 
   toNav(e) {
@@ -285,22 +280,19 @@ Page({
   },
 
   addCart() {
-    const { isAllSelectedSku } = this.data;
-    if (isAllSelectedSku) {
-      const cartItem = this.buildCartItem();
-      addLocalCartItem(cartItem, this.data.buyNum);
-      this.refreshCartNum();
-      this.handlePopupHide();
-      this.playAddCartAnimation();
-      const tabBar = this.getTabBar && this.getTabBar();
-      if (tabBar && tabBar.updateCartCount) {
-        tabBar.updateCartCount();
-      }
+    const cartItem = this.buildCartItem();
+    addLocalCartItem(cartItem, this.data.buyNum);
+    this.refreshCartNum();
+    this.handlePopupHide();
+    this.playAddCartAnimation();
+    const tabBar = this.getTabBar && this.getTabBar();
+    if (tabBar && tabBar.updateCartCount) {
+      tabBar.updateCartCount();
     }
     Toast({
       context: this,
       selector: '#t-toast',
-      message: isAllSelectedSku ? '已加入购物车' : '请选择规格',
+      message: '已加入购物车',
       icon: '',
       duration: 1000,
     });
@@ -358,17 +350,7 @@ Page({
 
   async gotoBuy() {
     if (!(await this.ensureActionLogin('请先登录后再购买'))) return;
-    const { details, isAllSelectedSku, buyNum, selectItem, skuArray, selectedAttrStr } = this.data;
-    if (!isAllSelectedSku) {
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message: '请选择规格',
-        icon: '',
-        duration: 1000,
-      });
-      return;
-    }
+    const { details, buyNum, selectItem, skuArray } = this.data;
     const selectedSku = Array.isArray(selectItem) ? selectItem[0] : selectItem || skuArray[0] || {};
     const selectedSpecInfo =
       (selectedSku.specInfo || []).map((skuSpec) => {
@@ -402,7 +384,7 @@ Page({
       primaryImage: selectedSku.skuImage || details.primaryImage,
       thumb: selectedSku.skuImage || details.primaryImage,
       title: details.title,
-      selectedAttrStr,
+      selectedAttrStr: '',
     };
     let urlQueryStr = obj2Params(
       {
@@ -510,25 +492,7 @@ Page({
       specList: defaultSpecList,
     };
 
-    const defaultSpecInfo =
-      skuList?.[0]?.specInfo?.reduce((result, item) => {
-        const specTitle = details.specList?.find((spec) => spec.specId === item.specId)?.title || '';
-        const specValue =
-          item.specValue ||
-          details.specList
-            ?.find((spec) => spec.specId === item.specId)
-            ?.specValueList?.find((specValueItem) => specValueItem.specValueId === item.specValueId)?.specValue ||
-          '';
-
-        result.push({
-          specTitle,
-          specValue,
-        });
-        return result;
-      }, []) || [];
-
-    const defaultAttrStr =
-      defaultSpecInfo.length > 0 ? `件，${defaultSpecInfo.map((item) => item.specValue).join('，')}` : '';
+    const defaultAttrStr = '';
 
     this.setData({
       details: nextDetails,
@@ -545,9 +509,9 @@ Page({
       specImg: primaryImage,
       soldout: false,
       soldNum,
-      isAllSelectedSku: skuArray.length > 0,
+      isAllSelectedSku: true,
       selectedAttrStr: defaultAttrStr,
-      selectItem: defaultSku.skuId ? defaultSku : null,
+      selectItem: defaultSku.skuId ? defaultSku : skuArray[0] || null,
       selectSkuSellsPrice: defaultSku.price || minSalePrice || 0,
       detailHtml: normalizedDetailHtml,
       detailBlocks,
@@ -627,16 +591,9 @@ Page({
   },
 
   onShareAppMessage() {
-    // 自定义的返回信息
-    const { selectedAttrStr } = this.data;
-    let shareSubTitle = '';
-    if (selectedAttrStr.indexOf('件') > -1) {
-      const count = selectedAttrStr.indexOf('件');
-      shareSubTitle = selectedAttrStr.slice(count + 1, selectedAttrStr.length);
-    }
     const customInfo = {
       imageUrl: this.data.details.primaryImage,
-      title: this.data.details.title + shareSubTitle,
+      title: this.data.details.title,
       path: `/pages/goods/details/index?spuId=${this.data.spuId}`,
     };
     return customInfo;

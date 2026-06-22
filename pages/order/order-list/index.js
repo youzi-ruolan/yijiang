@@ -2,6 +2,7 @@ import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchOrders, fetchOrdersCount } from '../../../services/order/orderList';
 import { cosThumb } from '../../../utils/util';
 import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
+import { computePaymentCountDown } from '../../../utils/order-countdown';
 
 Page({
   page: {
@@ -114,6 +115,10 @@ Page({
               buttons: this.getOrderButtons(order),
               groupInfoVo: order.groupInfoVo,
               freightFee: order.freightFee,
+              countDownTime: computePaymentCountDown({
+                orderStatus: order.orderStatus,
+                autoCancelTime: order.autoCancelTime,
+              }),
             };
           });
         }
@@ -188,6 +193,10 @@ Page({
     if (status === OrderStatus.PENDING_RECEIPT) return '已交付';
     if (status === OrderStatus.COMPLETE) return '已完成';
     return statusDesc || '已关闭';
+  },
+
+  onOrderCountDownFinish() {
+    this.onRefresh();
   },
 
   getOrderButtons(order) {

@@ -23,9 +23,24 @@
   </block>
   <!-- 已登录且已经授权用户信息的情况 -->
   <block wx:if="{{currAuthStep === AuthStepType.THREE}}">
-    <view class="user-center-card__header" bind:tap="gotoUserEditPage">
-      <t-avatar image="{{userInfo.avatarUrl || defaultAvatarUrl}}" class="user-center-card__header__avatar" />
-      <view class="user-center-card__header__name">{{userInfo.nickName || '微信用户'}}</view>
+    <view class="user-center-card__header">
+      <view class="user-center-card__avatar-wrap" bind:tap="gotoUserEditPage">
+        <t-avatar image="{{userInfo.avatarUrl || defaultAvatarUrl}}" class="user-center-card__header__avatar" />
+        <view class="user-center-card__edit-badge">
+          <t-icon name="edit-1" size="22rpx" color="#ffffff" />
+        </view>
+      </view>
+      <view class="user-center-card__profile">
+        <view class="user-center-card__header__name">{{userInfo.nickName || '微信用户'}}</view>
+        <view class="user-center-card__profile-sub" wx:if="{{userInfo.phoneNumber}}">{{userInfo.phoneNumber}}</view>
+        <button
+          wx:if="{{profileIncomplete}}"
+          class="user-center-card__profile-btn"
+          bindtap="requestProfileAuth"
+        >
+          授权微信头像昵称
+        </button>
+      </view>
     </view>
   </block>
 </view>

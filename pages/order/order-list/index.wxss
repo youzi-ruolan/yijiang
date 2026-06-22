@@ -92,6 +92,39 @@ wr-order-goods-card:not(:first-child) .wr-goods-card {
   color: #666666;
   font-size: 28rpx;
 }
+
+.order-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8rpx;
+}
+
+.order-status-text {
+  color: #fa4126;
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 36rpx;
+}
+
+.order-countdown {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.order-countdown__label {
+  color: #999;
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.order-countdown__time {
+  color: #fa4126 !important;
+  font-size: 24rpx !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums;
+}
 .t-class-indicator {
   color: #b9b9b9 !important;
 }

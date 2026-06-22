@@ -36,6 +36,8 @@ const PAID_ORDER_STATUSES: OrderStatusValue[] = [
   ORDER_STATUS.COMPLETE,
 ];
 
+const PAYMENT_TIMEOUT_MS = 60 * 60 * 1000;
+
 @Injectable()
 export class PublicService {
   private wechatAccessTokenCache: { value: string; expiresAt: number } | null = null;
@@ -324,6 +326,22 @@ export class PublicService {
 
   async createAddress(payload: Record<string, unknown>) {
     const input = await this.buildAddressInput(payload);
+    const duplicateAddress = await this.prisma.userAddress.findFirst({
+      where: {
+        userId: input.userId,
+        name: input.name,
+        phone: input.phone,
+        provinceName: input.provinceName,
+        cityName: input.cityName,
+        districtName: input.districtName,
+        detailAddress: input.detailAddress,
+      },
+    });
+
+    if (duplicateAddress) {
+      return this.updateAddress(duplicateAddress.id, payload);
+    }
+
     const existedDefaultCount = await this.prisma.userAddress.count({
       where: { userId: input.userId, isDefault: true },
     });
@@ -451,6 +469,7 @@ export class PublicService {
   }
 
   async getOrders(status?: string, uid?: string) {
+    await this.cancelExpiredPendingOrders(uid);
     const normalizedStatus = this.normalizeOrderStatus(status);
     const orders = await this.prisma.order.findMany({
       where: {
@@ -464,6 +483,7 @@ export class PublicService {
   }
 
   async getOrdersCount(uid?: string) {
+    await this.cancelExpiredPendingOrders(uid);
     const orders = await this.prisma.order.findMany({
       where: uid ? { userId: uid } : undefined,
       select: { status: true },
@@ -599,7 +619,7 @@ export class PublicService {
   }
 
   async getOrderDetail(id: string, uid?: string) {
-    const order = await this.prisma.order.findUnique({
+    let order = await this.prisma.order.findUnique({
       where: { id },
     });
 
@@ -610,6 +630,8 @@ export class PublicService {
     if (!order) {
       return null;
     }
+
+    order = await this.cancelExpiredPendingOrderIfNeeded(order);
 
     const comments = await this.prisma.productComment.findMany({
       where: {
@@ -1013,7 +1035,8 @@ export class PublicService {
       statusName: this.getOrderStatusName(status),
       amount: order.amount,
       items: order.items,
-      createTime: new Date(order.orderCreatedAt.replace(/-/g, '/')).getTime() || Date.now(),
+      createTime: this.parseOrderCreatedAt(order),
+      autoCancelTime: this.getPaymentDeadlineMs(order),
       orderCreatedAt: order.orderCreatedAt,
       itemsDetail,
       buttonVOs: this.getOrderButtons({ status }),
@@ -1046,7 +1069,8 @@ export class PublicService {
       paymentAmount: order.amount,
       goodsAmountApp: order.amount,
       totalAmount: order.amount,
-      createTime: new Date(order.orderCreatedAt.replace(/-/g, '/')).getTime() || Date.now(),
+      createTime: this.parseOrderCreatedAt(order),
+      autoCancelTime: this.getPaymentDeadlineMs(order),
       logisticsVO: {
         logisticsNo: '',
         receiverCity: '',
@@ -1097,6 +1121,75 @@ export class PublicService {
     }
 
     return user.id;
+  }
+
+  private parseOrderCreatedAt(order: { orderCreatedAt: string; createdAt?: Date }) {
+    const parsed = new Date(order.orderCreatedAt.replace(/-/g, '/')).getTime();
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+
+    return order.createdAt?.getTime() || Date.now();
+  }
+
+  private getPaymentDeadlineMs(order: { orderCreatedAt: string; createdAt?: Date; status: string }) {
+    if (this.normalizeOrderStatus(order.status) !== ORDER_STATUS.PENDING_PAYMENT) {
+      return null;
+    }
+
+    return this.parseOrderCreatedAt(order) + PAYMENT_TIMEOUT_MS;
+  }
+
+  private isPaymentExpired(order: { orderCreatedAt: string; createdAt?: Date; status: string }) {
+    const deadline = this.getPaymentDeadlineMs(order);
+    return deadline !== null && Date.now() >= deadline;
+  }
+
+  private async cancelExpiredPendingOrders(uid?: string) {
+    const pendingOrders = await this.prisma.order.findMany({
+      where: {
+        status: ORDER_STATUS.PENDING_PAYMENT,
+        ...(uid ? { userId: uid } : {}),
+      },
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        orderCreatedAt: true,
+        createdAt: true,
+      },
+    });
+
+    const expiredOrderIds = pendingOrders.filter((order) => this.isPaymentExpired(order)).map((order) => order.id);
+    if (!expiredOrderIds.length) {
+      return;
+    }
+
+    await this.prisma.order.updateMany({
+      where: { id: { in: expiredOrderIds } },
+      data: { status: ORDER_STATUS.CANCELED },
+    });
+  }
+
+  private async cancelExpiredPendingOrderIfNeeded(order: {
+    id: string;
+    userId: string | null;
+    status: string;
+    orderCreatedAt: string;
+    createdAt: Date;
+    customer: string;
+    amount: number;
+    items: number;
+    itemsDetail: unknown;
+  }) {
+    if (!this.isPaymentExpired(order)) {
+      return order;
+    }
+
+    return this.prisma.order.update({
+      where: { id: order.id },
+      data: { status: ORDER_STATUS.CANCELED },
+    });
   }
 
   private async buildAddressInput(payload: Record<string, unknown>) {

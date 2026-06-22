@@ -21,6 +21,10 @@ Component({
       type: Boolean,
       value: false,
     },
+    profileIncomplete: {
+      type: Boolean,
+      value: false,
+    },
   },
   data: {
     defaultAvatarUrl: 'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png',
@@ -32,6 +36,9 @@ Component({
     },
     gotoUserEditPage() {
       this.triggerEvent('gotoUserEditPage');
+    },
+    requestProfileAuth() {
+      this.triggerEvent('requestProfileAuth');
     },
   },
 });

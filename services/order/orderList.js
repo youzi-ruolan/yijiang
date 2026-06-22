@@ -43,6 +43,7 @@ export function fetchOrders(params) {
           paymentAmount: order.amount,
           totalAmount: order.amount,
           createTime: order.createTime,
+          autoCancelTime: order.autoCancelTime,
           logisticsVO: {
             logisticsNo: '',
           },

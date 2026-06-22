@@ -32,7 +32,6 @@
             price="{{minSalePrice}}"
             type="lighter"
           />
-          <view class="goods-price-up">起</view>
         </view>
         <view class="sold-num">已售{{soldNum}}</view>
       </view>
@@ -50,15 +49,6 @@
       <view class="goods-intro">{{intro}}</view>
       <view class="goods-tags" wx:if="{{details.spuTagList && details.spuTagList.length}}">
         <view class="goods-meta-tag" wx:for="{{details.spuTagList}}" wx:key="id">{{item.title}}</view>
-      </view>
-    </view>
-    <view class="spu-select" bindtap="showSkuSelectPopup">
-      <view class="label">已选</view>
-      <view class="content">
-        <view class="{{!selectedAttrStr ? 'tintColor' : ''}}">
-          {{selectedAttrStr ? buyNum : ''}}{{selectedAttrStr || '请选择'}}
-        </view>
-        <t-icon name="chevron-right" size="40rpx" color="#BBBBBB" />
       </view>
     </view>
     <view class="comments-wrap">
@@ -92,7 +82,11 @@
     </view>
   </view>
   <view class="desc-content">
-    <view class="detail-block detail-block--card" wx:if="{{deliverables.length > 0 || usageNotice.length > 0}}">
+    <view class="detail-section detail-section--card" wx:if="{{deliverables.length > 0 || usageNotice.length > 0}}">
+      <view class="detail-section-head">
+        <view class="detail-section-head__bar"></view>
+        <view class="detail-section-head__title">课程说明</view>
+      </view>
       <view class="detail-card-group">
         <view class="detail-card" wx:if="{{deliverables.length > 0}}">
           <view class="detail-card__title">交付内容</view>
@@ -104,8 +98,11 @@
         </view>
       </view>
     </view>
-    <view class="detail-block" wx:if="{{galleryMedia.length > 0}}">
-      <view class="detail-block__title">详情图集</view>
+    <view class="detail-section detail-section--media" wx:if="{{galleryMedia.length > 0}}">
+      <view class="detail-section-head">
+        <view class="detail-section-head__bar"></view>
+        <view class="detail-section-head__title">详情图集</view>
+      </view>
       <view class="detail-gallery-list">
         <block wx:for="{{galleryMedia}}" wx:key="url">
           <image
@@ -118,20 +115,25 @@
             data-url="{{item.url}}"
             bindtap="previewGalleryImage"
           />
-          <video
-            wx:else
-            class="detail-gallery-video"
-            src="{{item.url}}"
-            poster="{{item.cover}}"
-            controls
-            object-fit="contain"
-            show-center-play-btn
-          />
+          <view wx:else class="detail-video-wrap">
+            <video
+              class="detail-video"
+              src="{{item.url}}"
+              poster="{{item.cover}}"
+              controls
+              object-fit="cover"
+              show-center-play-btn
+              enable-play-gesture
+            />
+          </view>
         </block>
       </view>
     </view>
-    <view class="detail-block" wx:if="{{detailBlocks.length > 0}}">
-      <view class="detail-block__title">商品详情</view>
+    <view class="detail-section detail-section--rich" wx:if="{{detailBlocks.length > 0}}">
+      <view class="detail-section-head">
+        <view class="detail-section-head__bar"></view>
+        <view class="detail-section-head__title">课程详情</view>
+      </view>
       <view class="detail-rich-content">
         <block wx:for="{{detailBlocks}}" wx:key="index">
           <rich-text wx:if="{{item.type === 'rich'}}" class="detail-rich-text" nodes="{{item.html}}" />
@@ -145,30 +147,41 @@
             data-url="{{item.url}}"
             bindtap="previewDetailImage"
           />
-          <video
-            wx:elif="{{item.type === 'video'}}"
-            class="detail-rich-video"
-            src="{{item.url}}"
-            poster="{{item.poster}}"
-            controls
-            object-fit="contain"
-            show-center-play-btn
-          />
+          <view wx:elif="{{item.type === 'video'}}" class="detail-video-wrap detail-video-wrap--rich">
+            <video
+              class="detail-video"
+              src="{{item.url}}"
+              poster="{{item.poster}}"
+              controls
+              object-fit="cover"
+              show-center-play-btn
+              enable-play-gesture
+            />
+          </view>
           <view
             wx:elif="{{item.type === 'external-video'}}"
             class="detail-external-video"
             bindtap="openExternalVideo"
             data-url="{{item.url}}"
           >
-            <image
-              wx:if="{{item.poster}}"
-              class="detail-external-video__poster"
-              src="{{item.poster}}"
-              mode="aspectFill"
-            />
+            <view class="detail-video-cover">
+              <image
+                wx:if="{{item.poster}}"
+                class="detail-video-cover__poster"
+                src="{{item.poster}}"
+                mode="aspectFill"
+              />
+              <view wx:else class="detail-video-cover__fallback"></view>
+              <view class="detail-video-play detail-video-play--overlay">
+                <view class="detail-video-play__ring">
+                  <view class="detail-video-play__icon"></view>
+                </view>
+              </view>
+              <view class="detail-video-cover__mask"></view>
+            </view>
             <view class="detail-external-video__body">
               <view class="detail-external-video__label">{{item.label || '外链视频'}}</view>
-              <view class="detail-external-video__tip">哔哩哔哩等链接无法在小程序内直接播放，点击复制链接</view>
+              <view class="detail-external-video__tip">点击复制链接，在浏览器中观看</view>
             </view>
           </view>
         </block>
@@ -182,14 +195,17 @@
     </view>
     <view wx:if="{{detailBlocks.length === 0 && galleryMedia.length === 0 && detailMedia.length > 0}}" wx:for="{{detailMedia}}" wx:key="index">
       <t-image wx:if="{{item.type == 'image'}}" t-class="desc-content__img" src="{{item.url}}" mode="widthFix" />
-      <video
-        wx:else
-        class="desc-content__video"
-        src="{{item.url}}"
-        poster="{{item.cover}}"
-        controls
-        object-fit="contain"
-      />
+      <view wx:else class="detail-video-wrap detail-video-wrap--legacy">
+        <video
+          class="detail-video"
+          src="{{item.url}}"
+          poster="{{item.cover}}"
+          controls
+          object-fit="cover"
+          show-center-play-btn
+          enable-play-gesture
+        />
+      </view>
     </view>
   </view>
   <view class="detail-bottom-spacer" aria-hidden="true"></view>

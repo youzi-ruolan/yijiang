@@ -6,8 +6,10 @@
   phone-class="custom-phone-class"
   avatar-class="customer-avatar-class"
   currAuthStep="{{currAuthStep}}"
+  profileIncomplete="{{profileIncomplete}}"
   bind:loginByAvatar="loginByAvatar"
   bind:gotoUserEditPage="gotoUserEditPage"
+  bind:requestProfileAuth="authorizeWechatProfile"
 />
 <view class="content-wrapper" wx:if="{{currAuthStep === 3}}">
   <view class="order-group-wrapper">

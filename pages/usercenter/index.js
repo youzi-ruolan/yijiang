@@ -1,6 +1,14 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
+import { updatePersonProfile } from '../../services/usercenter/updatePerson';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { authorizeWechatUserByPhone, ensureWechatLoginWithGuide, getCurrentUser } from '../../utils/local-auth';
+import { phoneEncryption } from '../../utils/util';
+import {
+  authorizeWechatUserByPhone,
+  ensureWechatLoginWithGuide,
+  getCurrentUser,
+  isWechatProfileComplete,
+  updateCurrentUser,
+} from '../../utils/local-auth';
 
 const menuData = [
   [
@@ -59,6 +67,7 @@ const getDefaultData = () => ({
   versionNo: '',
   showLoginAuth: false,
   loginAuthLoading: false,
+  profileIncomplete: false,
 });
 
 Page({
@@ -81,8 +90,18 @@ Page({
   },
 
   fetUseriInfoHandle() {
-    fetchUserCenter().then(({ countsData, orderTagInfos: orderInfo, customerServiceInfo }) => {
+    fetchUserCenter().then(({ userInfo: serverUserInfo, countsData, orderTagInfos: orderInfo, customerServiceInfo }) => {
       const currentUser = getCurrentUser();
+      if (currentUser && serverUserInfo) {
+        updateCurrentUser({
+          nickName: serverUserInfo.nickName || currentUser.nickName,
+          avatarUrl: serverUserInfo.avatarUrl || currentUser.avatarUrl,
+          phoneNumber: serverUserInfo.phoneNumber || currentUser.phoneNumber,
+          gender: serverUserInfo.gender ?? currentUser.gender,
+        });
+      }
+
+      const mergedUser = getCurrentUser();
       const nextMenuData = menuData.map((group) =>
         group.map((item) => ({
           ...item,
@@ -90,7 +109,7 @@ Page({
         })),
       );
 
-      if (currentUser && nextMenuData[0]) {
+      if (mergedUser && nextMenuData[0]) {
         nextMenuData[0].forEach((v) => {
           countsData.forEach((counts) => {
             if (counts.type === v.type) {
@@ -103,15 +122,24 @@ Page({
 
       const info = orderTagInfos.map((v, index) => ({
         ...v,
-        ...(currentUser ? orderInfo[index] : {}),
-        orderNum: currentUser ? orderInfo[index]?.orderNum || 0 : 0,
+        ...(mergedUser ? orderInfo[index] : {}),
+        orderNum: mergedUser ? orderInfo[index]?.orderNum || 0 : 0,
       }));
+
+      const displayUserInfo = mergedUser
+        ? {
+            ...mergedUser,
+            phoneNumber: phoneEncryption(mergedUser.phoneNumber || ''),
+          }
+        : getDefaultData().userInfo;
+
       this.setData({
-        userInfo: currentUser || getDefaultData().userInfo,
+        userInfo: displayUserInfo,
         menuData: nextMenuData,
         orderTagInfos: info,
         customerServiceInfo,
-        currAuthStep: currentUser ? 3 : 1,
+        currAuthStep: mergedUser ? 3 : 1,
+        profileIncomplete: mergedUser ? !isWechatProfileComplete(mergedUser) : false,
       });
       wx.stopPullDownRefresh();
     });
@@ -232,6 +260,7 @@ Page({
         message: '登录成功',
         theme: 'success',
       });
+      this.promptProfileAuthorization();
     } catch (error) {
       this.setData({ loginAuthLoading: false });
       Toast({
@@ -269,6 +298,63 @@ Page({
       authed: false,
       guided: false,
     };
+  },
+
+  async authorizeWechatProfile() {
+    try {
+      const profileRes = await new Promise((resolve, reject) => {
+        wx.getUserProfile({
+          desc: '用于展示个人头像和昵称',
+          success: resolve,
+          fail: reject,
+        });
+      });
+
+      const savedProfile = await updatePersonProfile({
+        nickName: profileRes.userInfo.nickName,
+        avatarUrl: profileRes.userInfo.avatarUrl,
+        gender: profileRes.userInfo.gender,
+      });
+
+      updateCurrentUser({
+        nickName: savedProfile.nickName || profileRes.userInfo.nickName,
+        avatarUrl: savedProfile.avatarUrl || profileRes.userInfo.avatarUrl,
+        gender: savedProfile.gender ?? profileRes.userInfo.gender,
+      });
+      this.init();
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '资料已更新',
+        theme: 'success',
+      });
+    } catch (error) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: error?.errMsg || error?.message || '授权未完成',
+        icon: '',
+      });
+    }
+  },
+
+  promptProfileAuthorization() {
+    const user = getCurrentUser();
+    if (!user || isWechatProfileComplete(user)) {
+      return;
+    }
+
+    wx.showModal({
+      title: '完善资料',
+      content: '授权后可展示您的微信头像和昵称',
+      confirmText: '去授权',
+      cancelText: '稍后',
+      success: (res) => {
+        if (res.confirm) {
+          this.authorizeWechatProfile();
+        }
+      },
+    });
   },
 
   getVersionInfo() {

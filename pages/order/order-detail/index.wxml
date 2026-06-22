@@ -24,14 +24,14 @@
           </block>
           <block wx:elif="{{countDownTime === null}}">{{order.orderStatusRemark || ''}}</block>
           <block wx:elif="{{countDownTime > 0}}">
-            剩
+            请在
             <t-count-down
               time="{{countDownTime}}"
-              format="HH小时mm分ss秒"
+              format="HH:mm:ss"
               t-class="count-down"
               bindfinish="onCountDownFinish"
             />
-            支付，过时订单将会取消
+            内完成支付，超时自动取消
           </block>
           <block wx:else>超时未支付</block>
         </view>

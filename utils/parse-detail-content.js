@@ -44,8 +44,48 @@ function extractVideoMeta(segment) {
   };
 }
 
+function mergeInlineStyle(existing = '', additions = '') {
+  const base = `${existing || ''}`.trim().replace(/;+\s*$/, '');
+  const extra = `${additions || ''}`.trim().replace(/;+\s*$/, '');
+  if (!base) return extra;
+  if (!extra) return base;
+  return `${base}; ${extra}`;
+}
+
+function upsertTagStyle(tagName, attrs, styleText) {
+  const attrText = `${attrs || ''}`;
+  if (/style=/i.test(attrText)) {
+    return `<${tagName}${attrText.replace(/style=["']([^"']*)["']/i, (_match, styleValue) => {
+      return `style="${mergeInlineStyle(styleValue, styleText)}"`;
+    })}>`;
+  }
+  return `<${tagName}${attrText} style="${styleText}">`;
+}
+
+const RICH_TEXT_STYLES = {
+  h1: 'margin:24px 0 12px;font-size:18px;line-height:1.45;font-weight:700;color:#1a1a1a;',
+  h2: 'margin:22px 0 10px;font-size:17px;line-height:1.45;font-weight:700;color:#1a1a1a;',
+  h3: 'margin:20px 0 8px;font-size:16px;line-height:1.5;font-weight:600;color:#222222;',
+  h4: 'margin:18px 0 8px;font-size:15px;line-height:1.5;font-weight:600;color:#333333;',
+  p: 'margin:12px 0;font-size:14px;line-height:1.85;color:#4a4a4a;',
+  strong: 'font-weight:600;color:#222222;',
+  b: 'font-weight:600;color:#222222;',
+  li: 'margin:6px 0;font-size:14px;line-height:1.75;color:#4a4a4a;',
+  ul: 'margin:10px 0;padding-left:18px;',
+  ol: 'margin:10px 0;padding-left:18px;',
+};
+
+function applyRichTextTypography(html) {
+  let next = `${html || ''}`;
+  Object.keys(RICH_TEXT_STYLES).forEach((tag) => {
+    const re = new RegExp(`<${tag}([^>]*)>`, 'gi');
+    next = next.replace(re, (_match, attrs) => upsertTagStyle(tag, attrs, RICH_TEXT_STYLES[tag]));
+  });
+  return next;
+}
+
 function normalizeImgTag(attrs) {
-  const forcedStyle = 'width:100%;height:auto;display:block;margin:12px 0;';
+  const forcedStyle = 'width:100%;height:auto;display:block;margin:16px 0;';
   let next = attrs
     .replace(/\s+width=["'][^"']*["']/gi, '')
     .replace(/\s+height=["'][^"']*["']/gi, '');
@@ -63,9 +103,11 @@ function normalizeRichHtml(html) {
   const trimmed = `${html || ''}`.trim();
   if (!trimmed) return '';
 
-  return trimmed
-    .replace(/<img([^>]*?)(?:\s*\/)?>/gi, (_match, attrs) => normalizeImgTag(attrs))
-    .replace(/<p><br><\/p>/gi, '<p style="margin:8px 0;"></p>');
+  return applyRichTextTypography(
+    trimmed
+      .replace(/<img([^>]*?)(?:\s*\/)?>/gi, (_match, attrs) => normalizeImgTag(attrs))
+      .replace(/<p><br><\/p>/gi, '<p style="margin:8px 0;"></p>'),
+  );
 }
 
 function splitRichHtmlParts(html) {

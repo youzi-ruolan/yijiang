@@ -16,14 +16,14 @@
 .product-cover-wrap {
   position: relative;
   height: 238rpx;
-  padding: 14rpx 14rpx 0;
-  background: linear-gradient(180deg, #fbf4ee 0%, #f7efe8 100%);
+  overflow: hidden;
+  background: #f7efe8;
 }
 
 .product-cover {
   width: 100%;
   height: 100%;
-  border-radius: 18rpx;
+  display: block;
 }
 
 .product-body {

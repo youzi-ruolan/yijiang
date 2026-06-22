@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, createHmac, randomBytes } from 'crypto';
 import { createReadStream, promises as fs } from 'fs';
 import { ConfigService } from '@nestjs/config';
@@ -55,7 +55,18 @@ export class AssetsService {
     });
   }
 
-  remove(id: string) {
+  async remove(id: string) {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id },
+    });
+
+    if (!asset) {
+      throw new NotFoundException('文件不存在');
+    }
+
+    const objectKeys = this.collectCosObjectKeys([asset.url, asset.cover]);
+    await this.deleteCosObjects(objectKeys);
+
     return this.prisma.asset.delete({
       where: { id },
     });
@@ -117,6 +128,88 @@ export class AssetsService {
       sort: 0,
       status: 'ACTIVE',
     });
+  }
+
+  private collectCosObjectKeys(urls: Array<string | null | undefined>) {
+    const keys = new Set<string>();
+    urls.forEach((url) => {
+      const key = this.resolveCosObjectKey(url);
+      if (key) {
+        keys.add(key);
+      }
+    });
+    return [...keys];
+  }
+
+  private resolveCosObjectKey(url?: string | null) {
+    if (!url) {
+      return null;
+    }
+
+    const normalized = url.trim().split('?')[0];
+    if (!normalized) {
+      return null;
+    }
+
+    let config: ReturnType<AssetsService['getCosConfig']>;
+    try {
+      config = this.getCosConfig();
+    } catch {
+      return null;
+    }
+
+    const publicBase = config.publicBaseUrl.replace(/\/$/, '');
+    if (normalized.startsWith(`${publicBase}/`)) {
+      return decodeURIComponent(normalized.slice(publicBase.length + 1));
+    }
+
+    const cosHostPattern = new RegExp(
+      `^https?://${config.bucket.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.cos\\.${config.region.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.myqcloud\\.com/(.+)$`,
+      'i',
+    );
+    const matched = normalized.match(cosHostPattern);
+    if (matched?.[1]) {
+      return decodeURIComponent(matched[1]);
+    }
+
+    return null;
+  }
+
+  private async deleteCosObjects(objectKeys: string[]) {
+    if (!objectKeys.length) {
+      return;
+    }
+
+    const { bucket, region } = this.getCosConfig();
+    const cos = this.getCosClient();
+
+    for (const key of objectKeys) {
+      await new Promise<void>((resolve, reject) => {
+        cos.deleteObject(
+          {
+            Bucket: bucket,
+            Region: region,
+            Key: key,
+          },
+          (error) => {
+            if (error) {
+              const code = (error as { code?: string }).code || '';
+              const statusCode = (error as { statusCode?: number }).statusCode;
+              if (code === 'NoSuchKey' || statusCode === 404) {
+                resolve();
+                return;
+              }
+
+              const message = error instanceof Error ? error.message : 'COS 删除失败';
+              reject(new BadRequestException(`删除 COS 文件失败（${key}）：${message}`));
+              return;
+            }
+
+            resolve();
+          },
+        );
+      });
+    }
   }
 
   private getCosClient() {
