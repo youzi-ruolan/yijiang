@@ -1,6 +1,6 @@
 import { BadGatewayException, BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
+import { Order, Prisma } from '@prisma/client';
 import { createDecipheriv, createSign, createVerify, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -619,7 +619,7 @@ export class PublicService {
   }
 
   async getOrderDetail(id: string, uid?: string) {
-    let order = await this.prisma.order.findUnique({
+    const order = await this.prisma.order.findUnique({
       where: { id },
     });
 
@@ -631,23 +631,23 @@ export class PublicService {
       return null;
     }
 
-    order = await this.cancelExpiredPendingOrderIfNeeded(order);
+    const resolvedOrder = await this.cancelExpiredPendingOrderIfNeeded(order);
 
     const comments = await this.prisma.productComment.findMany({
       where: {
-        orderNo: order.id,
+        orderNo: resolvedOrder.id,
         ...(uid ? { userId: uid } : {}),
       },
       select: { skuId: true, userId: true },
     });
     const commentedSkuSet = new Set(comments.map((comment) => `${comment.skuId}`));
-    const itemsDetail = this.getOrderItems(order.itemsDetail).map((item) => ({
+    const itemsDetail = this.getOrderItems(resolvedOrder.itemsDetail).map((item) => ({
       ...item,
       commented: commentedSkuSet.has(`${item.skuId || ''}`),
     }));
 
     return this.formatOrderDetail({
-      ...order,
+      ...resolvedOrder,
       itemsDetail,
     });
   }
@@ -1171,17 +1171,7 @@ export class PublicService {
     });
   }
 
-  private async cancelExpiredPendingOrderIfNeeded(order: {
-    id: string;
-    userId: string | null;
-    status: string;
-    orderCreatedAt: string;
-    createdAt: Date;
-    customer: string;
-    amount: number;
-    items: number;
-    itemsDetail: unknown;
-  }) {
+  private async cancelExpiredPendingOrderIfNeeded(order: Order): Promise<Order> {
     if (!this.isPaymentExpired(order)) {
       return order;
     }
