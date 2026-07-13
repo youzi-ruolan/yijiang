@@ -93,7 +93,10 @@ async function removeCurrent(item: BannerItem) {
   <div class="admin-page">
     <el-card class="admin-card" shadow="never">
       <div class="section-toolbar">
-        <div class="section-title">首页 Banner</div>
+        <div>
+          <div class="section-title">首页 Banner</div>
+          <div class="section-desc">对应小程序首页顶部轮播，改这里会直接影响首页展示</div>
+        </div>
         <el-button type="primary" @click="openCreate">新增 Banner</el-button>
       </div>
 
@@ -179,6 +182,12 @@ async function removeCurrent(item: BannerItem) {
   font-weight: 600;
 }
 
+.section-desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--admin-text-soft);
+}
+
 .content-table__head,
 .content-row {
   grid-template-columns: minmax(280px, 2fr) minmax(160px, 1fr) 120px;
@@ -199,11 +208,6 @@ async function removeCurrent(item: BannerItem) {
   border: 1px solid var(--admin-line);
   flex-shrink: 0;
   overflow: hidden;
-}
-
-.content-thumb :deep(.el-image) {
-  width: 100%;
-  height: 100%;
 }
 
 .content-title {

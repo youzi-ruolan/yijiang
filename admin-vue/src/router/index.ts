@@ -19,7 +19,7 @@ const routes = [
         component: () => import('@/views/DashboardView.vue'),
         meta: {
           title: '项目总览',
-          subtitle: '查看艺匠调色商品、内容和订单模块的整体概况',
+          subtitle: '一眼看清商品、内容和订单概况，并快速进入常用模块',
           requiresAuth: true,
         },
       },
@@ -59,7 +59,7 @@ const routes = [
         component: () => import('@/views/ContentView.vue'),
         meta: {
           title: '首页 Banner',
-          subtitle: '维护小程序首页轮播 Banner 内容',
+          subtitle: '维护小程序首页顶部轮播图',
           requiresAuth: true,
         },
       },

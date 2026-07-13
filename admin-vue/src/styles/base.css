@@ -1,20 +1,20 @@
 :root {
   color-scheme: light;
-  --admin-bg: #f0f7ff;
-  --admin-bg-soft: #f8fbff;
+  --admin-bg: #eef4fb;
+  --admin-bg-soft: #f7fbff;
   --admin-bg-elevated: #ffffff;
   --admin-panel: #ffffff;
-  --admin-line: #e3eef8;
-  --admin-text: #1a2b3c;
-  --admin-text-soft: #6b7f94;
+  --admin-line: #dce8f4;
+  --admin-text: #152536;
+  --admin-text-soft: #66788c;
   --admin-primary: #1890ff;
   --admin-primary-hover: #40a9ff;
   --admin-primary-soft: #e6f4ff;
-  --admin-primary-line: rgba(24, 144, 255, 0.2);
-  --admin-shadow: 0 2px 12px rgba(24, 144, 255, 0.08);
-  --admin-shadow-soft: 0 1px 6px rgba(24, 144, 255, 0.06);
-  --admin-radius-lg: 12px;
-  --admin-radius-md: 8px;
+  --admin-primary-line: rgba(24, 144, 255, 0.22);
+  --admin-shadow: 0 8px 24px rgba(21, 61, 110, 0.08);
+  --admin-shadow-soft: 0 2px 10px rgba(21, 61, 110, 0.05);
+  --admin-radius-lg: 14px;
+  --admin-radius-md: 10px;
   --admin-radius-sm: 6px;
 
   --el-color-primary: #1890ff;

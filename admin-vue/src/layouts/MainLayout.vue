@@ -159,9 +159,9 @@ onMounted(async () => {
 }
 
 .sidebar {
-  padding: 16px 12px;
+  padding: 18px 12px;
   border-right: 1px solid var(--admin-line);
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
   display: flex;
   flex-direction: column;
   transition: all 0.2s ease;
@@ -171,9 +171,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 8px 20px;
+  padding: 4px 8px 18px;
   border-bottom: 1px solid var(--admin-line);
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .brand-collapsed {
@@ -214,11 +214,11 @@ onMounted(async () => {
 
 .menu-item {
   border: 0;
-  border-radius: var(--admin-radius-md);
-  padding: 10px 12px;
+  border-radius: 10px;
+  padding: 11px 12px;
   text-align: left;
   background: transparent;
-  color: var(--admin-text-soft);
+  color: #5b6f84;
   transition: all 0.15s ease;
   display: flex;
   align-items: center;
@@ -244,13 +244,16 @@ onMounted(async () => {
 
 .menu-item.active {
   color: var(--admin-primary);
-  font-weight: 500;
+  font-weight: 600;
   background: var(--admin-primary-soft);
+  box-shadow: inset 3px 0 0 var(--admin-primary);
 }
 
 .content {
-  padding: 20px 24px;
-  background: var(--admin-bg);
+  padding: 20px 24px 28px;
+  background:
+    radial-gradient(circle at top right, rgba(24, 144, 255, 0.08), transparent 28%),
+    var(--admin-bg);
   min-width: 0;
 }
 
@@ -259,11 +262,13 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
   padding: 16px 20px;
-  border-radius: var(--admin-radius-lg);
-  background: #ffffff;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--admin-line);
+  box-shadow: var(--admin-shadow-soft);
+  backdrop-filter: blur(8px);
 }
 
 .header-left {
