@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Plus, Upload } from '@element-plus/icons-vue';
+import AdminFormDialog from '@/components/AdminFormDialog.vue';
 import { useAdminStore } from '@/stores/admin';
 import { useAssetUpload } from '@/composables/useAssetUpload';
 import VideoPreview from '@/components/VideoPreview.vue';
@@ -122,13 +123,13 @@ async function handleUpload(event: Event) {
 </script>
 
 <template>
-  <el-dialog
+  <AdminFormDialog
     :model-value="visible"
     :title="title"
     width="860px"
-    destroy-on-close
-    class="asset-picker-dialog"
-    @close="close"
+    :show-confirm="false"
+    @update:model-value="emit('update:visible', $event)"
+    @cancel="close"
   >
     <div class="picker-toolbar">
       <el-input v-model="keyword" clearable placeholder="搜索文件名称、描述、标签" class="picker-search" />
@@ -162,13 +163,7 @@ async function handleUpload(event: Event) {
       >
         <div class="picker-item__preview">
           <img v-if="asset.type === 'image'" :src="asset.url" :alt="asset.name" />
-          <VideoPreview
-            v-else
-            :src="asset.url"
-            :cover="asset.cover"
-            compact
-            play-on-button
-          />
+          <VideoPreview v-else :src="asset.url" :cover="asset.cover" compact play-on-button />
           <span class="picker-item__type">{{ asset.type === 'image' ? '图片' : '视频' }}</span>
         </div>
         <div class="picker-item__name">{{ asset.name }}</div>
@@ -186,24 +181,25 @@ async function handleUpload(event: Event) {
       <div class="picker-selected__list">
         <div v-for="asset in pickedAssets" :key="asset.id" class="picker-selected__item">
           <img v-if="asset.type === 'image'" :src="asset.url" :alt="asset.name" />
-          <VideoPreview
-            v-else
-            :src="asset.url"
-            :cover="asset.cover"
-            compact
-            play-on-button
-          />
+          <VideoPreview v-else :src="asset.url" :cover="asset.cover" compact play-on-button />
         </div>
       </div>
     </div>
 
     <template #footer>
-      <el-button @click="close">取消</el-button>
-      <el-button v-if="mode === 'multiple'" type="primary" :disabled="!pickedIds.length" @click="confirmMultiple">
-        确认选择（{{ pickedIds.length }}）
-      </el-button>
+      <div class="admin-form-dialog__footer">
+        <el-button @click="close">取消</el-button>
+        <el-button
+          v-if="mode === 'multiple'"
+          type="primary"
+          :disabled="!pickedIds.length"
+          @click="confirmMultiple"
+        >
+          确认选择（{{ pickedIds.length }}）
+        </el-button>
+      </div>
     </template>
-  </el-dialog>
+  </AdminFormDialog>
 </template>
 
 <style scoped>

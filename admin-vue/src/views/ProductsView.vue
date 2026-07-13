@@ -1,41 +1,19 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import MpRichEditor from '@/components/MpRichEditor.vue';
-import ProductBannerFields from '@/components/ProductBannerFields.vue';
-import ProductMediaFields from '@/components/ProductMediaFields.vue';
+import ProductFormDialog from '@/components/ProductFormDialog.vue';
 import { useAdminStore } from '@/stores/admin';
-import { galleryTextToLines } from '@/utils/asset';
 import type { ProductItem } from '@/types';
 
 function formatPriceYuan(price: number) {
   return Number(price).toFixed(2).replace(/\.?0+$/, '').replace(/\.$/, '') || '0';
 }
 
-function normalizePriceYuan(price: number) {
-  return Math.round(Number(price) * 100) / 100;
-}
-
 const adminStore = useAdminStore();
 
 const categoryFilter = ref('all');
 const dialogVisible = ref(false);
-const editingId = ref('');
-
-const form = reactive({
-  title: '',
-  description: '',
-  price: 0,
-  category: '',
-  sales: 0,
-  cover: '',
-  tags: '',
-  bannerImages: [] as string[],
-  gallery: '',
-  detailContent: '',
-  deliverables: '',
-  usageNotice: '',
-});
+const editingProduct = ref<ProductItem | null>(null);
 
 const categoryOptions = computed(() =>
   adminStore.productCategories.map((item) => ({
@@ -54,86 +32,22 @@ const categoryNameMap = computed(() =>
   Object.fromEntries(adminStore.productCategories.map((item) => [item.filterKey, item.name])),
 );
 
-function resetForm() {
-  form.title = '';
-  form.description = '';
-  form.price = 0;
-  form.category = '';
-  form.sales = 0;
-  form.cover = '';
-  form.tags = '';
-  form.bannerImages = [];
-  form.gallery = '';
-  form.detailContent = '';
-  form.deliverables = '';
-  form.usageNotice = '';
-}
-
 function openCreate() {
-  editingId.value = '';
-  resetForm();
+  editingProduct.value = null;
   dialogVisible.value = true;
 }
 
 function openEdit(product: ProductItem) {
-  editingId.value = product.id;
-  form.title = product.title;
-  form.description = product.description;
-  form.price = product.price;
-  form.category = product.category;
-  form.sales = product.sales;
-  form.cover = product.cover;
-  form.tags = (product.tags || []).join(', ');
-  form.bannerImages = [...(product.bannerImages || [])];
-  form.gallery = (product.gallery || []).join('\n');
-  form.detailContent = product.detailContent || '';
-  form.deliverables = (product.deliverables || []).join('\n');
-  form.usageNotice = (product.usageNotice || []).join('\n');
+  editingProduct.value = product;
   dialogVisible.value = true;
 }
 
-async function saveProduct() {
-  if (!form.category || form.category === 'all') {
-    ElMessage.warning('请选择商品分类');
-    return;
-  }
-
-  if (!form.cover.trim()) {
-    ElMessage.warning('请选择商品封面图');
-    return;
-  }
-
-  const product: ProductItem = {
-    id: editingId.value || `product_${Date.now()}`,
-    title: form.title.trim(),
-    description: form.description.trim(),
-    price: normalizePriceYuan(form.price),
-    sales: Number(form.sales),
-    cover: form.cover.trim(),
-    tags: form.tags
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean),
-    category: form.category,
-    bannerImages: form.bannerImages.filter(Boolean),
-    gallery: galleryTextToLines(form.gallery),
-    detailContent: form.detailContent.trim(),
-    deliverables: form.deliverables
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean),
-    usageNotice: form.usageNotice
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean),
-    isNew: editingId.value ? undefined : true,
-    isHot: false,
-  };
-
+async function handleSaved(product: ProductItem, isEdit: boolean) {
   try {
     await adminStore.upsertProduct(product);
     dialogVisible.value = false;
-    ElMessage.success(editingId.value ? '商品已更新' : '商品已新增');
+    editingProduct.value = null;
+    ElMessage.success(isEdit ? '商品已更新' : '商品已新增');
   } catch (error) {
     const message = error instanceof Error ? error.message : '商品保存失败';
     if (message.includes('bannerImages') || message.includes('detailContent must be an array')) {
@@ -142,6 +56,10 @@ async function saveProduct() {
     }
     ElMessage.error(message);
   }
+}
+
+function handleValidateError(message: string) {
+  ElMessage.warning(message);
 }
 
 async function removeProduct(product: ProductItem) {
@@ -200,6 +118,11 @@ async function removeProduct(product: ProductItem) {
             <span class="gallery-count">{{ (row.bannerImages || []).length || (row.gallery || []).length }} 张</span>
           </template>
         </el-table-column>
+        <el-table-column label="类型" width="90">
+          <template #default="{ row }">
+            <span class="admin-chip">{{ row.isVirtual ? '虚拟' : '实物' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="价格" width="100">
           <template #default="{ row }">
             <span class="price-current">¥{{ formatPriceYuan(row.price) }}</span>
@@ -221,69 +144,12 @@ async function removeProduct(product: ProductItem) {
       </el-table>
     </el-card>
 
-    <el-dialog
+    <ProductFormDialog
       v-model="dialogVisible"
-      :title="editingId ? '编辑商品' : '新增商品'"
-      width="900px"
-      top="4vh"
-      destroy-on-close
-    >
-      <div class="form-grid">
-        <div class="field field-full">
-          <span>商品名称</span>
-          <el-input v-model="form.title" placeholder="请输入商品名称" />
-        </div>
-        <div class="field field-full">
-          <span>商品简介</span>
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入商品简介" />
-        </div>
-        <div class="field">
-          <span>售价</span>
-          <el-input-number
-            v-model="form.price"
-            :min="0"
-            :step="0.1"
-            :precision="2"
-            controls-position="right"
-            style="width: 100%"
-          />
-        </div>
-        <div class="field">
-          <span>分类</span>
-          <el-select v-model="form.category" placeholder="请选择商品分类" style="width: 100%">
-            <el-option v-for="opt in categoryOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-        </div>
-        <div class="field">
-          <span>销量</span>
-          <el-input-number v-model="form.sales" :min="0" controls-position="right" style="width: 100%" />
-        </div>
-        <div class="field field-full">
-          <span>标签</span>
-          <el-input v-model="form.tags" placeholder="多个标签用逗号分隔" />
-        </div>
-
-        <ProductMediaFields v-model:cover="form.cover" v-model:gallery="form.gallery" />
-        <ProductBannerFields v-model:banner-images="form.bannerImages" />
-
-        <div class="field field-full">
-          <span>详情正文</span>
-          <MpRichEditor v-model="form.detailContent" />
-        </div>
-        <div class="field field-full">
-          <span>交付内容</span>
-          <el-input v-model="form.deliverables" type="textarea" :rows="3" placeholder="每行一条交付内容" />
-        </div>
-        <div class="field field-full">
-          <span>使用说明</span>
-          <el-input v-model="form.usageNotice" type="textarea" :rows="3" placeholder="每行一条使用说明" />
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveProduct">保存</el-button>
-      </template>
-    </el-dialog>
+      :product="editingProduct"
+      @saved="handleSaved"
+      @validate-error="handleValidateError"
+    />
   </div>
 </template>
 

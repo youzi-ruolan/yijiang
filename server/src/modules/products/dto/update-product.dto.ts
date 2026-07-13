@@ -63,6 +63,10 @@ export class UpdateProductDto {
   isHot?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isVirtual?: boolean;
+
+  @IsOptional()
   @IsNumber()
   sort?: number;
 

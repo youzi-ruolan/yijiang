@@ -127,12 +127,13 @@ Page({
   initData(resData) {
     // 转换商品卡片显示数据
     const data = this.handleResToGoodsCard(resData);
-    this.userAddressReq = resData.userAddress;
+    const isDigitalOrder = Boolean(resData.isDigitalOrder);
+    this.userAddressReq = isDigitalOrder ? null : resData.userAddress;
 
     this.setData({
       settleDetailData: data,
-      isDigitalOrder: false,
-      userAddress: resData.userAddress || this.userAddressReq || null,
+      isDigitalOrder,
+      userAddress: isDigitalOrder ? null : resData.userAddress || this.userAddressReq || null,
     });
     this.isInvalidOrder(data);
   },
@@ -337,7 +338,7 @@ Page({
   },
   // 提交订单
   submitOrder() {
-    const { settleDetailData, userAddressReq, storeInfoList } = this.data;
+    const { settleDetailData, userAddressReq, storeInfoList, isDigitalOrder } = this.data;
     const { goodsRequestList } = this;
 
     if (!getCurrentUser()) {
@@ -345,7 +346,7 @@ Page({
       return;
     }
 
-    if (!userAddressReq && !settleDetailData.userAddress) {
+    if (!isDigitalOrder && !userAddressReq && !settleDetailData.userAddress) {
       Toast({
         context: this,
         selector: '#t-toast',
@@ -361,7 +362,7 @@ Page({
     }
     this.payLock = true;
     const params = {
-      userAddressReq: settleDetailData.userAddress || userAddressReq,
+      userAddressReq: isDigitalOrder ? null : settleDetailData.userAddress || userAddressReq,
       goodsRequestList: goodsRequestList,
       uid: getCurrentUser()?.uid || '',
       userName:
@@ -372,6 +373,8 @@ Page({
       totalAmount: settleDetailData.totalPayAmount, //取优惠后的结算金额
       storeInfoList,
       couponList: [],
+      orderType: isDigitalOrder ? 1 : 0,
+      logisticsType: isDigitalOrder ? 0 : 1,
     };
     commitPay(params).then(
       (res) => {

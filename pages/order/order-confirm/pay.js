@@ -22,6 +22,7 @@ export const commitPay = (params) => {
     storeInfoList: params.storeInfoList, //备注信息列表
     couponList: params.couponList,
     groupInfo: params.groupInfo,
+    logisticsType: params.logisticsType ?? (params.orderType === 1 ? 0 : 1),
   });
 };
 

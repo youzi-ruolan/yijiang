@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Upload } from '@element-plus/icons-vue';
+import AdminFormDialog from '@/components/AdminFormDialog.vue';
+import AdminFormItem from '@/components/AdminFormItem.vue';
+import AdminFormRow from '@/components/AdminFormRow.vue';
 import { useAssetUpload } from '@/composables/useAssetUpload';
 import VideoPreview from '@/components/VideoPreview.vue';
 import { uploadAssetFileApi } from '@/api/admin';
@@ -14,6 +17,7 @@ const { uploading, uploadProgress, uploadFiles, recentUploads, clearRecentUpload
 
 const typeFilter = ref<'all' | AssetType>('all');
 const keyword = ref('');
+const selectedIds = ref<string[]>([]);
 const dialogVisible = ref(false);
 const editingId = ref('');
 const dragOver = ref(false);
@@ -107,6 +111,53 @@ const typeTabOptions = computed(() => [
   { label: '视频', value: 'video' as const, count: assetTypeCounts.value.video },
 ]);
 
+const filteredAssetIds = computed(() => filteredAssets.value.map((item) => item.id));
+
+const selectedAssets = computed(() =>
+  adminStore.dataset.assets.filter((item) => selectedIds.value.includes(item.id)),
+);
+
+const selectedCount = computed(() => selectedAssets.value.length);
+
+const isAllFilteredSelected = computed(
+  () => filteredAssets.value.length > 0 && filteredAssets.value.every((item) => selectedIds.value.includes(item.id)),
+);
+
+const isSelectionIndeterminate = computed(() => {
+  const selectedInView = filteredAssetIds.value.filter((id) => selectedIds.value.includes(id)).length;
+  return selectedInView > 0 && !isAllFilteredSelected.value;
+});
+
+watch([typeFilter, keyword], () => {
+  selectedIds.value = [];
+});
+
+function isSelected(asset: AssetItem) {
+  return selectedIds.value.includes(asset.id);
+}
+
+function toggleSelect(asset: AssetItem) {
+  const index = selectedIds.value.indexOf(asset.id);
+  if (index > -1) {
+    selectedIds.value.splice(index, 1);
+  } else {
+    selectedIds.value.push(asset.id);
+  }
+}
+
+function toggleSelectAll(checked: boolean | string | number) {
+  if (checked) {
+    selectedIds.value = [...new Set([...selectedIds.value, ...filteredAssetIds.value])];
+    return;
+  }
+
+  selectedIds.value = selectedIds.value.filter((id) => !filteredAssetIds.value.includes(id));
+}
+
+function clearSelection() {
+  selectedIds.value = [];
+}
+
 function resetForm() {
   form.name = '';
   form.type = 'image';
@@ -145,6 +196,17 @@ async function copyUrl(url: string) {
   try {
     await navigator.clipboard.writeText(url);
     ElMessage.success('链接已复制');
+  } catch {
+    ElMessage.error('复制失败，请手动复制链接');
+  }
+}
+
+async function copySelectedUrls() {
+  if (!selectedAssets.value.length) return;
+
+  try {
+    await navigator.clipboard.writeText(selectedAssets.value.map((item) => item.url).join('\n'));
+    ElMessage.success(`已复制 ${selectedAssets.value.length} 个链接`);
   } catch {
     ElMessage.error('复制失败，请手动复制链接');
   }
@@ -250,10 +312,40 @@ async function removeAsset(asset: AssetItem) {
       type: 'warning',
     });
     await adminStore.removeAsset(asset.id);
+    selectedIds.value = selectedIds.value.filter((id) => id !== asset.id);
     ElMessage.success('文件已删除');
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(error instanceof Error ? error.message : '文件删除失败');
+    }
+  }
+}
+
+async function removeSelectedAssets() {
+  const assets = selectedAssets.value;
+  if (!assets.length) return;
+
+  const referencedCount = assets.filter((item) => getUsageLabels(item).length).length;
+  const usageTip = referencedCount
+    ? `其中有 ${referencedCount} 个文件已被商品或 Banner 引用，删除后相关位置将无法显示。`
+    : '';
+
+  try {
+    await ElMessageBox.confirm(`${usageTip}确认删除选中的 ${assets.length} 个文件吗？`, '批量删除文件？', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+
+    for (const asset of assets) {
+      await adminStore.removeAsset(asset.id);
+    }
+
+    selectedIds.value = [];
+    ElMessage.success(`已删除 ${assets.length} 个文件`);
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error instanceof Error ? error.message : '批量删除失败');
     }
   }
 }
@@ -339,9 +431,41 @@ async function removeAsset(asset: AssetItem) {
         />
       </el-tabs>
 
+      <div v-if="filteredAssets.length" class="asset-list-toolbar">
+        <el-checkbox
+          :model-value="isAllFilteredSelected"
+          :indeterminate="isSelectionIndeterminate"
+          @change="toggleSelectAll"
+        >
+          全选当前列表
+        </el-checkbox>
+        <span v-if="selectedCount" class="asset-selection-count">已选 {{ selectedCount }} 项</span>
+      </div>
+
+      <div v-if="selectedCount" class="asset-batch-bar">
+        <span class="asset-batch-bar__text">已选择 {{ selectedCount }} 个文件</span>
+        <div class="asset-batch-bar__actions">
+          <el-button size="small" @click="copySelectedUrls">复制链接</el-button>
+          <el-button size="small" type="danger" plain @click="removeSelectedAssets">批量删除</el-button>
+          <el-button size="small" text @click="clearSelection">取消选择</el-button>
+        </div>
+      </div>
+
       <div v-if="filteredAssets.length" class="asset-grid">
-        <div v-for="asset in filteredAssets" :key="asset.id" class="asset-card" :class="{ 'asset-card--highlight': recentUploads.some((item) => item.id === asset.id) }">
-          <div class="asset-preview">
+        <div
+          v-for="asset in filteredAssets"
+          :key="asset.id"
+          class="asset-card"
+          :class="{
+            'asset-card--highlight': recentUploads.some((item) => item.id === asset.id),
+            'asset-card--selected': isSelected(asset),
+          }"
+          @click="toggleSelect(asset)"
+        >
+          <label class="asset-select" @click.stop>
+            <el-checkbox :model-value="isSelected(asset)" @change="toggleSelect(asset)" />
+          </label>
+          <div class="asset-preview" @click.stop>
             <el-image
               v-if="asset.type === 'image'"
               :src="asset.url"
@@ -384,70 +508,60 @@ async function removeAsset(asset: AssetItem) {
       </div>
     </el-card>
 
-    <el-dialog
+    <AdminFormDialog
       v-model="dialogVisible"
       :title="editingId ? '编辑文件' : '录入外链文件'"
       width="720px"
-      destroy-on-close
+      confirm-text="保存"
+      @confirm="saveAsset"
     >
-      <div class="form-grid">
-        <div class="field">
-          <span>文件名称</span>
+      <AdminFormRow>
+        <AdminFormItem label="文件名称" required>
           <el-input v-model="form.name" placeholder="例如：商品主图 / 案例演示视频" />
-        </div>
-        <div class="field">
-          <span>文件类型</span>
-          <el-select v-model="form.type" style="width: 100%">
+        </AdminFormItem>
+        <AdminFormItem label="文件类型" required>
+          <el-select v-model="form.type">
             <el-option v-for="opt in formTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
+        </AdminFormItem>
+      </AdminFormRow>
+      <AdminFormItem label="COS URL" required>
+        <el-input v-model="form.url" placeholder="请输入腾讯云 COS 图片或视频访问链接" />
+      </AdminFormItem>
+      <AdminFormItem v-if="form.type === 'video' && form.url" label="视频预览">
+        <div class="dialog-video-preview">
+          <VideoPreview :src="form.url" :cover="form.cover" />
         </div>
-        <div class="field field-full">
-          <span>COS 文件 URL</span>
-          <el-input v-model="form.url" placeholder="请输入腾讯云 COS 图片或视频访问链接" />
+      </AdminFormItem>
+      <AdminFormItem label="视频封面">
+        <div class="cover-field">
+          <el-input v-model="form.cover" placeholder="视频可填写封面图；图片可留空" />
+          <el-button
+            v-if="form.type === 'video' && form.url"
+            :loading="generatingCover"
+            @click="generateCoverFromVideo"
+          >
+            从视频生成封面
+          </el-button>
         </div>
-        <div v-if="form.type === 'video' && form.url" class="field field-full">
-          <span>视频预览</span>
-          <div class="dialog-video-preview">
-            <VideoPreview :src="form.url" :cover="form.cover" />
-          </div>
-        </div>
-        <div class="field field-full">
-          <span>视频封面 URL</span>
-          <div class="cover-field">
-            <el-input v-model="form.cover" placeholder="视频可填写封面图；图片可留空" />
-            <el-button
-              v-if="form.type === 'video' && form.url"
-              :loading="generatingCover"
-              @click="generateCoverFromVideo"
-            >
-              从视频生成封面
-            </el-button>
-          </div>
-        </div>
-        <div class="field">
-          <span>排序</span>
-          <el-input-number v-model="form.sort" :min="0" controls-position="right" style="width: 100%" />
-        </div>
-        <div class="field">
-          <span>状态</span>
-          <el-select v-model="form.status" style="width: 100%">
+      </AdminFormItem>
+      <AdminFormRow>
+        <AdminFormItem label="排序">
+          <el-input-number v-model="form.sort" :min="0" controls-position="right" />
+        </AdminFormItem>
+        <AdminFormItem label="状态">
+          <el-select v-model="form.status">
             <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
-        </div>
-        <div class="field field-full">
-          <span>标签</span>
-          <el-input v-model="form.tags" placeholder="多个标签用逗号分隔，如：封面,详情" />
-        </div>
-        <div class="field field-full">
-          <span>描述</span>
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入文件用途说明" />
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveAsset">保存</el-button>
-      </template>
-    </el-dialog>
+        </AdminFormItem>
+      </AdminFormRow>
+      <AdminFormItem label="标签">
+        <el-input v-model="form.tags" placeholder="多个标签用逗号分隔，如：封面,详情" />
+      </AdminFormItem>
+      <AdminFormItem label="描述">
+        <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入文件用途说明" />
+      </AdminFormItem>
+    </AdminFormDialog>
   </div>
 </template>
 
@@ -502,15 +616,74 @@ async function removeAsset(asset: AssetItem) {
 }
 
 .asset-card {
+  position: relative;
   overflow: hidden;
   border-radius: var(--admin-radius-md);
   background: #ffffff;
   border: 1px solid var(--admin-line);
-  transition: box-shadow 0.15s;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  cursor: pointer;
 }
 
 .asset-card:hover {
   box-shadow: var(--admin-shadow-soft);
+}
+
+.asset-card--selected {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 2px var(--admin-primary-soft);
+}
+
+.asset-select {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--admin-shadow-soft);
+}
+
+.asset-list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.asset-selection-count {
+  font-size: 13px;
+  color: var(--admin-primary);
+}
+
+.asset-batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-primary-soft);
+  border: 1px solid var(--admin-primary-line);
+}
+
+.asset-batch-bar__text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text);
+}
+
+.asset-batch-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .asset-preview {

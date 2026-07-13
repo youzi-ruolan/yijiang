@@ -28,7 +28,7 @@ function applyImage(assets: AssetItem[]) {
 <template>
   <div class="asset-image-field field field-full">
     <div class="field-label-row">
-      <span>{{ label }}</span>
+      <span v-if="label">{{ label }}</span>
       <el-button link type="primary" @click="pickerVisible = true">从资源库选择</el-button>
     </div>
     <div class="cover-field">

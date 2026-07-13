@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AdminFormDialog from '@/components/AdminFormDialog.vue';
+import AdminFormItem from '@/components/AdminFormItem.vue';
+import AdminFormRow from '@/components/AdminFormRow.vue';
 import AssetImageField from '@/components/AssetImageField.vue';
 import { useAdminStore } from '@/stores/admin';
 import type { BannerItem } from '@/types';
@@ -131,40 +134,34 @@ async function removeCurrent(item: BannerItem) {
       </div>
     </el-card>
 
-    <el-dialog
+    <AdminFormDialog
       v-model="dialogVisible"
       :title="editingId ? '编辑 Banner' : '新增 Banner'"
       width="720px"
-      destroy-on-close
+      confirm-text="保存"
+      @confirm="saveCurrent"
     >
-      <div class="form-grid">
-        <div class="field field-full">
-          <span>标题</span>
-          <el-input v-model="form.title" placeholder="请输入标题" />
-        </div>
-        <div class="field field-full">
-          <span>副标题</span>
-          <el-input v-model="form.subtitle" placeholder="请输入副标题" />
-        </div>
-        <AssetImageField v-model="form.image" label="Banner 图片" placeholder="请输入图片链接，或从资源库选择" />
-        <div class="field">
-          <span>角标</span>
+      <AdminFormItem label="标题" required>
+        <el-input v-model="form.title" placeholder="请输入标题" />
+      </AdminFormItem>
+      <AdminFormItem label="副标题">
+        <el-input v-model="form.subtitle" placeholder="请输入副标题" />
+      </AdminFormItem>
+      <AdminFormItem label="Banner 图片" required>
+        <AssetImageField v-model="form.image" label="" placeholder="请输入图片链接，或从资源库选择" />
+      </AdminFormItem>
+      <AdminFormRow>
+        <AdminFormItem label="角标">
           <el-input v-model="form.badge" placeholder="请输入角标文案" />
-        </div>
-        <div class="field">
-          <span>按钮文案</span>
+        </AdminFormItem>
+        <AdminFormItem label="按钮文案">
           <el-input v-model="form.buttonText" placeholder="请输入按钮文案" />
-        </div>
-        <div class="field field-full">
-          <span>补充描述</span>
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveCurrent">保存</el-button>
-      </template>
-    </el-dialog>
+        </AdminFormItem>
+      </AdminFormRow>
+      <AdminFormItem label="补充描述">
+        <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
+      </AdminFormItem>
+    </AdminFormDialog>
   </div>
 </template>
 

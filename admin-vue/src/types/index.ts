@@ -14,6 +14,7 @@ export interface ProductItem {
   usageNotice?: string[];
   isNew?: boolean;
   isHot?: boolean;
+  isVirtual?: boolean;
   sort?: number;
   status?: string;
 }

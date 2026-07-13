@@ -57,6 +57,7 @@ model Product {
   category      String
   isNew         Boolean  @default(false)
   isHot         Boolean  @default(false)
+  isVirtual     Boolean  @default(false)
   sort          Int      @default(0)
   status        String   @default("ACTIVE")
   createdAt     DateTime @default(now())

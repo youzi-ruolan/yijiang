@@ -65,6 +65,7 @@ export class ProductsService {
       category: payload.category,
       isNew: payload.isNew ?? false,
       isHot: payload.isHot ?? false,
+      isVirtual: payload.isVirtual ?? false,
       sort: payload.sort ?? 0,
       status: payload.status ?? 'ACTIVE',
     };
@@ -89,6 +90,7 @@ export class ProductsService {
       ...(payload.category !== undefined ? { category: payload.category } : {}),
       ...(payload.isNew !== undefined ? { isNew: payload.isNew } : {}),
       ...(payload.isHot !== undefined ? { isHot: payload.isHot } : {}),
+      ...(payload.isVirtual !== undefined ? { isVirtual: payload.isVirtual } : {}),
       ...(payload.sort !== undefined ? { sort: payload.sort } : {}),
       ...(payload.status !== undefined ? { status: payload.status } : {}),
     };

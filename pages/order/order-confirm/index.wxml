@@ -3,10 +3,15 @@
 <wxs module="getNotes" src="./getNotes.wxs" />
 <view class="order-sure" wx:if="{{!loading}}">
   <address-card
+    wx:if="{{!isDigitalOrder}}"
     addressData="{{userAddress}}"
     bind:addclick="onGotoAddress"
     bind:addressclick="onGotoAddress"
   />
+  <view wx:else class="digital-delivery-card">
+    <view class="digital-delivery-card__header">虚拟商品订单</view>
+    <view class="digital-delivery-card__desc">无需填写收货地址，支付成功后订单将自动完成。</view>
+  </view>
   <view
     class="order-wrapper"
     wx:for="{{settleDetailData.storeGoodsList}}"

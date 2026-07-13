@@ -260,3 +260,38 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* 统一后台弹框样式（AdminFormDialog） */
+.el-dialog.admin-form-dialog {
+  padding: 0 !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.el-dialog.admin-form-dialog .el-dialog__header {
+  padding: 0 !important;
+  margin: 0 !important;
+  margin-right: 0 !important;
+}
+
+.el-dialog.admin-form-dialog .el-dialog__headerbtn {
+  display: none;
+}
+
+.el-dialog.admin-form-dialog .el-dialog__body {
+  padding: 20px 24px 8px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.el-dialog.admin-form-dialog .el-dialog__footer {
+  padding: 14px 24px 20px;
+  border-top: 1px solid var(--admin-line);
+  background: #fafcff;
+}
+
+.admin-form-dialog__footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}

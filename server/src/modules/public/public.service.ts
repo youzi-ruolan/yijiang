@@ -541,10 +541,11 @@ export class PublicService {
     }
 
     if (this.normalizeOrderStatus(order.status) === ORDER_STATUS.PENDING_PAYMENT) {
+      const nextStatus = await this.resolvePaidOrderStatus(order.itemsDetail);
       return this.formatPublicOrder(
         await this.prisma.order.update({
           where: { id },
-          data: { status: ORDER_STATUS.PAID },
+          data: { status: nextStatus },
         }),
       );
     }
@@ -596,11 +597,13 @@ export class PublicService {
     );
     const totalGoodsCount = skuDetailVos.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
     const totalPromotionAmount = 0;
+    const isDigitalOrder = await this.isVirtualGoodsRequestList(goodsRequestList);
 
     return {
       data: {
         settleType: 1,
-        userAddress: userAddressReq,
+        isDigitalOrder,
+        userAddress: isDigitalOrder ? null : userAddressReq,
         totalGoodsCount,
         packageCount: 1,
         totalAmount: `${totalSalePrice}`,
@@ -889,10 +892,14 @@ export class PublicService {
     }
 
     if (notifyData.trade_state === 'SUCCESS') {
-      await this.prisma.order.update({
-        where: { id: orderNo },
-        data: { status: ORDER_STATUS.PAID },
-      });
+      const order = await this.prisma.order.findUnique({ where: { id: orderNo } });
+      if (order) {
+        const nextStatus = await this.resolvePaidOrderStatus(order.itemsDetail);
+        await this.prisma.order.update({
+          where: { id: orderNo },
+          data: { status: nextStatus },
+        });
+      }
     }
 
     return {
@@ -935,6 +942,7 @@ export class PublicService {
     category: string;
     isNew: boolean;
     isHot: boolean;
+    isVirtual: boolean;
     sort: number;
     status: string;
   }, realSales = 0) {
@@ -954,6 +962,7 @@ export class PublicService {
       category: product.category,
       isNew: product.isNew,
       isHot: product.isHot,
+      isVirtual: product.isVirtual,
       sort: product.sort,
       status: product.status,
     };
@@ -1036,6 +1045,7 @@ export class PublicService {
       detailContent: productCard.detailContent,
       deliverables: productCard.deliverables,
       usageNotice: productCard.usageNotice,
+      isVirtual: productCard.isVirtual,
     };
   }
 
@@ -1302,6 +1312,42 @@ export class PublicService {
   private mapOrderStatusCode(status: string) {
     const normalizedStatus = this.normalizeOrderStatus(status);
     return normalizedStatus ? ORDER_STATUS_CODE[normalizedStatus] : ORDER_STATUS_CODE[ORDER_STATUS.CANCELED];
+  }
+
+  private async isVirtualGoodsRequestList(goodsRequestList: unknown[]) {
+    const spuIds = [
+      ...new Set(
+        goodsRequestList
+          .map((item) => `${(item as { spuId?: unknown }).spuId || ''}`.trim())
+          .filter(Boolean),
+      ),
+    ];
+
+    if (!spuIds.length) {
+      return false;
+    }
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: spuIds } },
+      select: { id: true, isVirtual: true },
+    });
+    const productMap = new Map(products.map((product) => [product.id, product.isVirtual]));
+
+    return spuIds.every((spuId) => productMap.get(spuId) === true);
+  }
+
+  private async isVirtualOrderByItems(itemsDetail: unknown) {
+    const items = this.getOrderItems(itemsDetail);
+    return this.isVirtualGoodsRequestList(
+      items.map((item) => ({
+        spuId: item.spuId,
+      })),
+    );
+  }
+
+  private async resolvePaidOrderStatus(itemsDetail: unknown) {
+    const isVirtualOrder = await this.isVirtualOrderByItems(itemsDetail);
+    return isVirtualOrder ? '已完成' : ORDER_STATUS.PAID;
   }
 
   private normalizeOrderStatus(status?: string): OrderStatusValue | '' {

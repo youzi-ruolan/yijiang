@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AdminFormDialog from '@/components/AdminFormDialog.vue';
+import AdminFormItem from '@/components/AdminFormItem.vue';
 import { useAdminStore } from '@/stores/admin';
 import type { CategoryItem } from '@/types';
 
@@ -157,33 +159,25 @@ async function removeCategory(category: CategoryItem) {
       </div>
     </el-card>
 
-    <el-dialog
+    <AdminFormDialog
       v-model="dialogVisible"
       :title="editingId ? '编辑分类' : '新增分类'"
       width="560px"
-      destroy-on-close
+      confirm-text="保存"
+      @confirm="saveCategory"
     >
-      <div class="form-grid">
-        <div class="field">
-          <span>分类名称</span>
-          <el-input v-model="form.name" placeholder="请输入分类名称" />
-        </div>
-        <div class="field">
-          <span>分类标识</span>
-          <el-input v-model="form.filterKey" placeholder="如：wedding / retouch" />
-        </div>
-        <div class="field field-full">
-          <span>归属模块</span>
-          <el-select v-model="form.target" style="width: 100%">
-            <el-option v-for="opt in targetOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveCategory">保存</el-button>
-      </template>
-    </el-dialog>
+      <AdminFormItem label="分类名称" required>
+        <el-input v-model="form.name" placeholder="请输入分类名称" />
+      </AdminFormItem>
+      <AdminFormItem label="分类标识" required hint="如：wedding / retouch">
+        <el-input v-model="form.filterKey" placeholder="如：wedding / retouch" />
+      </AdminFormItem>
+      <AdminFormItem label="归属模块" required>
+        <el-select v-model="form.target">
+          <el-option v-for="opt in targetOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+      </AdminFormItem>
+    </AdminFormDialog>
   </div>
 </template>
 

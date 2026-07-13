@@ -39,6 +39,7 @@ interface ProductResponse {
   category: string;
   isNew?: boolean;
   isHot?: boolean;
+  isVirtual?: boolean;
 }
 
 interface AssetResponse {
@@ -356,6 +357,7 @@ export function mapProductFromApi(product: ProductResponse): ProductItem {
     category: product.category,
     isNew: Boolean(product.isNew),
     isHot: Boolean(product.isHot),
+    isVirtual: Boolean(product.isVirtual),
   };
 }
 
@@ -420,6 +422,7 @@ function toProductPayload(product: ProductItem) {
     usageNotice: product.usageNotice || [],
     isNew: product.isNew,
     isHot: product.isHot,
+    isVirtual: product.isVirtual,
     sort: product.sort,
     status: product.status,
   };

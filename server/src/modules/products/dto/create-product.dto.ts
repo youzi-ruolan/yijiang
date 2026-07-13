@@ -52,6 +52,10 @@ export class CreateProductDto {
   isHot?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isVirtual?: boolean;
+
+  @IsOptional()
   @IsNumber()
   sort?: number;
 
