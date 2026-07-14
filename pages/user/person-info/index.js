@@ -99,6 +99,12 @@ Page({
           ...nextUser,
         },
       });
+      // Persist so re-login can restore from server (local file still preferred for temp paths).
+      await updatePersonProfile({
+        avatarUrl: nextUser.avatarUrl,
+      }).catch((error) => {
+        console.log('[person-info] sync avatar to server failed', error);
+      });
       Toast({
         context: this,
         selector: '#t-toast',

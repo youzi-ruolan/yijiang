@@ -4,7 +4,6 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { phoneEncryption } from '../../utils/util';
 import {
   authorizeWechatUserByPhone,
-  ensureWechatLoginWithGuide,
   getCurrentUser,
   isWechatProfileComplete,
   mergeWechatProfile,
@@ -12,6 +11,13 @@ import {
   updateCurrentUser,
 } from '../../utils/local-auth';
 
+const DEFAULT_AVATAR =
+  'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png';
+
+function isGenericAvatar(avatarUrl = '') {
+  const value = `${avatarUrl}`.trim();
+  return !value || value === DEFAULT_AVATAR;
+}
 const menuData = [
   [
     {
@@ -217,6 +223,10 @@ Page({
 
   async loginByAvatar() {
     if (getCurrentUser()) {
+      if (this.data.profileIncomplete) {
+        this.authorizeWechatProfile();
+        return;
+      }
       wx.navigateTo({ url: '/pages/user/person-info/index' });
       return;
     }
@@ -251,21 +261,14 @@ Page({
 
     try {
       this.setData({ loginAuthLoading: true });
-      await authorizeWechatUserByPhone({
+      const user = await authorizeWechatUserByPhone({
         phoneCode: code,
       });
       this.setData({
         showLoginAuth: false,
         loginAuthLoading: false,
       });
-      this.init();
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message: '登录成功',
-        theme: 'success',
-      });
-      this.promptProfileAuthorization();
+      await this.refreshAfterLogin(user);
     } catch (error) {
       this.setData({ loginAuthLoading: false });
       Toast({
@@ -277,6 +280,31 @@ Page({
     }
   },
 
+  async refreshAfterLogin(user = getCurrentUser()) {
+    this.init();
+
+    if (!user || isWechatProfileComplete(user)) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '登录成功',
+        theme: 'success',
+      });
+      return;
+    }
+
+    // Incomplete profile: open setup sheet directly — skip the middle confirm modal.
+    Toast({
+      context: this,
+      selector: '#t-toast',
+      message: '登录成功，完善一下头像和昵称吧',
+      theme: 'success',
+    });
+    setTimeout(() => {
+      this.authorizeWechatProfile();
+    }, 320);
+  },
+
   async ensureLogin() {
     if (getCurrentUser()) {
       return {
@@ -284,19 +312,13 @@ Page({
         guided: false,
       };
     }
-    const loginResult = await ensureWechatLoginWithGuide({
-      content: '这里需要微信授权登录后才能继续使用。',
-    });
 
-    if (loginResult.authed) {
-      this.init();
-      return loginResult;
-    }
-
+    // Prefer the same phone-login sheet used on personal center for a consistent flow.
+    this.openLoginAuth();
     Toast({
       context: this,
       selector: '#t-toast',
-      message: '登录后才能继续',
+      message: '请先授权手机号登录',
       icon: '',
     });
     return {
@@ -312,7 +334,7 @@ Page({
     this.setData({
       showProfileSetup: true,
       profileDraft: {
-        avatarUrl: user.avatarUrl || '',
+        avatarUrl: !isGenericAvatar(user.avatarUrl) ? user.avatarUrl : '',
         nickName: user.nickName && user.nickName !== '微信用户' ? user.nickName : '',
       },
     });
@@ -407,24 +429,5 @@ Page({
         icon: '',
       });
     }
-  },
-
-  promptProfileAuthorization() {
-    const user = getCurrentUser();
-    if (!user || isWechatProfileComplete(user)) {
-      return;
-    }
-
-    wx.showModal({
-      title: '完善资料',
-      content: '选择微信头像并填写昵称，将在个人中心展示',
-      confirmText: '去完善',
-      cancelText: '稍后',
-      success: (res) => {
-        if (res.confirm) {
-          this.authorizeWechatProfile();
-        }
-      },
-    });
   },
 });

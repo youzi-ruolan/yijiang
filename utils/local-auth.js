@@ -19,9 +19,10 @@ function isGenericAvatar(avatarUrl = '') {
 function pickBetterProfileValue(serverValue, localValue, isInvalid) {
   const local = `${localValue || ''}`.trim();
   const server = `${serverValue || ''}`.trim();
-  if (local && !isInvalid(local)) return local;
+  // Prefer server as source of truth after re-login; local fills gaps only.
   if (server && !isInvalid(server)) return server;
-  return local || server;
+  if (local && !isInvalid(local)) return local;
+  return server || local;
 }
 
 function readSession() {
@@ -81,6 +82,11 @@ function applyLocalAvatar(userInfo) {
   const localAvatar = getLocalAvatar(userInfo.uid);
   if (!localAvatar) return userInfo;
 
+  // Local chooseAvatar cache only fills in when server avatar is missing/generic/temp.
+  if (!isGenericAvatar(userInfo.avatarUrl) && !isTemporaryAvatarUrl(userInfo.avatarUrl)) {
+    return userInfo;
+  }
+
   return {
     ...userInfo,
     avatarUrl: localAvatar,
@@ -93,10 +99,19 @@ function resolveWechatProfile(sessionUserInfo = {}, wxUserInfo = {}) {
   const sessionNickName = `${sessionUserInfo.nickName || ''}`.trim();
   const sessionAvatarUrl = `${sessionUserInfo.avatarUrl || ''}`.trim();
 
-  return {
-    nickName: wxNickName || sessionNickName || '微信用户',
-    avatarUrl: wxAvatarUrl || sessionAvatarUrl || DEFAULT_AVATAR,
-  };
+  // Prefer previously saved session/server profile over generic WeChat defaults.
+  const nickName = !isGenericNickName(sessionNickName)
+    ? sessionNickName
+    : !isGenericNickName(wxNickName)
+      ? wxNickName
+      : sessionNickName || wxNickName || '微信用户';
+  const avatarUrl = !isGenericAvatar(sessionAvatarUrl) && !isTemporaryAvatarUrl(sessionAvatarUrl)
+    ? sessionAvatarUrl
+    : !isGenericAvatar(wxAvatarUrl) && !isTemporaryAvatarUrl(wxAvatarUrl)
+      ? wxAvatarUrl
+      : sessionAvatarUrl || wxAvatarUrl || DEFAULT_AVATAR;
+
+  return { nickName, avatarUrl };
 }
 
 function readProfileGuideState() {
@@ -326,18 +341,8 @@ export function ensureWechatLogin(options = {}) {
     return Promise.resolve(true);
   }
 
-  return new Promise((resolve) => {
-    authorizeWechatUser()
-      .then(() => resolve(true))
-      .catch((error) => {
-        console.log('[auth] ensureWechatLogin:fail', error, options);
-        wx.showToast({
-          title: error?.message || error?.errMsg || '授权登录未完成',
-          icon: 'none',
-        });
-        resolve(false);
-      });
-  });
+  // Phone-number login is the product default; jump users to the personal-center entry.
+  return promptLoginRequired(options);
 }
 
 export async function maybeGuideWechatProfileCompletion() {
@@ -356,7 +361,7 @@ export async function maybeGuideWechatProfileCompletion() {
 
   const pages = getCurrentPages();
   const currentRoute = pages[pages.length - 1]?.route || '';
-  if (currentRoute === 'pages/user/person-info/index') {
+  if (currentRoute === 'pages/user/person-info/index' || currentRoute === 'pages/usercenter/index') {
     return false;
   }
 
@@ -374,28 +379,25 @@ export async function maybeGuideWechatProfileCompletion() {
 export async function ensureWechatLoginWithGuide(options = {}) {
   const currentUser = getCurrentUser();
   if (currentUser) {
+    const guided = await maybeGuideWechatProfileCompletion().catch((error) => {
+      console.log('[auth] maybeGuideWechatProfileCompletion:fail', error);
+      return false;
+    });
     return {
       authed: true,
-      guided: false,
+      guided,
     };
   }
 
-  const authed = await ensureWechatLogin(options);
-  if (!authed) {
-    return {
-      authed: false,
-      guided: false,
-    };
-  }
-
-  const guided = await maybeGuideWechatProfileCompletion().catch((error) => {
-    console.log('[auth] maybeGuideWechatProfileCompletion:fail', error);
-    return false;
+  await ensureWechatLogin({
+    content: options.content || '请先登录后再继续操作',
+    confirmText: options.confirmText || '去登录',
+    cancelText: options.cancelText || '取消',
   });
 
   return {
-    authed: true,
-    guided,
+    authed: false,
+    guided: false,
   };
 }
 
@@ -435,7 +437,13 @@ export function updateCurrentUser(patch) {
 }
 
 export function logoutLocalUser() {
+  const currentUser = getCurrentUser();
   wx.removeStorageSync(AUTH_SESSION_KEY);
+  // Keep local avatar map for the same uid so re-login can restore chooseAvatar cache,
+  // but clear pending profile guide so login flow can re-evaluate cleanly.
+  if (currentUser?.uid) {
+    clearPendingProfileGuide(currentUser.uid);
+  }
 }
 
 export function saveLocalAvatarToSession(tempAvatarUrl) {

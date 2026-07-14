@@ -59,21 +59,24 @@ export class PublicService {
     const session = await this.fetchWechatSession(appId, appSecret, code);
     const rawUserInfo = payload.userInfo && typeof payload.userInfo === 'object' ? payload.userInfo : {};
     const userInfo = rawUserInfo as Record<string, unknown>;
+    const nickName = this.normalizeNickName(userInfo.nickName);
+    const avatarUrl = this.normalizeAvatarUrl(userInfo.avatarUrl);
+    const gender = Number(userInfo.gender || 0);
 
     const user = await this.prisma.miniProgramUser.upsert({
       where: { openid: session.openid },
       update: {
         unionId: session.unionid || null,
-        nickName: `${userInfo.nickName || '微信用户'}`.trim() || '微信用户',
-        avatarUrl: userInfo.avatarUrl ? `${userInfo.avatarUrl}` : null,
-        gender: Number(userInfo.gender || 0),
+        ...(nickName ? { nickName } : {}),
+        ...(avatarUrl ? { avatarUrl } : {}),
+        ...(Number.isFinite(gender) && gender > 0 ? { gender } : {}),
       },
       create: {
         openid: session.openid,
         unionId: session.unionid || null,
-        nickName: `${userInfo.nickName || '微信用户'}`.trim() || '微信用户',
-        avatarUrl: userInfo.avatarUrl ? `${userInfo.avatarUrl}` : null,
-        gender: Number(userInfo.gender || 0),
+        nickName: nickName || '微信用户',
+        avatarUrl: avatarUrl || null,
+        gender: Number.isFinite(gender) ? gender : 0,
       },
     });
 
@@ -114,21 +117,21 @@ export class PublicService {
     ]);
     const rawUserInfo = payload.userInfo && typeof payload.userInfo === 'object' ? payload.userInfo : {};
     const userInfo = rawUserInfo as Record<string, unknown>;
-    const nickName = `${userInfo.nickName || '微信用户'}`.trim() || '微信用户';
-    const avatarUrl = `${userInfo.avatarUrl || ''}`.trim();
+    const nickName = this.normalizeNickName(userInfo.nickName);
+    const avatarUrl = this.normalizeAvatarUrl(userInfo.avatarUrl);
 
     const user = await this.prisma.miniProgramUser.upsert({
       where: { openid: session.openid },
       update: {
         unionId: session.unionid || null,
-        nickName,
+        ...(nickName ? { nickName } : {}),
         ...(avatarUrl ? { avatarUrl } : {}),
         phoneNumber,
       },
       create: {
         openid: session.openid,
         unionId: session.unionid || null,
-        nickName,
+        nickName: nickName || '微信用户',
         avatarUrl: avatarUrl || null,
         phoneNumber,
         gender: 0,
@@ -264,7 +267,7 @@ export class PublicService {
       throw new BadRequestException('用户不存在');
     }
 
-    const nickName = `${payload.nickName || ''}`.trim();
+    const nickName = this.normalizeNickName(payload.nickName);
     const avatarUrl = `${payload.avatarUrl || ''}`.trim();
     const phoneNumber = `${payload.phoneNumber || ''}`.trim();
     const gender = Number(payload.gender);
@@ -273,7 +276,7 @@ export class PublicService {
       where: { id: uid },
       data: {
         ...(nickName ? { nickName } : {}),
-        ...(avatarUrl ? { avatarUrl } : {}),
+        ...(avatarUrl && !avatarUrl.includes('icon-user-center-avatar') ? { avatarUrl } : {}),
         ...(phoneNumber ? { phoneNumber } : {}),
         ...(Number.isFinite(gender) ? { gender } : {}),
       },
@@ -1923,6 +1926,29 @@ export class PublicService {
   private formatPublicKey(value: string) {
     const normalized = value.includes('BEGIN') ? value : Buffer.from(value, 'base64').toString('utf8');
     return normalized.replace(/\\n/g, '\n');
+  }
+
+  /** Only return a nickName worth persisting; empty/generic values must not overwrite existing ones. */
+  private normalizeNickName(value: unknown) {
+    const nickName = `${value || ''}`.trim();
+    if (!nickName || nickName === '微信用户') {
+      return '';
+    }
+    return nickName;
+  }
+
+  /** Only return an avatar URL worth persisting. */
+  private normalizeAvatarUrl(value: unknown) {
+    const avatarUrl = `${value || ''}`.trim();
+    if (
+      !avatarUrl ||
+      avatarUrl.includes('icon-user-center-avatar') ||
+      avatarUrl.startsWith('wxfile://') ||
+      avatarUrl.includes('/tmp/')
+    ) {
+      return '';
+    }
+    return avatarUrl;
   }
 
   private async fetchWechatSession(appId: string, appSecret: string, code: string) {

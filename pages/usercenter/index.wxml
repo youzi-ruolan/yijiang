@@ -40,13 +40,21 @@
 <view class="guest-login" wx:else>
   <view class="guest-login__title">请登录</view>
   <view class="guest-login__logo">艺</view>
-  <button class="guest-login__button" bindtap="loginByAvatar">手机号快捷登录</button>
+  <view class="guest-login__desc">授权手机号即可快速登录，资料将自动同步</view>
+  <button
+    class="guest-login__button"
+    open-type="getPhoneNumber"
+    bindgetphonenumber="onLoginGetPhoneNumber"
+    loading="{{loginAuthLoading}}"
+  >
+    手机号快捷登录
+  </button>
 </view>
 <t-popup visible="{{showProfileSetup}}" placement="bottom" bind:visible-change="closeProfileSetup">
   <view class="profile-setup">
     <view class="profile-setup__handle"></view>
-    <view class="profile-setup__title">完善微信资料</view>
-    <view class="profile-setup__desc">选择头像并填写昵称，保存后立即在个人中心展示</view>
+    <view class="profile-setup__title">完善个人资料</view>
+    <view class="profile-setup__desc">选择微信头像并填写昵称，保存后立刻展示</view>
     <button class="profile-setup__avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onProfileChooseAvatar">
       <image
         class="profile-setup__avatar"
