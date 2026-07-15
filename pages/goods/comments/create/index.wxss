@@ -44,6 +44,42 @@ page {
   font-size: 28rpx;
   font-weight: bold;
   margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.comment-card .rate-container .rate {
+  display: inline-flex;
+  align-items: center;
+  transform-origin: left center;
+  transition: transform 0.18s ease;
+}
+
+.comment-card .rate-container .rate--pulse {
+  animation: ratePulse 0.28s ease;
+}
+
+.comment-card .rate-container .rate-label {
+  margin-left: 16rpx;
+  font-size: 24rpx;
+  color: #bbbbbb;
+  flex-shrink: 0;
+}
+
+.comment-card .rate-container .rate-label--active {
+  color: #fa8c16;
+  font-weight: 500;
+}
+
+@keyframes ratePulse {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .comment-card .textarea-container {

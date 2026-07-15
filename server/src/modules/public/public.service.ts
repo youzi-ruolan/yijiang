@@ -18,6 +18,8 @@ const ORDER_STATUS_CODE = {
   [ORDER_STATUS.CANCELED]: 80,
 } as const;
 
+const ORDER_STATUS_PENDING_COMMENT_CODE = 41;
+
 const ORDER_TAB_FILTER = {
   PAID: '已付款',
   PENDING_COMMENT: '待评价',
@@ -718,6 +720,8 @@ export class PublicService {
     }
 
     const isAnonymity = Boolean(payload.isAnonymity);
+    const displayName = this.resolveCommentDisplayName(payload.userName, user.nickName, isAnonymity);
+    const displayAvatar = this.resolveCommentDisplayAvatar(payload.userHeadUrl, user.avatarUrl, isAnonymity);
     const comment = await this.prisma.productComment
       .create({
         data: {
@@ -725,8 +729,8 @@ export class PublicService {
           spuId,
           skuId,
           userId,
-          userName: isAnonymity ? '匿名用户' : `${payload.userName || user.nickName || '微信用户'}`,
-          userHeadUrl: isAnonymity ? null : `${payload.userHeadUrl || user.avatarUrl || ''}` || null,
+          userName: displayName,
+          userHeadUrl: displayAvatar,
           isAnonymity,
           commentContent,
           commentResources: this.toPrismaJson(this.normalizeCommentResources(payload.commentResources || payload.uploadFiles)),
@@ -1066,6 +1070,7 @@ export class PublicService {
     commentedSet: Set<string> = new Set(),
   ) {
     const status = this.normalizeOrderStatus(order.status);
+    const { allCommented, hasItems } = this.getOrderCommentState(order, commentedSet);
     const itemsDetail = this.getOrderItems(order.itemsDetail).map((item) => {
       const commented = commentedSet.has(`${order.id}_${item.skuId || ''}`);
       return {
@@ -1075,14 +1080,16 @@ export class PublicService {
       };
     });
 
+    const { statusCode, statusName } = this.resolveDisplayOrderStatus(status, hasItems, allCommented);
+
     return {
       id: order.id,
       orderNo: order.id,
       parentOrderNo: order.id,
       customer: order.customer,
       status,
-      statusCode: this.mapOrderStatusCode(status),
-      statusName: this.getOrderStatusName(status),
+      statusCode,
+      statusName,
       amount: order.amount,
       items: order.items,
       createTime: this.parseOrderCreatedAt(order),
@@ -1090,6 +1097,31 @@ export class PublicService {
       orderCreatedAt: order.orderCreatedAt,
       itemsDetail,
       buttonVOs: this.getOrderButtons({ status }),
+    };
+  }
+
+  private resolveDisplayOrderStatus(
+    status: OrderStatusValue | '',
+    hasItems: boolean,
+    allCommented: boolean,
+  ) {
+    if (status === ORDER_STATUS.PENDING_PAYMENT) {
+      return { statusCode: ORDER_STATUS_CODE[ORDER_STATUS.PENDING_PAYMENT], statusName: '待付款' };
+    }
+    if (status === ORDER_STATUS.CANCELED || !status) {
+      return { statusCode: ORDER_STATUS_CODE[ORDER_STATUS.CANCELED], statusName: '已取消' };
+    }
+
+    if (hasItems && this.isPaidOrderStatus(status) && !allCommented) {
+      return { statusCode: ORDER_STATUS_PENDING_COMMENT_CODE, statusName: '待评价' };
+    }
+    if (hasItems && allCommented) {
+      return { statusCode: ORDER_STATUS_CODE[ORDER_STATUS.COMPLETE], statusName: '已评价' };
+    }
+
+    return {
+      statusCode: this.mapOrderStatusCode(status),
+      statusName: this.getOrderStatusName(status),
     };
   }
 
@@ -1104,8 +1136,10 @@ export class PublicService {
     orderCreatedAt: string;
   }) {
     const status = this.normalizeOrderStatus(order.status);
-    const statusCode = this.mapOrderStatusCode(status);
     const itemsDetail = Array.isArray(order.itemsDetail) ? order.itemsDetail : [];
+    const hasItems = itemsDetail.length > 0;
+    const allCommented = hasItems && itemsDetail.every((item) => Boolean((item as { commented?: boolean }).commented));
+    const { statusCode, statusName } = this.resolveDisplayOrderStatus(status, hasItems, allCommented);
 
     return {
       orderId: order.id,
@@ -1114,7 +1148,7 @@ export class PublicService {
       storeId: '1000',
       storeName: '艺匠调色数字资产商店',
       orderStatus: statusCode,
-      orderStatusName: this.getOrderStatusName(status),
+      orderStatusName: statusName,
       orderSubStatus: 0,
       paymentAmount: order.amount,
       goodsAmountApp: order.amount,
@@ -1143,6 +1177,7 @@ export class PublicService {
         actualPrice: Number(item.actualPrice || item.tagPrice || 0),
         buyQuantity: Number(item.buyQuantity || 1),
         tagText: `${item.tagText || ''}`,
+        commented: Boolean(item.commented),
         buttonVOs: this.getOrderItemButtons({ status }, item),
       })),
       buttonVOs: this.getOrderButtons({ status }),
@@ -1349,8 +1384,10 @@ export class PublicService {
   }
 
   private async resolvePaidOrderStatus(itemsDetail: unknown) {
-    const isVirtualOrder = await this.isVirtualOrderByItems(itemsDetail);
-    return isVirtualOrder ? '已完成' : ORDER_STATUS.PAID;
+    // Keep paid orders in "已付款" until all items are reviewed; virtual goods used to jump to COMPLETE
+    // which made 待评价 lists incorrectly show "已评价".
+    void itemsDetail;
+    return ORDER_STATUS.PAID;
   }
 
   private normalizeOrderStatus(status?: string): OrderStatusValue | '' {
@@ -1628,6 +1665,7 @@ export class PublicService {
     createdAt: Date;
   }) {
     const isAnonymity = Boolean(comment.isAnonymity);
+    const nickName = `${comment.userName || ''}`.trim();
     return {
       id: comment.id,
       spuId: comment.spuId,
@@ -1639,7 +1677,7 @@ export class PublicService {
       commentScore: comment.commentScore,
       commentLevel: comment.commentLevel,
       uid: comment.userId,
-      userName: isAnonymity ? '匿名用户' : comment.userName,
+      userName: isAnonymity ? '匿名用户' : nickName || '微信用户',
       userHeadUrl: isAnonymity
         ? 'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png'
         : comment.userHeadUrl || 'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png',
@@ -1672,8 +1710,32 @@ export class PublicService {
   }
 
   private clampScore(value: unknown) {
-    const score = Math.round(Number(value || 5));
-    return Math.max(1, Math.min(5, Number.isFinite(score) ? score : 5));
+    if (value === undefined || value === null || value === '') {
+      throw new BadRequestException('请完成打分后再提交');
+    }
+    const score = Math.round(Number(value));
+    if (!Number.isFinite(score) || score < 1 || score > 5) {
+      throw new BadRequestException('评分需在 1-5 星之间');
+    }
+    return score;
+  }
+
+  private resolveCommentDisplayName(payloadName: unknown, dbName: unknown, isAnonymity: boolean) {
+    if (isAnonymity) return '匿名用户';
+    const fromPayload = this.normalizeNickName(payloadName);
+    if (fromPayload) return fromPayload;
+    const fromDb = this.normalizeNickName(dbName);
+    if (fromDb) return fromDb;
+    return '微信用户';
+  }
+
+  private resolveCommentDisplayAvatar(payloadAvatar: unknown, dbAvatar: unknown, isAnonymity: boolean) {
+    if (isAnonymity) return null;
+    const fromPayload = this.normalizeAvatarUrl(payloadAvatar);
+    if (fromPayload) return fromPayload;
+    const fromDb = this.normalizeAvatarUrl(dbAvatar);
+    if (fromDb) return fromDb;
+    return null;
   }
 
   private getCommentLevel(score: number) {

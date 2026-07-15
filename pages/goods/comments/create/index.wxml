@@ -11,18 +11,20 @@
     </view>
     <view class="rate-container">
       <text class="rate-title">商品评价</text>
-      <view class="rate">
+      <view class="rate {{rateAnimating === 'goodRateValue' ? 'rate--pulse' : ''}}">
         <t-rate
           value="{{goodRateValue}}"
           bind:change="onRateChange"
-          size="26"
-          gap="6"
+          size="30"
+          gap="8"
+          allow-half="{{false}}"
           show-text="{{false}}"
           placement=""
-          color="{{['#ffc51c', '#ddd']}}"
+          color="{{['#ffc51c', '#e5e5e5']}}"
           data-item="goodRateValue"
         />
       </view>
+      <text class="rate-label {{goodRateValue ? 'rate-label--active' : ''}}">{{goodRateText}}</text>
     </view>
     <view class="textarea-container">
       <t-textarea
@@ -55,40 +57,44 @@
   <view class="convey-comment-title">物流服务评价</view>
   <view class="rate-container">
     <text class="rate-title">物流评价</text>
-    <view class="rate">
+    <view class="rate {{rateAnimating === 'conveyRateValue' ? 'rate--pulse' : ''}}">
       <t-rate
         value="{{conveyRateValue}}"
         bind:change="onRateChange"
         variant="filled"
-        size="26"
-        gap="6"
+        size="30"
+        gap="8"
+        allow-half="{{false}}"
         show-text="{{false}}"
         placement=""
-        color="{{['#ffc51c', '#ddd']}}"
+        color="{{['#ffc51c', '#e5e5e5']}}"
         data-item="conveyRateValue"
       />
     </view>
+    <text class="rate-label {{conveyRateValue ? 'rate-label--active' : ''}}">{{conveyRateText}}</text>
   </view>
   <view class="rate-container">
     <text class="rate-title">服务评价</text>
-    <view class="rate">
+    <view class="rate {{rateAnimating === 'serviceRateValue' ? 'rate--pulse' : ''}}">
       <t-rate
         value="{{serviceRateValue}}"
         bind:change="onRateChange"
-        size="26"
-        gap="6"
+        size="30"
+        gap="8"
+        allow-half="{{false}}"
         show-text="{{false}}"
         placement=""
-        color="{{['#ffc51c', '#ddd']}}"
+        color="{{['#ffc51c', '#e5e5e5']}}"
         data-item="serviceRateValue"
       />
     </view>
+    <text class="rate-label {{serviceRateValue ? 'rate-label--active' : ''}}">{{serviceRateText}}</text>
   </view>
 </view>
 <view class="submit-button-container">
-  <view class="submit-tip" wx:if="{{!isAllowedSubmit}}">请填写至少 5 个字的评价内容</view>
+  <view class="submit-tip" wx:if="{{!isAllowedSubmit}}">{{submitTip}}</view>
   <t-button
-    content="提交"
+    content="提交评价"
     block
     shape="round"
     t-class="submit-button{{isAllowedSubmit ? '' : '-disabled'}}"

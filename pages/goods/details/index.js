@@ -10,6 +10,8 @@ import { getCurrentUser, promptLoginRequired } from '../../../utils/local-auth';
 import { detailContentToHtml, parseDetailContentHtml } from '../../../utils/parse-detail-content';
 
 const imgPrefix = `${cdnBase}/`;
+const DEFAULT_COMMENT_AVATAR =
+  'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png';
 
 const recLeftImg = `${imgPrefix}common/rec-left.png`;
 const recRightImg = `${imgPrefix}common/rec-right.png`;
@@ -578,12 +580,15 @@ Page({
       if (code.toUpperCase() === 'SUCCESS') {
         const nextState = {
           commentsList: homePageComments.map((item) => {
+            const isAnonymity = Boolean(item.isAnonymity);
+            const nickName = `${item.userName || ''}`.trim();
+            const avatarUrl = `${item.userHeadUrl || ''}`.trim();
             return {
               goodsSpu: item.spuId,
-              userName: item.userName || '',
+              userName: isAnonymity ? '匿名用户' : nickName || '微信用户',
               commentScore: item.commentScore,
               commentContent: item.commentContent || '',
-              userHeadUrl: item.isAnonymity ? this.anonymityAvatar : item.userHeadUrl || this.anonymityAvatar,
+              userHeadUrl: isAnonymity || !avatarUrl ? DEFAULT_COMMENT_AVATAR : avatarUrl,
             };
           }),
         };

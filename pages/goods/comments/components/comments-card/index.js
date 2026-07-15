@@ -18,7 +18,11 @@ Component({
     },
     userName: {
       type: String,
-      default: '',
+      value: '',
+    },
+    isAnonymity: {
+      type: Boolean,
+      value: false,
     },
     commentContent: {
       type: String,
@@ -46,6 +50,22 @@ Component({
     overText: false,
     isDisabled: true,
     startColors: ['#FFC51C', '#DDDDDD'],
+    displayName: '',
+    displayAvatar:
+      'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png',
+  },
+
+  observers: {
+    'userName, userHeadUrl, isAnonymity': function (userName, userHeadUrl, isAnonymity) {
+      const defaultAvatar =
+        'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png';
+      const name = `${userName || ''}`.trim();
+      const avatar = `${userHeadUrl || ''}`.trim();
+      this.setData({
+        displayName: isAnonymity ? '匿名用户' : name || '微信用户',
+        displayAvatar: isAnonymity || !avatar ? defaultAvatar : avatar,
+      });
+    },
   },
   methods: {},
 });

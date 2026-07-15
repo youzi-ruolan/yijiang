@@ -47,7 +47,18 @@ export function addLocalComment(payload) {
   }
 
   const now = Date.now();
-  const score = Number(payload.commentScore || 5);
+  const score = Math.max(1, Math.min(5, Number(payload.commentScore) || 0));
+  if (!score) {
+    throw new Error('请先完成打分');
+  }
+  const serviceScore = Math.max(1, Math.min(5, Number(payload.serviceScore) || 0));
+  const conveyScore = Math.max(1, Math.min(5, Number(payload.conveyScore) || 0));
+  if (!serviceScore || !conveyScore) {
+    throw new Error('请先完成物流与服务打分');
+  }
+  const isAnonymity = Boolean(payload.isAnonymity);
+  const nickName = `${currentUser.nickName || ''}`.trim();
+  const avatarUrl = `${currentUser.avatarUrl || ''}`.trim();
   const comment = {
     id: `local-comment-${now}`,
     spuId: `${payload.spuId || ''}`,
@@ -59,16 +70,20 @@ export function addLocalComment(payload) {
     commentScore: score,
     commentLevel: getCommentLevel(score),
     uid: currentUser.uid,
-    userName: payload.isAnonymity ? '匿名用户' : currentUser.nickName || '我',
-    userHeadUrl: currentUser.avatarUrl || DEFAULT_AVATAR,
-    isAnonymity: Boolean(payload.isAnonymity),
+    userName: isAnonymity ? '匿名用户' : nickName && nickName !== '微信用户' ? nickName : '微信用户',
+    userHeadUrl: isAnonymity
+      ? DEFAULT_AVATAR
+      : avatarUrl && !avatarUrl.startsWith('wxfile://') && !avatarUrl.includes('/tmp/')
+        ? avatarUrl
+        : DEFAULT_AVATAR,
+    isAnonymity,
     commentTime: `${now}`,
     isAutoComment: false,
     sellerReply: '',
     isLocal: true,
     orderNo: payload.orderNo || '',
-    serviceScore: Number(payload.serviceScore || 5),
-    conveyScore: Number(payload.conveyScore || 5),
+    serviceScore,
+    conveyScore,
   };
 
   const comments = readAllComments();

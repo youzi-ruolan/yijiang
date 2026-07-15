@@ -105,7 +105,7 @@ Page({
               storeId: order.storeId,
               storeName: order.storeName,
               status: order.orderStatus,
-              statusDesc: this.normalizeOrderStatus(order.orderStatus, order.orderStatusName),
+              statusDesc: order.orderStatusName || this.normalizeOrderStatus(order.orderStatus, order.orderStatusName),
               amount: order.paymentAmount,
               totalAmount: order.totalAmount,
               logisticsNo: order.logisticsVO.logisticsNo,
